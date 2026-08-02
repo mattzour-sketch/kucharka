@@ -6,34 +6,36 @@ Kalorie jsou nepovinná nadstavba na později.
 
 Plná specifikace: [`docs/SPEC.md`](docs/SPEC.md). Pravidla projektu: [`CLAUDE.md`](CLAUDE.md).
 
-> **Stav: Fáze 0 — nasaditelný základ.** Kostra, databázové schéma, nutriční
-> výpočetní modul s testy a instalovatelná prázdná PWA. Zachycení receptů,
-> hledání a deník přijdou v dalších fázích (SPEC, sekce 9).
+> **Varianta bez serveru.** Data žijí lokálně v prohlížeči (IndexedDB přes Dexie),
+> žádný účet, žádná synchronizace. Zálohou i přenosem na jiné zařízení je
+> **export/import JSON** (obrazovka „Víc"). Server se dá kdykoli později dolepit —
+> datový model i migrace `supabase/migrations/0001_init.sql` na to jsou připravené,
+> zatím jsou nečinné.
+
+## Stav
+
+- **Fáze 0** — kostra, schéma, nutriční modul s testy, instalovatelná PWA. ✅
+- **Fáze 1 (session 1)** — zachycení receptu, seznam, detail, editace, průběžné
+  ukládání konceptu, export/import zálohy, trvalé úložiště. ✅
+- Další: hledání a režim vaření (session 2), pak nutriční nadstavba (Fáze 2).
 
 ## Stack
 
-TypeScript (strict) · React 18 · Vite · Tailwind CSS · Dexie.js (IndexedDB) ·
-Supabase (Postgres + Auth) · vite-plugin-pwa · Vitest
+TypeScript (strict) · React 18 · Vite · React Router · Tailwind CSS ·
+Dexie.js (IndexedDB) · dexie-react-hooks · vite-plugin-pwa · Vitest
 
 ## Požadavky
 
-- Node.js 20+ (vyvíjeno na 22)
-- npm
+- Node.js 20+ (vyvíjeno na 22) a npm
 
-## Instalace
+## Příkazy
 
 ```bash
 npm install
-cp .env.example .env   # doplň hodnoty ze Supabase
-```
-
-## Vývoj
-
-```bash
 npm run dev       # vývojový server na http://localhost:5173
 npm run build     # tsc --noEmit + produkční build do dist/
 npm run preview   # náhled produkčního buildu
-npm run test      # Vitest (jednorázově)
+npm run test      # Vitest
 npm run lint      # ESLint + tsc --noEmit
 npm run format    # Prettier
 ```
@@ -42,31 +44,32 @@ npm run format    # Prettier
 
 ```
 docs/SPEC.md                 plná specifikace
-supabase/migrations/         verzované SQL migrace (0001_init.sql)
+supabase/migrations/         verzované SQL migrace (nečinné, pro budoucí server)
 src/
   db/index.ts                Dexie schéma (zrcadlí tabulky ze SPEC 7.4)
-  lib/nutrition.ts           výpočty úplnosti, hodnot a zápisu do deníku
-  lib/nutrition.test.ts      testy výpočtů (SPEC 7.5, případy a–h)
-  features/recipes/          obrazovky receptů
+  lib/
+    nutrition.ts             výpočty úplnosti, hodnot a zápisu do deníku
+    date.ts                  lokální datum (E-07), český formát
+    backup.ts                serializace/parsování zálohy (export/import)
+    storage.ts               žádost o trvalé úložiště
+  features/
+    recipes/                 zachycení, seznam, detail, editace
+    backup/                  export/import nad Dexie
+    settings/                obrazovka „Víc"
 public/icons/                ikony PWA (placeholdery 192 a 512 px)
+public/_redirects            SPA fallback pro Cloudflare Pages
 ```
 
-## Databáze (Supabase)
+## Záloha dat
 
-Schéma je ve `supabase/migrations/`. Migrace se verzují v repozitáři, neklikají
-se ručně v konzoli (CLAUDE.md).
+Data jsou jen v prohlížeči. Na obrazovce **Víc**:
 
-```bash
-# jednorázově
-npm i -g supabase
-supabase login
-supabase link --project-ref <ref-tvého-projektu>
+- **Exportovat do souboru** stáhne `kucharka-RRRR-MM-DD.json` se všemi recepty.
+  Ulož si ho na Disk/Dropbox — to je tvoje záloha.
+- **Obnovit ze zálohy** načte takový soubor zpátky (upsert podle id, novější
+  lokální data nezahodí).
 
-# nasazení migrace
-supabase db push
-```
-
-RLS je zapnutá na všech tabulkách; v klientovi smí být **jen anon klíč**.
+Aplikace si navíc při startu řekne o trvalé úložiště, ať prohlížeč data nemaže.
 
 ## Nasazení na Cloudflare Pages
 
@@ -75,17 +78,12 @@ RLS je zapnutá na všech tabulkách; v klientovi smí být **jen anon klíč**.
 3. Build nastavení:
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
-   - **Node version:** 20 nebo vyšší (proměnná `NODE_VERSION`)
-4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-5. Deploy. HTTPS je automaticky — bez něj nefunguje instalace PWA ani kamera.
+   - **Node version:** proměnná `NODE_VERSION` = `20` (nebo vyšší)
+4. Deploy. HTTPS je automaticky — bez něj nefunguje instalace PWA.
+
+Žádné proměnné prostředí nejsou potřeba (běží bez serveru). Soubor
+`public/_redirects` zajistí, že fungují i přímé odkazy na podstránky.
 
 Po nasazení otevři web na telefonu a přes menu prohlížeče zvol **Přidat na
 plochu**. Aplikace se otevře na celou obrazovku bez adresního řádku a naběhne
 i offline.
-
-## Proměnné prostředí
-
-| Proměnná                 | K čemu                                  |
-| ------------------------ | --------------------------------------- |
-| `VITE_SUPABASE_URL`      | URL Supabase projektu                   |
-| `VITE_SUPABASE_ANON_KEY` | veřejný anon klíč (nikdy service_role!) |
