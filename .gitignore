@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+
+# build výstupy
+dist
+dist-ssr
+dev-dist
+
+# testy
+coverage
+
+# lokální prostředí – NIKDY necommitovat klíče
+.env
+.env.local
+.env.*.local
+
+# editory / OS
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# logy
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

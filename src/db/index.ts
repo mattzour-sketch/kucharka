@@ -1,0 +1,163 @@
+import Dexie, { type Table } from 'dexie';
+import type { Meal } from '../lib/nutrition';
+
+/**
+ * Lokální databáze (Dexie/IndexedDB) – zdroj pravdy pro UI (SPEC 7.3).
+ *
+ * Zrcadlí tabulky ze SPEC 7.4, ale bez cizích klíčů (ty IndexedDB nemá) a
+ * v camelCase (idiomatické pro TypeScript a shodné s pseudokódem v SPEC 7.5).
+ * SQL migrace používá snake_case; mapování mezi nimi řeší až sync vrstva (Fáze 1).
+ *
+ * Fáze 0 = jen definice schématu. Žádná synchronizace, žádný outbox.
+ *
+ * Invarianty (CLAUDE.md): jediná povinná pole jsou recipes.name a
+ * recipe_items.raw_text; food_id, sub_recipe_id i amount_g jsou nepovinné.
+ */
+
+/** ISO timestamp, např. „2026-08-02T18:30:00.000Z". */
+export type IsoTimestamp = string;
+/** Lokální datum bez času, „YYYY-MM-DD" (SPEC E-07). */
+export type IsoDate = string;
+
+export type FoodBasis = 'g' | 'ml';
+export type FoodSource = 'custom' | 'openfoodfacts' | 'nutridatabaze' | 'usda' | 'import';
+
+export interface Food {
+  id: string;
+  name: string;
+  brand?: string | null;
+  barcode?: string | null;
+  /** Zda jsou hodnoty na 100 g nebo 100 ml. */
+  basis: FoodBasis;
+  energyKcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  sugarG?: number | null;
+  satfatG?: number | null;
+  fiberG?: number | null;
+  saltG?: number | null;
+  source: FoodSource;
+  sourceRef?: string | null;
+  isFavorite: boolean;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+  deletedAt?: IsoTimestamp | null;
+}
+
+/** Domácí míry: „1 ks", „1 lžíce" → gramy (SPEC E-04). */
+export interface FoodPortion {
+  id: string;
+  foodId: string;
+  label: string;
+  grams: number;
+}
+
+export interface Recipe {
+  id: string;
+  /** Jediné povinné pole receptu. */
+  name: string;
+  source?: string | null;
+  capturedOn: IsoDate;
+  /** Původní zachycený text. NIKDY se nepřepisuje strukturováním (E-17). */
+  rawCapture?: string | null;
+  instructions?: string | null;
+  /** Nepovinné. Ne default 1, ne not null. */
+  servings?: number | null;
+  /** Zvážená hmotnost po uvaření; null = použij součet surovin (E-02). */
+  cookedWeightG?: number | null;
+  photoUrl?: string | null;
+  audioUrl?: string | null;
+  tags: string[];
+  isFavorite: boolean;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+  deletedAt?: IsoTimestamp | null;
+}
+
+export interface RecipeItem {
+  id: string;
+  recipeId: string;
+  /** „hrst hladký mouky" – zdroj pravdy, jediné povinné pole položky (E-12). */
+  rawText: string;
+  /** Nepovinné napojení. */
+  foodId?: string | null;
+  /** Nepovinné napojení na podrecept. */
+  subRecipeId?: string | null;
+  /** Nepovinná gramáž. */
+  amountG?: number | null;
+  /** Koření, voda – nepočítá se do úplnosti. */
+  isSkipped: boolean;
+  note?: string | null;
+  sortOrder: number;
+}
+
+/** Poznámky z jednotlivých vaření (R-24). */
+export interface RecipeNote {
+  id: string;
+  recipeId: string;
+  notedOn: IsoDate;
+  body: string;
+}
+
+/** Zápis v deníku – snapshot spočítaný v okamžiku zápisu (E-01). */
+export interface LogEntry {
+  id: string;
+  loggedOn: IsoDate;
+  meal: Meal;
+  foodId?: string | null;
+  recipeId?: string | null;
+  amountG: number;
+  displayName: string;
+  energyKcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+  deletedAt?: IsoTimestamp | null;
+}
+
+export interface Goal {
+  id: string;
+  validFrom: IsoDate;
+  energyKcal: number;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
+}
+
+export interface WeightEntry {
+  id: string;
+  measuredOn: IsoDate;
+  weightKg: number;
+}
+
+export class KucharkaDB extends Dexie {
+  foods!: Table<Food, string>;
+  foodPortions!: Table<FoodPortion, string>;
+  recipes!: Table<Recipe, string>;
+  recipeItems!: Table<RecipeItem, string>;
+  recipeNotes!: Table<RecipeNote, string>;
+  logEntries!: Table<LogEntry, string>;
+  goals!: Table<Goal, string>;
+  weightEntries!: Table<WeightEntry, string>;
+
+  constructor() {
+    super('kucharka');
+    // Indexují se jen pole, přes která se opravdu dotazuje/filtruje.
+    // `*tags` = multi-entry index pro filtr podle štítků (R-21).
+    this.version(1).stores({
+      foods: 'id, name, barcode, isFavorite, deletedAt',
+      foodPortions: 'id, foodId',
+      recipes: 'id, name, source, capturedOn, isFavorite, deletedAt, *tags',
+      recipeItems: 'id, recipeId, foodId, subRecipeId, sortOrder',
+      recipeNotes: 'id, recipeId, notedOn',
+      logEntries: 'id, loggedOn, meal, recipeId, foodId, deletedAt',
+      goals: 'id, validFrom',
+      weightEntries: 'id, measuredOn',
+    });
+  }
+}
+
+export const db = new KucharkaDB();
