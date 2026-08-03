@@ -3,38 +3,40 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { todayIso } from '../../lib/date';
-import { createRecipe, updateRecipe } from './recipesRepo';
+import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
+import {
+  createRecipeWithContent,
+  getRecipeItems,
+  updateRecipeContent,
+  type RecipeContent,
+} from './recipesRepo';
 
-function snapshotOf(name: string, capturedOn: string, body: string): string {
-  return JSON.stringify([name, capturedOn, body]);
-}
-
-/** Když uživatel nevyplní název, odvodíme ho z prvního řádku textu. */
-function deriveName(body: string): string {
-  const firstLine =
-    body
-      .split('\n')
-      .map((line) => line.trim())
-      .find((line) => line.length > 0) ?? '';
-  return firstLine.length > 80 ? firstLine.slice(0, 80).trimEnd() : firstLine;
+function snapshotOf(name: string, capturedOn: string, ingredients: string, instructions: string): string {
+  return JSON.stringify([name, capturedOn, ingredients, instructions]);
 }
 
 /**
- * Zachycení nového receptu i editace stávajícího (R-01 až R-03, R-05).
- * Koncept se ukládá průběžně do IndexedDB (SPEC 6.2), takže hovor ani pád
- * aplikace text nezahodí. Uložit jde kdykoliv, povinný je jen název – a ten
- * se v nouzi odvodí z textu.
+ * Zachycení nového receptu i editace stávajícího (R-01 až R-03, R-11).
+ * Dvě pole: suroviny (řádek = surovina) a postup. Koncept se ukládá průběžně
+ * do IndexedDB (SPEC 6.2). Uložit jde kdykoliv, povinný je jen název – ten se
+ * v nouzi odvodí z textu.
  */
 export default function RecipeEditScreen() {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(routeId);
 
-  const existing = useLiveQuery(() => (routeId ? db.recipes.get(routeId) : undefined), [routeId]);
+  const loaded = useLiveQuery(async () => {
+    if (!routeId) return undefined;
+    const recipe = await db.recipes.get(routeId);
+    if (!recipe) return { recipe: null, items: [] };
+    return { recipe, items: await getRecipeItems(routeId) };
+  }, [routeId]);
 
   const [name, setName] = useState('');
   const [capturedOn, setCapturedOn] = useState(todayIso());
-  const [body, setBody] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [instructions, setInstructions] = useState('');
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
@@ -42,26 +44,42 @@ export default function RecipeEditScreen() {
 
   // Načtení existujícího receptu do formuláře (jen jednou).
   useEffect(() => {
-    if (routeId && existing && !loadedRef.current) {
-      loadedRef.current = true;
-      idRef.current = existing.id;
-      setName(existing.name);
-      setCapturedOn(existing.capturedOn);
-      setBody(existing.rawCapture ?? '');
-      lastSaved.current = snapshotOf(existing.name, existing.capturedOn, existing.rawCapture ?? '');
+    if (!routeId || loadedRef.current || !loaded) return;
+    loadedRef.current = true;
+    const recipe = loaded.recipe;
+    if (!recipe) return;
+    idRef.current = recipe.id;
+
+    let ingText = loaded.items.map((item) => item.rawText).join('\n');
+    const stepText = recipe.instructions ?? '';
+    // Legacy recept z jednoho pole: bez položek i postupu → text do surovin.
+    if (!ingText && !stepText && recipe.rawCapture) {
+      ingText = recipe.rawCapture;
     }
-  }, [routeId, existing]);
+
+    setName(recipe.name);
+    setCapturedOn(recipe.capturedOn);
+    setIngredients(ingText);
+    setInstructions(stepText);
+    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText);
+  }, [routeId, loaded]);
+
+  function buildContent(finalName: string): RecipeContent {
+    return {
+      name: finalName,
+      capturedOn,
+      ingredientLines: splitIngredientLines(ingredients),
+      instructions: instructions.trim() || null,
+      rawCapture: combineRawCapture(ingredients, instructions),
+    };
+  }
 
   async function persist(finalName?: string): Promise<string> {
-    const payload = {
-      name: finalName ?? name.trim(),
-      capturedOn,
-      rawCapture: body,
-    };
+    const content = buildContent(finalName ?? name.trim());
     if (!idRef.current) {
-      idRef.current = await createRecipe(payload);
+      idRef.current = await createRecipeWithContent(content);
     } else {
-      await updateRecipe(idRef.current, payload);
+      await updateRecipeContent(idRef.current, content);
     }
     return idRef.current;
   }
@@ -69,10 +87,11 @@ export default function RecipeEditScreen() {
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
     if (!loadedRef.current) return;
-    const snapshot = snapshotOf(name, capturedOn, body);
+    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions);
     if (snapshot === lastSaved.current) return;
 
-    const hasContent = name.trim() !== '' || body.trim() !== '';
+    const hasContent =
+      name.trim() !== '' || ingredients.trim() !== '' || instructions.trim() !== '';
     if (!idRef.current && !hasContent) return;
 
     const timer = setTimeout(() => {
@@ -83,18 +102,24 @@ export default function RecipeEditScreen() {
     return () => clearTimeout(timer);
     // persist čte aktuální stav ze closure; závislosti jsou samotná pole.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, capturedOn, body]);
+  }, [name, capturedOn, ingredients, instructions]);
+
+  function deriveName(): string {
+    const base = splitIngredientLines(ingredients)[0] ?? splitIngredientLines(instructions)[0] ?? '';
+    return base.length > 80 ? base.slice(0, 80).trimEnd() : base;
+  }
 
   async function handleSave() {
-    const finalName = name.trim() || deriveName(body) || 'Bez názvu';
+    const finalName = name.trim() || deriveName() || 'Bez názvu';
     if (finalName !== name) setName(finalName);
     const id = await persist(finalName);
-    lastSaved.current = snapshotOf(finalName, capturedOn, body);
+    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions);
     navigate(`/recept/${id}`, { replace: true });
   }
 
   async function handleClose() {
-    const hasContent = name.trim() !== '' || body.trim() !== '';
+    const hasContent =
+      name.trim() !== '' || ingredients.trim() !== '' || instructions.trim() !== '';
     if (idRef.current || hasContent) {
       const id = await persist();
       navigate(isEdit ? `/recept/${id}` : '/', { replace: true });
@@ -146,16 +171,29 @@ export default function RecipeEditScreen() {
           />
         </div>
 
+        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+          Suroviny
+        </label>
         <textarea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
+          value={ingredients}
+          onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
-          placeholder={'Suroviny a postup, jak to slyšíš…\n\n4 velký brambory\n2 vejce\nhrst hladký mouky\n\nNastrouhat najemno, osmažit na sádle.'}
-          className="mt-3 min-h-[45dvh] flex-1 resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          placeholder={'jedna surovina na řádek…\n\n4 velký brambory\n2 vejce\nhrst hladký mouky'}
+          className="mt-1 min-h-[22dvh] resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+        />
+
+        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+          Postup
+        </label>
+        <textarea
+          value={instructions}
+          onChange={(event) => setInstructions(event.target.value)}
+          placeholder={'jak to uvařit…\n\nNastrouhat najemno, osmažit na sádle na prudkém ohni.'}
+          className="mt-1 min-h-[26dvh] flex-1 resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <p className="py-3 text-center text-xs text-stone-400">
-          Ukládá se průběžně. Uložit jde kdykoliv, i s prázdným tělem.
+          Ukládá se průběžně. Uložit jde kdykoliv, obě pole jsou nepovinná.
         </p>
       </div>
     </div>

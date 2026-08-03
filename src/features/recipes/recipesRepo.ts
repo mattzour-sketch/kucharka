@@ -1,43 +1,86 @@
-import { db, type Recipe } from '../../db';
+import { db, type Recipe, type RecipeItem } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
 
 /**
- * Zápisy do receptů. Jediné povinné pole je `name` (i prázdný řetězec projde –
- * koncept se ukládá průběžně, název se doplní až při uložení). `rawCapture` je
- * původní zachycený text; automaticky se nikdy nepřepisuje (E-17).
+ * Zápisy do receptů. Recept má dvě části: suroviny (řádky → `recipe_items`,
+ * každý s `raw_text`) a postup (`recipes.instructions`). `raw_capture` je
+ * plnotextové zrcadlo obou částí (pro náhled, export, sdílení).
+ *
+ * Jediné povinné pole je `name` (i prázdný řetězec projde – koncept se ukládá
+ * průběžně, název se doplní až při uložení).
  */
 
-export interface RecipeDraft {
+export interface RecipeContent {
   name: string;
-  source?: string | null;
-  capturedOn?: string;
-  rawCapture?: string | null;
+  capturedOn: string;
+  /** Neprázdné řádky surovin. */
+  ingredientLines: string[];
+  instructions: string | null;
+  rawCapture: string | null;
 }
 
-export async function createRecipe(draft: RecipeDraft): Promise<string> {
-  const now = new Date().toISOString();
-  const recipe: Recipe = {
+function buildItems(recipeId: string, lines: string[]): RecipeItem[] {
+  return lines.map((line, index) => ({
     id: newId(),
-    name: draft.name,
-    source: draft.source ?? null,
-    capturedOn: draft.capturedOn || todayIso(),
-    rawCapture: draft.rawCapture ?? null,
-    tags: [],
-    isFavorite: false,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  };
-  await db.recipes.add(recipe);
-  return recipe.id;
+    recipeId,
+    rawText: line,
+    foodId: null,
+    subRecipeId: null,
+    amountG: null,
+    isSkipped: false,
+    note: null,
+    sortOrder: index,
+  }));
 }
 
-export async function updateRecipe(
-  id: string,
-  patch: Partial<Omit<Recipe, 'id' | 'createdAt'>>,
-): Promise<void> {
-  await db.recipes.update(id, { ...patch, updatedAt: new Date().toISOString() });
+export async function createRecipeWithContent(content: RecipeContent): Promise<string> {
+  const id = newId();
+  const now = new Date().toISOString();
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    const recipe: Recipe = {
+      id,
+      name: content.name,
+      source: null,
+      capturedOn: content.capturedOn || todayIso(),
+      rawCapture: content.rawCapture,
+      instructions: content.instructions,
+      tags: [],
+      isFavorite: false,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    await db.recipes.add(recipe);
+    if (content.ingredientLines.length > 0) {
+      await db.recipeItems.bulkAdd(buildItems(id, content.ingredientLines));
+    }
+  });
+  return id;
+}
+
+export async function updateRecipeContent(id: string, content: RecipeContent): Promise<void> {
+  const now = new Date().toISOString();
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    await db.recipes.update(id, {
+      name: content.name,
+      capturedOn: content.capturedOn,
+      rawCapture: content.rawCapture,
+      instructions: content.instructions,
+      updatedAt: now,
+    });
+    // Suroviny se zatím nenapojují na potraviny, takže je bezpečné je při
+    // uložení nahradit. Až přibude napojení (Fáze 2), přejde se na diff
+    // zachovávající id položek.
+    await db.recipeItems.where('recipeId').equals(id).delete();
+    if (content.ingredientLines.length > 0) {
+      await db.recipeItems.bulkAdd(buildItems(id, content.ingredientLines));
+    }
+  });
+}
+
+export function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
+  return db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
 }
 
 /** Nikdy nemažeme natvrdo – jen `deletedAt` (soft delete, E-08). */
