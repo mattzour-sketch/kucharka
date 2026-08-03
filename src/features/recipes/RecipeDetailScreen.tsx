@@ -7,7 +7,6 @@ import { getRecipeItems, softDeleteRecipe } from './recipesRepo';
 export default function RecipeDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
-  // undefined = načítá se, jinak { recipe, items } (recipe může být null)
   const data = useLiveQuery(async () => {
     if (!id) return { recipe: null, items: [] };
     const recipe = (await db.recipes.get(id)) ?? null;
@@ -28,13 +27,12 @@ export default function RecipeDetailScreen() {
 
   const hasIngredients = items.length > 0;
   const hasSteps = Boolean(recipe.instructions && recipe.instructions.trim());
-  // Starý recept z jednoho pole (bez položek i postupu) → zobraz původní text.
   const legacyText = !hasIngredients && !hasSteps ? (recipe.rawCapture ?? '').trim() : '';
 
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-2 py-2">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-2 py-2">
           <Link
             to="/"
             className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-200/60"
@@ -42,18 +40,39 @@ export default function RecipeDetailScreen() {
           >
             ‹
           </Link>
-          <Link
-            to={`/recept/${recipe.id}/upravit`}
-            className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-          >
-            Upravit
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/recept/${recipe.id}/upravit`}
+              className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
+            >
+              Upravit
+            </Link>
+            <Link
+              to={`/recept/${recipe.id}/varit`}
+              className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+            >
+              Vařit
+            </Link>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">{formatCzechDate(recipe.capturedOn)}</p>
+
+        {recipe.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {recipe.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs text-brand-dark"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         {hasIngredients ? (
           <section className="mt-5">

@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { todayIso } from '../../lib/date';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
+import TagInput from './TagInput';
 import {
   createRecipeWithContent,
   getRecipeItems,
@@ -11,14 +12,20 @@ import {
   type RecipeContent,
 } from './recipesRepo';
 
-function snapshotOf(name: string, capturedOn: string, ingredients: string, instructions: string): string {
-  return JSON.stringify([name, capturedOn, ingredients, instructions]);
+function snapshotOf(
+  name: string,
+  capturedOn: string,
+  ingredients: string,
+  instructions: string,
+  tags: string[],
+): string {
+  return JSON.stringify([name, capturedOn, ingredients, instructions, tags]);
 }
 
 /**
- * Zachycení nového receptu i editace stávajícího (R-01 až R-03, R-11).
- * Dvě pole: suroviny (řádek = surovina) a postup. Koncept se ukládá průběžně
- * do IndexedDB (SPEC 6.2). Uložit jde kdykoliv, povinný je jen název – ten se
+ * Zachycení nového receptu i editace stávajícího (R-01 až R-03, R-11, R-16).
+ * Dvě pole (suroviny / postup) + štítky. Koncept se ukládá průběžně do
+ * IndexedDB (SPEC 6.2). Uložit jde kdykoliv, povinný je jen název – ten se
  * v nouzi odvodí z textu.
  */
 export default function RecipeEditScreen() {
@@ -33,10 +40,20 @@ export default function RecipeEditScreen() {
     return { recipe, items: await getRecipeItems(routeId) };
   }, [routeId]);
 
+  const tagSuggestions = useLiveQuery(async () => {
+    const recipes = await db.recipes.toArray();
+    const set = new Set<string>();
+    for (const recipe of recipes) {
+      if (!recipe.deletedAt) recipe.tags.forEach((tag) => set.add(tag));
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'cs'));
+  }, []);
+
   const [name, setName] = useState('');
   const [capturedOn, setCapturedOn] = useState(todayIso());
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
@@ -52,16 +69,16 @@ export default function RecipeEditScreen() {
 
     let ingText = loaded.items.map((item) => item.rawText).join('\n');
     const stepText = recipe.instructions ?? '';
-    // Legacy recept z jednoho pole: bez položek i postupu → text do surovin.
     if (!ingText && !stepText && recipe.rawCapture) {
-      ingText = recipe.rawCapture;
+      ingText = recipe.rawCapture; // legacy recept z jednoho pole
     }
 
     setName(recipe.name);
     setCapturedOn(recipe.capturedOn);
     setIngredients(ingText);
     setInstructions(stepText);
-    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText);
+    setTags(recipe.tags);
+    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText, recipe.tags);
   }, [routeId, loaded]);
 
   function buildContent(finalName: string): RecipeContent {
@@ -71,6 +88,7 @@ export default function RecipeEditScreen() {
       ingredientLines: splitIngredientLines(ingredients),
       instructions: instructions.trim() || null,
       rawCapture: combineRawCapture(ingredients, instructions),
+      tags,
     };
   }
 
@@ -87,7 +105,7 @@ export default function RecipeEditScreen() {
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
     if (!loadedRef.current) return;
-    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions);
+    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags);
     if (snapshot === lastSaved.current) return;
 
     const hasContent =
@@ -102,7 +120,7 @@ export default function RecipeEditScreen() {
     return () => clearTimeout(timer);
     // persist čte aktuální stav ze closure; závislosti jsou samotná pole.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, capturedOn, ingredients, instructions]);
+  }, [name, capturedOn, ingredients, instructions, tags]);
 
   function deriveName(): string {
     const base = splitIngredientLines(ingredients)[0] ?? splitIngredientLines(instructions)[0] ?? '';
@@ -113,7 +131,7 @@ export default function RecipeEditScreen() {
     const finalName = name.trim() || deriveName() || 'Bez názvu';
     if (finalName !== name) setName(finalName);
     const id = await persist(finalName);
-    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions);
+    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags);
     navigate(`/recept/${id}`, { replace: true });
   }
 
@@ -179,7 +197,7 @@ export default function RecipeEditScreen() {
           onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
           placeholder={'jedna surovina na řádek…\n\n4 velký brambory\n2 vejce\nhrst hladký mouky'}
-          className="mt-1 min-h-[22dvh] resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[20dvh] resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
@@ -189,8 +207,15 @@ export default function RecipeEditScreen() {
           value={instructions}
           onChange={(event) => setInstructions(event.target.value)}
           placeholder={'jak to uvařit…\n\nNastrouhat najemno, osmažit na sádle na prudkém ohni.'}
-          className="mt-1 min-h-[26dvh] flex-1 resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[22dvh] flex-1 resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
+
+        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+          Štítky
+        </label>
+        <div className="mt-1">
+          <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions ?? []} />
+        </div>
 
         <p className="py-3 text-center text-xs text-stone-400">
           Ukládá se průběžně. Uložit jde kdykoliv, obě pole jsou nepovinná.

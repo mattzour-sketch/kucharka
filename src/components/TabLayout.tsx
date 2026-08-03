@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Recepty', icon: '🍲' },
+  { to: '/hledat', label: 'Hledat', icon: '🔍' },
   { to: '/vic', label: 'Víc', icon: '☰' },
 ];
 

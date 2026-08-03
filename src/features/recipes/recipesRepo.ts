@@ -18,6 +18,7 @@ export interface RecipeContent {
   ingredientLines: string[];
   instructions: string | null;
   rawCapture: string | null;
+  tags: string[];
 }
 
 function buildItems(recipeId: string, lines: string[]): RecipeItem[] {
@@ -45,7 +46,7 @@ export async function createRecipeWithContent(content: RecipeContent): Promise<s
       capturedOn: content.capturedOn || todayIso(),
       rawCapture: content.rawCapture,
       instructions: content.instructions,
-      tags: [],
+      tags: content.tags,
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
@@ -67,6 +68,7 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
       capturedOn: content.capturedOn,
       rawCapture: content.rawCapture,
       instructions: content.instructions,
+      tags: content.tags,
       updatedAt: now,
     });
     // Suroviny se zatím nenapojují na potraviny, takže je bezpečné je při
