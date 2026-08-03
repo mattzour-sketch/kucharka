@@ -71,14 +71,54 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
       tags: content.tags,
       updatedAt: now,
     });
-    // Suroviny se zatím nenapojují na potraviny, takže je bezpečné je při
-    // uložení nahradit. Až přibude napojení (Fáze 2), přejde se na diff
-    // zachovávající id položek.
-    await db.recipeItems.where('recipeId').equals(id).delete();
-    if (content.ingredientLines.length > 0) {
-      await db.recipeItems.bulkAdd(buildItems(id, content.ingredientLines));
+
+    // Zachovej id a napojení (food_id, amount_g, is_skipped) pro řádky, jejichž
+    // text se nezměnil – jinak by úprava textu smazala napojení na potraviny.
+    // Přiřazuje se podle raw_text, každá existující položka se použije nejvýš jednou.
+    const existing = await db.recipeItems.where('recipeId').equals(id).toArray();
+    const byText = new Map<string, RecipeItem[]>();
+    for (const item of existing) {
+      const list = byText.get(item.rawText) ?? [];
+      list.push(item);
+      byText.set(item.rawText, list);
     }
+    const next: RecipeItem[] = content.ingredientLines.map((line, index) => {
+      const reused = byText.get(line)?.shift();
+      return reused
+        ? { ...reused, sortOrder: index }
+        : {
+            id: newId(),
+            recipeId: id,
+            rawText: line,
+            foodId: null,
+            subRecipeId: null,
+            amountG: null,
+            isSkipped: false,
+            note: null,
+            sortOrder: index,
+          };
+    });
+    const keptIds = new Set(next.map((item) => item.id));
+    const removed = existing.filter((item) => !keptIds.has(item.id)).map((item) => item.id);
+    if (removed.length > 0) await db.recipeItems.bulkDelete(removed);
+    await db.recipeItems.bulkPut(next);
   });
+}
+
+/** Napojení suroviny na potravinu + gramáž, nebo přeskočení (R-12). */
+export async function updateRecipeItemLink(
+  itemId: string,
+  patch: { foodId?: string | null; amountG?: number | null; isSkipped?: boolean },
+): Promise<void> {
+  await db.recipeItems.update(itemId, patch);
+}
+
+/** Počet porcí a hmotnost po uvaření (R-14, R-15). */
+export async function updateRecipeMeta(
+  id: string,
+  patch: { servings?: number | null; cookedWeightG?: number | null },
+): Promise<void> {
+  await db.recipes.update(id, { ...patch, updatedAt: new Date().toISOString() });
 }
 
 export function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {

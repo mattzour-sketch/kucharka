@@ -2,21 +2,31 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { formatCzechDate } from '../../lib/date';
-import { getRecipeItems, softDeleteRecipe } from './recipesRepo';
+import { nutritionFromData } from '../nutrition/recipeNutrition';
+import NutritionSummary from '../nutrition/NutritionSummary';
+import { softDeleteRecipe } from './recipesRepo';
 
 export default function RecipeDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
   const data = useLiveQuery(async () => {
-    if (!id) return { recipe: null, items: [] };
+    if (!id) return { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
     const recipe = (await db.recipes.get(id)) ?? null;
-    const items = recipe ? await getRecipeItems(id) : [];
-    return { recipe, items };
+    if (!recipe) return { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
+    const [foods, recipes, allItems] = await Promise.all([
+      db.foods.toArray(),
+      db.recipes.toArray(),
+      db.recipeItems.toArray(),
+    ]);
+    const items = allItems
+      .filter((item) => item.recipeId === id)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    return { recipe, items, foods, recipes, allItems };
   }, [id]);
 
   if (data === undefined) return null;
   const { recipe, items } = data;
-  if (!recipe || recipe.deletedAt) return <NotFound />;
+  if (!recipe || recipe.deletedAt || !id) return <NotFound />;
 
   async function handleDelete() {
     if (!id) return;
@@ -25,6 +35,11 @@ export default function RecipeDetailScreen() {
     navigate('/', { replace: true });
   }
 
+  const nutrition = nutritionFromData(id, {
+    foods: data.foods,
+    recipes: data.recipes,
+    items: data.allItems,
+  });
   const hasIngredients = items.length > 0;
   const hasSteps = Boolean(recipe.instructions && recipe.instructions.trim());
   const legacyText = !hasIngredients && !hasSteps ? (recipe.rawCapture ?? '').trim() : '';
@@ -72,6 +87,22 @@ export default function RecipeDetailScreen() {
               </span>
             ))}
           </div>
+        ) : null}
+
+        {hasIngredients ? (
+          <section className="mt-5">
+            {nutrition.computable || nutrition.hasCycle ? (
+              <div className="mb-2">
+                <NutritionSummary result={nutrition} />
+              </div>
+            ) : null}
+            <Link
+              to={`/recept/${recipe.id}/kalorie`}
+              className="inline-block text-sm font-medium text-brand"
+            >
+              {nutrition.computable ? 'Upravit kalorie' : 'Spočítat kalorie →'}
+            </Link>
+          </section>
         ) : null}
 
         {hasIngredients ? (

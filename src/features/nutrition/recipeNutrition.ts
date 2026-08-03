@@ -1,0 +1,117 @@
+import { db, type Food, type Recipe, type RecipeItem } from '../../db';
+import {
+  completeness,
+  per100g,
+  perServing,
+  recipeTotals,
+  type CalcItem,
+  type CalcRecipe,
+  type Completeness,
+  type FoodValue,
+  type NutritionSource,
+  type Nutrients,
+} from '../../lib/nutrition';
+
+/**
+ * Adaptér mezi Dexie a čistým nutričním modulem (`lib/nutrition.ts`).
+ * `nutritionFromData` je čistá funkce nad načtenými poli (testovatelná bez DB),
+ * `computeRecipeNutrition` jen dotáhne data z Dexie a zavolá ji.
+ */
+
+export interface RecipeNutritionResult {
+  completeness: Completeness;
+  computable: boolean;
+  hasCycle: boolean;
+  total: Nutrients | null;
+  per100g: Nutrients | null;
+  perServing: Nutrients | null;
+  finalWeight: number | null;
+}
+
+function foodToValue(food: Food): FoodValue {
+  return { kcal: food.energyKcal, protein: food.proteinG, carbs: food.carbsG, fat: food.fatG };
+}
+
+function itemToCalc(item: RecipeItem): CalcItem {
+  return {
+    foodId: item.foodId,
+    subRecipeId: item.subRecipeId,
+    amountG: item.amountG,
+    isSkipped: item.isSkipped,
+  };
+}
+
+export function nutritionFromData(
+  recipeId: string,
+  data: { foods: Food[]; recipes: Recipe[]; items: RecipeItem[] },
+): RecipeNutritionResult {
+  const foodMap = new Map(data.foods.map((food) => [food.id, food]));
+  const recipeMap = new Map(data.recipes.map((recipe) => [recipe.id, recipe]));
+  const itemsByRecipe = new Map<string, RecipeItem[]>();
+  for (const item of data.items) {
+    const list = itemsByRecipe.get(item.recipeId) ?? [];
+    list.push(item);
+    itemsByRecipe.set(item.recipeId, list);
+  }
+
+  function toCalc(id: string): CalcRecipe {
+    const recipe = recipeMap.get(id);
+    if (!recipe) throw new Error(`Neznámý recept: ${id}`);
+    const items = (itemsByRecipe.get(id) ?? [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    return {
+      id: recipe.id,
+      servings: recipe.servings,
+      cookedWeightG: recipe.cookedWeightG,
+      items: items.map(itemToCalc),
+    };
+  }
+
+  const source: NutritionSource = {
+    food: (id) => {
+      const food = foodMap.get(id);
+      if (!food) throw new Error(`Neznámá potravina: ${id}`);
+      return foodToValue(food);
+    },
+    recipe: (id) => toCalc(id),
+  };
+
+  const calc = toCalc(recipeId);
+  const comp = completeness(calc);
+  const notComputable: RecipeNutritionResult = {
+    completeness: comp,
+    computable: false,
+    hasCycle: false,
+    total: null,
+    per100g: null,
+    perServing: null,
+    finalWeight: null,
+  };
+
+  try {
+    const result = recipeTotals(calc, source);
+    if (!result.computable) return notComputable;
+    return {
+      completeness: comp,
+      computable: true,
+      hasCycle: false,
+      total: result.totals,
+      per100g: per100g(result.totals, result.finalWeight),
+      perServing: perServing(result.totals, calc.servings),
+      finalWeight: result.finalWeight,
+    };
+  } catch {
+    // cyklická reference podreceptů (E-03)
+    return { ...notComputable, hasCycle: true };
+  }
+}
+
+export async function computeRecipeNutrition(recipeId: string): Promise<RecipeNutritionResult> {
+  const [foods, recipes, items] = await Promise.all([
+    db.foods.toArray(),
+    db.recipes.toArray(),
+    db.recipeItems.toArray(),
+  ]);
+  return nutritionFromData(recipeId, { foods, recipes, items });
+}

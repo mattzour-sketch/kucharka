@@ -3,18 +3,22 @@ import TabLayout from './components/TabLayout';
 import RecipeListScreen from './features/recipes/RecipeListScreen';
 import RecipeEditScreen from './features/recipes/RecipeEditScreen';
 import RecipeDetailScreen from './features/recipes/RecipeDetailScreen';
+import RecipeNutritionScreen from './features/recipes/RecipeNutritionScreen';
 import CookingModeScreen from './features/recipes/CookingModeScreen';
 import SearchScreen from './features/search/SearchScreen';
+import FoodsScreen from './features/foods/FoodsScreen';
+import FoodEditScreen from './features/foods/FoodEditScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Obrazovky se spodní lištou (Recepty + Hledat + Víc). */}
+        {/* Obrazovky se spodní lištou. */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<RecipeListScreen />} />
           <Route path="/hledat" element={<SearchScreen />} />
+          <Route path="/potraviny" element={<FoodsScreen />} />
           <Route path="/vic" element={<SettingsScreen />} />
         </Route>
         {/* Vysunuté obrazovky bez lišty, s vlastní horní lištou. */}
@@ -22,6 +26,9 @@ export default function App() {
         <Route path="/recept/:id" element={<RecipeDetailScreen />} />
         <Route path="/recept/:id/upravit" element={<RecipeEditScreen />} />
         <Route path="/recept/:id/varit" element={<CookingModeScreen />} />
+        <Route path="/recept/:id/kalorie" element={<RecipeNutritionScreen />} />
+        <Route path="/potraviny/nova" element={<FoodEditScreen />} />
+        <Route path="/potraviny/:id/upravit" element={<FoodEditScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
