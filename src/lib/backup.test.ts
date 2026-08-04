@@ -12,6 +12,7 @@ function emptyData(): BackupData {
     logEntries: [],
     goals: [],
     weightEntries: [],
+    photos: [],
   };
 }
 

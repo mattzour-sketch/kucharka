@@ -133,6 +133,17 @@ export interface WeightEntry {
   weightKg: number;
 }
 
+/**
+ * Fotka jako podklad receptu (R-04). V lokální variantě žije obrázek jako blob
+ * přímo v IndexedDB (E-16: uložit hned, žádné nahrávání na server).
+ */
+export interface RecipePhoto {
+  id: string;
+  recipeId: string;
+  blob: Blob;
+  createdAt: IsoTimestamp;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -142,6 +153,7 @@ export class KucharkaDB extends Dexie {
   logEntries!: Table<LogEntry, string>;
   goals!: Table<Goal, string>;
   weightEntries!: Table<WeightEntry, string>;
+  recipePhotos!: Table<RecipePhoto, string>;
 
   constructor() {
     super('kucharka');
@@ -156,6 +168,10 @@ export class KucharkaDB extends Dexie {
       logEntries: 'id, loggedOn, meal, recipeId, foodId, deletedAt',
       goals: 'id, validFrom',
       weightEntries: 'id, measuredOn',
+    });
+    // v2: fotky receptů jako bloby v IndexedDB (R-04). Blob se neindexuje.
+    this.version(2).stores({
+      recipePhotos: 'id, recipeId, createdAt',
     });
   }
 }

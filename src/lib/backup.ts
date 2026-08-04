@@ -21,6 +21,14 @@ import type {
 export const BACKUP_FORMAT = 'osobni-kucharka-backup';
 export const BACKUP_VERSION = 1;
 
+/** Fotka v záloze – blob je serializovaný jako data URL (base64). */
+export interface PhotoBackup {
+  id: string;
+  recipeId: string;
+  dataUrl: string;
+  createdAt: string;
+}
+
 export interface BackupData {
   foods: Food[];
   foodPortions: FoodPortion[];
@@ -30,6 +38,7 @@ export interface BackupData {
   logEntries: LogEntry[];
   goals: Goal[];
   weightEntries: WeightEntry[];
+  photos: PhotoBackup[];
 }
 
 export interface Backup {
@@ -84,5 +93,6 @@ export function parseBackup(json: string): BackupData {
     logEntries: asArray<LogEntry>(data.logEntries),
     goals: asArray<Goal>(data.goals),
     weightEntries: asArray<WeightEntry>(data.weightEntries),
+    photos: asArray<PhotoBackup>(data.photos),
   };
 }

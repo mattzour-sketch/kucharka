@@ -1,14 +1,20 @@
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
+import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos } from '../photos/photosRepo';
 import { softDeleteRecipe } from './recipesRepo';
 
 export default function RecipeDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
+
   const data = useLiveQuery(async () => {
     if (!id) return { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
     const recipe = (await db.recipes.get(id)) ?? null;
@@ -24,6 +30,8 @@ export default function RecipeDetailScreen() {
     return { recipe, items, foods, recipes, allItems };
   }, [id]);
 
+  const photos = useLiveQuery(() => (id ? getRecipePhotos(id) : Promise.resolve([])), [id]) ?? [];
+
   if (data === undefined) return null;
   const { recipe, items } = data;
   if (!recipe || recipe.deletedAt || !id) return <NotFound />;
@@ -35,6 +43,19 @@ export default function RecipeDetailScreen() {
     navigate('/', { replace: true });
   }
 
+  async function handleAddPhotos(files: FileList) {
+    if (!id) return;
+    for (const file of Array.from(files)) {
+      await addRecipePhoto(id, file);
+    }
+  }
+
+  async function handleDeletePhoto(photoId: string) {
+    if (!window.confirm('Smazat fotku?')) return;
+    await deleteRecipePhoto(photoId);
+    setViewingPhotoId(null);
+  }
+
   const nutrition = nutritionFromData(id, {
     foods: data.foods,
     recipes: data.recipes,
@@ -43,6 +64,7 @@ export default function RecipeDetailScreen() {
   const hasIngredients = items.length > 0;
   const hasSteps = Boolean(recipe.instructions && recipe.instructions.trim());
   const legacyText = !hasIngredients && !hasSteps ? (recipe.rawCapture ?? '').trim() : '';
+  const viewingPhoto = photos.find((photo) => photo.id === viewingPhotoId) ?? null;
 
   return (
     <div className="min-h-dvh">
@@ -88,6 +110,36 @@ export default function RecipeDetailScreen() {
             ))}
           </div>
         ) : null}
+
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {photos.map((photo) => (
+            <PhotoThumb
+              key={photo.id}
+              blob={photo.blob}
+              onClick={() => setViewingPhotoId(photo.id)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 text-stone-400 transition hover:border-brand hover:text-brand"
+          >
+            <span className="text-2xl leading-none">📷</span>
+            <span className="text-xs">Fotka</span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              if (event.target.files) void handleAddPhotos(event.target.files);
+              event.target.value = '';
+            }}
+          />
+        </div>
 
         {hasIngredients ? (
           <section className="mt-5">
@@ -135,7 +187,7 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {!hasIngredients && !hasSteps && !legacyText ? (
-          <p className="mt-5 text-stone-400">Zatím bez obsahu. Klepni na „Upravit".</p>
+          <p className="mt-5 text-stone-400">Zatím bez obsahu. Klepni na „Upravit" nebo přidej fotku.</p>
         ) : null}
 
         <button
@@ -146,8 +198,51 @@ export default function RecipeDetailScreen() {
           Smazat recept
         </button>
       </main>
+
+      {viewingPhoto ? (
+        <div className="fixed inset-0 z-40 flex flex-col bg-black/90">
+          <div className="flex items-center justify-between p-3">
+            <button
+              type="button"
+              onClick={() => void handleDeletePhoto(viewingPhoto.id)}
+              className="rounded-lg px-3 py-1.5 text-sm text-red-300 hover:bg-white/10"
+            >
+              Smazat
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewingPhotoId(null)}
+              className="rounded-lg px-3 py-1.5 text-sm text-white hover:bg-white/10"
+            >
+              Zavřít
+            </button>
+          </div>
+          <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+            <FullPhoto blob={viewingPhoto.blob} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function PhotoThumb({ blob, onClick }: { blob: Blob; onClick: () => void }) {
+  const url = useObjectUrl(blob);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
+    >
+      {url ? <img src={url} alt="Fotka receptu" className="h-full w-full object-cover" /> : null}
+    </button>
+  );
+}
+
+function FullPhoto({ blob }: { blob: Blob }) {
+  const url = useObjectUrl(blob);
+  if (!url) return null;
+  return <img src={url} alt="Fotka receptu" className="max-h-full max-w-full object-contain" />;
 }
 
 function NotFound() {
