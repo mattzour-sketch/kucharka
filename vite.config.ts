@@ -17,8 +17,9 @@ export default defineConfig({
         description:
           'Osobní sbírka receptů, která umí i počítat kalorie. Rychlé zachycení, offline.',
         lang: 'cs',
-        start_url: '/',
-        scope: '/',
+        // Relativní, aby appka fungovala i na podadrese (GitHub Pages) i v kořeni.
+        start_url: '.',
+        scope: '.',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#ffffff',

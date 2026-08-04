@@ -11,8 +11,10 @@ import FoodEditScreen from './features/foods/FoodEditScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 
 export default function App() {
+  // Base path podle nasazení (GitHub Pages běží na /nazev-repa/, jinak /).
+  const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         {/* Obrazovky se spodní lištou. */}
         <Route element={<TabLayout />}>
