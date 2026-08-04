@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
+import { scaleQuantityText } from '../../lib/scale';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getRecipeItems } from './recipesRepo';
+import ServingsStepper from './ServingsStepper';
 
 /**
  * Režim vaření (R-22, 6.3): větší písmo, displej nezhasíná (wake lock),
@@ -19,6 +21,8 @@ export default function CookingModeScreen() {
   }, [id]);
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [targetServings, setTargetServings] = useState<number | null>(null);
+  useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
   if (data === undefined) return null;
@@ -39,6 +43,10 @@ export default function CookingModeScreen() {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
+  const targetPortions = targetServings ?? baseServings;
+  const scaleFactor = targetPortions / baseServings;
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
@@ -58,9 +66,17 @@ export default function CookingModeScreen() {
       <main className="mx-auto max-w-2xl px-4 py-4">
         {items.length > 0 ? (
           <section>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">
-              Suroviny
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">
+                Suroviny
+              </h2>
+              <ServingsStepper
+                value={targetPortions}
+                onStep={(delta) =>
+                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
+                }
+              />
+            </div>
             <ul className="mt-2">
               {items.map((item) => {
                 const isChecked = checked[item.id] ?? false;
@@ -81,7 +97,7 @@ export default function CookingModeScreen() {
                         ✓
                       </span>
                       <span className={isChecked ? 'text-stone-400 line-through' : ''}>
-                        {item.rawText}
+                        {scaleQuantityText(item.rawText, scaleFactor)}
                       </span>
                     </button>
                   </li>

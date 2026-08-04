@@ -1,19 +1,25 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { scaleQuantityText } from '../../lib/scale';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos } from '../photos/photosRepo';
 import { softDeleteRecipe } from './recipesRepo';
+import ServingsStepper from './ServingsStepper';
 
 export default function RecipeDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
+  const [targetServings, setTargetServings] = useState<number | null>(null);
+
+  // Detail se mezi recepty neremountuje – při změně id vynuluj cíl porcí.
+  useEffect(() => setTargetServings(null), [id]);
 
   const data = useLiveQuery(async () => {
     if (!id) return { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
@@ -65,6 +71,10 @@ export default function RecipeDetailScreen() {
   const hasSteps = Boolean(recipe.instructions && recipe.instructions.trim());
   const legacyText = !hasIngredients && !hasSteps ? (recipe.rawCapture ?? '').trim() : '';
   const viewingPhoto = photos.find((photo) => photo.id === viewingPhotoId) ?? null;
+
+  const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
+  const targetPortions = targetServings ?? baseServings;
+  const scaleFactor = targetPortions / baseServings;
 
   return (
     <div className="min-h-dvh">
@@ -159,17 +169,30 @@ export default function RecipeDetailScreen() {
 
         {hasIngredients ? (
           <section className="mt-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-              Suroviny
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                Suroviny
+              </h2>
+              <ServingsStepper
+                value={targetPortions}
+                onStep={(delta) =>
+                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
+                }
+              />
+            </div>
             <ul className="mt-2 space-y-1">
               {items.map((item) => (
                 <li key={item.id} className="flex gap-2 leading-relaxed">
                   <span className="mt-0.5 text-brand">•</span>
-                  <span>{item.rawText}</span>
+                  <span>{scaleQuantityText(item.rawText, scaleFactor)}</span>
                 </li>
               ))}
             </ul>
+            {!recipe.servings ? (
+              <p className="mt-1.5 text-xs text-stone-400">
+                Recept nemá počet porcí – počítám od 1. Nastavíš ho ve „Spočítat kalorie".
+              </p>
+            ) : null}
           </section>
         ) : null}
 
