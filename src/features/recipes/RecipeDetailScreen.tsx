@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
+import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
@@ -17,6 +18,7 @@ export default function RecipeDetailScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
   const [targetServings, setTargetServings] = useState<number | null>(null);
+  const [shareMsg, setShareMsg] = useState('');
 
   // Detail se mezi recepty neremountuje – při změně id vynuluj cíl porcí.
   useEffect(() => setTargetServings(null), [id]);
@@ -75,6 +77,32 @@ export default function RecipeDetailScreen() {
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
   const targetPortions = targetServings ?? baseServings;
   const scaleFactor = targetPortions / baseServings;
+
+  async function handleShare() {
+    if (!recipe) return;
+    const scaled = scaleFactor !== 1;
+    const text = buildRecipeText({
+      name: recipe.name,
+      ingredients: items.map((item) => scaleQuantityText(item.rawText, scaleFactor)),
+      instructions: recipe.instructions ?? null,
+      portions: recipe.servings || scaled ? targetPortions : null,
+      scaledFrom: scaled ? baseServings : null,
+    });
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: recipe.name || 'Recept', text });
+        return;
+      }
+    } catch {
+      return; // sdílení zrušeno uživatelem
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMsg('Zkopírováno do schránky.');
+    } catch {
+      setShareMsg('Zkopírování se nepovedlo.');
+    }
+  }
 
   return (
     <div className="min-h-dvh">
@@ -215,8 +243,17 @@ export default function RecipeDetailScreen() {
 
         <button
           type="button"
+          onClick={() => void handleShare()}
+          className="mt-8 w-full rounded-xl border border-stone-300 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-[0.99]"
+        >
+          Sdílet jako text
+        </button>
+        {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark">{shareMsg}</p> : null}
+
+        <button
+          type="button"
           onClick={() => void handleDelete()}
-          className="mt-8 w-full rounded-xl py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.99]"
+          className="mt-3 w-full rounded-xl py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.99]"
         >
           Smazat recept
         </button>
