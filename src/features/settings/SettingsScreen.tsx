@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { todayIso } from '../../lib/date';
@@ -82,6 +83,14 @@ export default function SettingsScreen() {
           </div>
           {message ? <p className="mt-3 text-sm text-brand-dark">{message}</p> : null}
         </section>
+
+        <Link
+          to="/kos"
+          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
+        >
+          <span className="font-medium">Koš</span>
+          <span className="text-stone-400">›</span>
+        </Link>
 
         <section className="mt-3 rounded-2xl border border-stone-200 bg-white p-4 text-sm">
           <h2 className="font-medium">Úložiště</h2>

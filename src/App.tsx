@@ -9,6 +9,7 @@ import SearchScreen from './features/search/SearchScreen';
 import FoodsScreen from './features/foods/FoodsScreen';
 import FoodEditScreen from './features/foods/FoodEditScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
+import TrashScreen from './features/trash/TrashScreen';
 
 export default function App() {
   // Base path podle nasazení (GitHub Pages běží na /nazev-repa/, jinak /).
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/recept/:id/kalorie" element={<RecipeNutritionScreen />} />
         <Route path="/potraviny/nova" element={<FoodEditScreen />} />
         <Route path="/potraviny/:id/upravit" element={<FoodEditScreen />} />
+        <Route path="/kos" element={<TrashScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
