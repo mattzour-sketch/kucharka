@@ -20,12 +20,20 @@ export default function RecipeListScreen() {
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <h1 className="text-xl font-semibold tracking-tight">Recepty</h1>
-          <Link
-            to="/novy"
-            className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-          >
-            + Nový recept
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/vlozit"
+              className="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
+            >
+              Vložit
+            </Link>
+            <Link
+              to="/novy"
+              className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+            >
+              + Nový recept
+            </Link>
+          </div>
         </div>
       </header>
 

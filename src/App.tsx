@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import TabLayout from './components/TabLayout';
 import RecipeListScreen from './features/recipes/RecipeListScreen';
 import RecipeEditScreen from './features/recipes/RecipeEditScreen';
+import ImportRecipeScreen from './features/recipes/ImportRecipeScreen';
 import RecipeDetailScreen from './features/recipes/RecipeDetailScreen';
 import RecipeNutritionScreen from './features/recipes/RecipeNutritionScreen';
 import CookingModeScreen from './features/recipes/CookingModeScreen';
@@ -26,6 +27,7 @@ export default function App() {
         </Route>
         {/* Vysunuté obrazovky bez lišty, s vlastní horní lištou. */}
         <Route path="/novy" element={<RecipeEditScreen />} />
+        <Route path="/vlozit" element={<ImportRecipeScreen />} />
         <Route path="/recept/:id" element={<RecipeDetailScreen />} />
         <Route path="/recept/:id/upravit" element={<RecipeEditScreen />} />
         <Route path="/recept/:id/varit" element={<CookingModeScreen />} />
