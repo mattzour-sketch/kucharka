@@ -18,7 +18,7 @@ export default function RecipeListScreen() {
   return (
     <div>
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <h1 className="text-xl font-semibold tracking-tight">Recepty</h1>
           <Link
             to="/novy"
@@ -29,11 +29,11 @@ export default function RecipeListScreen() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-4">
+      <main className="mx-auto max-w-5xl px-4 py-4">
         {loading ? null : visible.length === 0 ? (
           <EmptyState />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((recipe) => (
               <li key={recipe.id}>
                 <RecipeCard recipe={recipe} />

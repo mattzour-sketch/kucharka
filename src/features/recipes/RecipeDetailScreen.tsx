@@ -79,7 +79,7 @@ export default function RecipeDetailScreen() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-2 py-2">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-2 py-2">
           <Link
             to="/"
             className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-200/60"
@@ -104,7 +104,7 @@ export default function RecipeDetailScreen() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-4">
+      <main className="mx-auto max-w-3xl px-4 py-4">
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">{formatCzechDate(recipe.capturedOn)}</p>
 

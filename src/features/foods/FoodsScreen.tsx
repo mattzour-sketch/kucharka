@@ -28,7 +28,7 @@ export default function FoodsScreen() {
   return (
     <div>
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto max-w-2xl px-4 py-3">
+        <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-xl font-semibold tracking-tight">Potraviny</h1>
             <Link
@@ -47,7 +47,7 @@ export default function FoodsScreen() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-4">
+      <main className="mx-auto max-w-5xl px-4 py-4">
         {message ? <p className="mb-3 text-sm text-brand-dark">{message}</p> : null}
 
         {loading ? null : results.length === 0 ? (
@@ -67,7 +67,7 @@ export default function FoodsScreen() {
           </div>
         ) : (
           <>
-            <ul className="flex flex-col gap-2">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((food) => (
                 <li key={food.id}>
                   <Link

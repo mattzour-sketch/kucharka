@@ -38,7 +38,7 @@ export default function SearchScreen() {
   return (
     <div>
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto max-w-2xl px-4 py-3">
+        <div className="mx-auto max-w-5xl px-4 py-3">
           <h1 className="text-xl font-semibold tracking-tight">Hledat</h1>
           <div className="mt-2 flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 focus-within:border-brand">
             <span className="text-stone-400" aria-hidden>
@@ -65,7 +65,7 @@ export default function SearchScreen() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-4">
+      <main className="mx-auto max-w-5xl px-4 py-4">
         {allTags.length > 0 ? (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {allTags.map((tag) => {
@@ -93,7 +93,7 @@ export default function SearchScreen() {
             Nic nenalezeno. Zkus jiné slovo nebo štítek.
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((recipe) => (
               <li key={recipe.id}>
                 <RecipeCard recipe={recipe} />

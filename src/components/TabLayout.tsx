@@ -13,7 +13,7 @@ export default function TabLayout() {
     <div className="min-h-dvh pb-16">
       <Outlet />
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl">
+        <div className="mx-auto flex max-w-md">
           {tabs.map((tab) => (
             <NavLink
               key={tab.to}
