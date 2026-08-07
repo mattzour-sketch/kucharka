@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type CookSession } from '../../db';
+import { formatCzechDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getRecipeItems } from './recipesRepo';
+import { clearCookSession, getCookSession, saveCookSession } from './cookSessionRepo';
 import ServingsStepper from './ServingsStepper';
+
+// Do téhle doby se odškrtnutí obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
+const STALE_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Režim vaření (R-22, 6.3): větší písmo, displej nezhasíná (wake lock),
- * suroviny jdou odškrtávat klepnutím. Odškrtnutí je dočasné, neukládá se.
+ * suroviny jdou odškrtávat klepnutím. Odškrtnutí je stav sezení – přežije odchod
+ * z appky (uloženo v Dexie); po delší době nabídne pokračovat/začít znovu (§6).
  */
 export default function CookingModeScreen() {
   const { id } = useParams();
@@ -22,8 +28,28 @@ export default function CookingModeScreen() {
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [targetServings, setTargetServings] = useState<number | null>(null);
+  const [stalePrompt, setStalePrompt] = useState<CookSession | null>(null);
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
+
+  // Načtení rozdělaného vaření: čerstvé obnovit tiše, staré nabídnout.
+  useEffect(() => {
+    setChecked({});
+    setStalePrompt(null);
+    if (!id) return;
+    let cancelled = false;
+    void getCookSession(id).then((session) => {
+      if (cancelled || !session || session.checkedItemIds.length === 0) return;
+      if (Date.now() - Date.parse(session.updatedAt) < STALE_MS) {
+        setChecked(Object.fromEntries(session.checkedItemIds.map((itemId) => [itemId, true])));
+      } else {
+        setStalePrompt(session);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   if (data === undefined) return null;
   const { recipe, items } = data;
@@ -36,6 +62,32 @@ export default function CookingModeScreen() {
         </Link>
       </div>
     );
+  }
+
+  function toggleItem(itemId: string) {
+    const next = { ...checked, [itemId]: !(checked[itemId] ?? false) };
+    setChecked(next);
+    // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
+    if (id && !stalePrompt) {
+      void saveCookSession(
+        id,
+        Object.keys(next).filter((key) => next[key]),
+      );
+    }
+  }
+
+  function continueSession() {
+    if (!stalePrompt || !id) return;
+    setChecked(Object.fromEntries(stalePrompt.checkedItemIds.map((itemId) => [itemId, true])));
+    void saveCookSession(id, stalePrompt.checkedItemIds);
+    setStalePrompt(null);
+  }
+
+  function restartSession() {
+    if (!id) return;
+    setChecked({});
+    void clearCookSession(id);
+    setStalePrompt(null);
   }
 
   const steps = (recipe.instructions ?? '')
@@ -64,6 +116,31 @@ export default function CookingModeScreen() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-4">
+        {stalePrompt ? (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">
+              Rozdělané vaření z {formatCzechDate(stalePrompt.updatedAt.slice(0, 10))}. Pokračovat,
+              nebo začít znovu?
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={continueSession}
+                className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+              >
+                Pokračovat
+              </button>
+              <button
+                type="button"
+                onClick={restartSession}
+                className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
+              >
+                Začít znovu
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {items.length > 0 ? (
           <section>
             <div className="flex items-center justify-between gap-3">
@@ -84,7 +161,7 @@ export default function CookingModeScreen() {
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => setChecked((prev) => ({ ...prev, [item.id]: !isChecked }))}
+                      onClick={() => toggleItem(item.id)}
                       className="flex w-full items-center gap-3 rounded-xl py-3 text-left text-lg transition active:bg-stone-100"
                     >
                       <span

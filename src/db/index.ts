@@ -144,6 +144,16 @@ export interface RecipePhoto {
   createdAt: IsoTimestamp;
 }
 
+/**
+ * Rozdělané vaření (§6): které suroviny jsou odškrtnuté. Stav sezení – přežije
+ * odchod z appky a návrat. Po delší době appka nabídne pokračovat/začít znovu.
+ */
+export interface CookSession {
+  recipeId: string;
+  checkedItemIds: string[];
+  updatedAt: IsoTimestamp;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -154,6 +164,7 @@ export class KucharkaDB extends Dexie {
   goals!: Table<Goal, string>;
   weightEntries!: Table<WeightEntry, string>;
   recipePhotos!: Table<RecipePhoto, string>;
+  cookSessions!: Table<CookSession, string>;
 
   constructor() {
     super('kucharka');
@@ -172,6 +183,10 @@ export class KucharkaDB extends Dexie {
     // v2: fotky receptů jako bloby v IndexedDB (R-04). Blob se neindexuje.
     this.version(2).stores({
       recipePhotos: 'id, recipeId, createdAt',
+    });
+    // v3: rozdělané vaření (§6), klíč = recipeId (jedno sezení na recept).
+    this.version(3).stores({
+      cookSessions: 'recipeId, updatedAt',
     });
   }
 }
