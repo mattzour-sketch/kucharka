@@ -154,6 +154,17 @@ export interface CookSession {
   updatedAt: IsoTimestamp;
 }
 
+/**
+ * Časovač vaření (§7). Ukládá se CÍLOVÝ čas (`endsAt`), ne zbývající sekundy –
+ * přežije uspání i restart, odpočet se dopočítá z aktuálního času.
+ */
+export interface Timer {
+  id: string;
+  label: string;
+  endsAt: IsoTimestamp;
+  createdAt: IsoTimestamp;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -165,6 +176,7 @@ export class KucharkaDB extends Dexie {
   weightEntries!: Table<WeightEntry, string>;
   recipePhotos!: Table<RecipePhoto, string>;
   cookSessions!: Table<CookSession, string>;
+  timers!: Table<Timer, string>;
 
   constructor() {
     super('kucharka');
@@ -187,6 +199,10 @@ export class KucharkaDB extends Dexie {
     // v3: rozdělané vaření (§6), klíč = recipeId (jedno sezení na recept).
     this.version(3).stores({
       cookSessions: 'recipeId, updatedAt',
+    });
+    // v4: časovače vaření (§7).
+    this.version(4).stores({
+      timers: 'id, endsAt',
     });
   }
 }

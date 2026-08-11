@@ -4,9 +4,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookSession } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
+import { splitStepByDurations } from '../../lib/duration';
+import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getRecipeItems } from './recipesRepo';
 import { clearCookSession, getCookSession, saveCookSession } from './cookSessionRepo';
+import { addTimer } from './timerRepo';
+import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
 // Do téhle doby se odškrtnutí obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
@@ -116,6 +120,8 @@ export default function CookingModeScreen() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-4">
+        <CookingTimers />
+
         {stalePrompt ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
@@ -191,7 +197,27 @@ export default function CookingModeScreen() {
               {steps.map((step, index) => (
                 <li key={index} className="flex gap-3 text-lg leading-relaxed">
                   <span className="shrink-0 font-semibold text-brand">{index + 1}.</span>
-                  <span>{step}</span>
+                  <span>
+                    {splitStepByDurations(step).map((segment, segIndex) => {
+                      if (segment.seconds == null) {
+                        return <span key={segIndex}>{segment.text}</span>;
+                      }
+                      const seconds = segment.seconds;
+                      return (
+                        <button
+                          key={segIndex}
+                          type="button"
+                          onClick={() => {
+                            primeAlarm();
+                            void addTimer(`Krok ${index + 1}`, seconds);
+                          }}
+                          className="rounded bg-brand/10 px-1 font-medium text-brand-dark underline decoration-dotted underline-offset-2"
+                        >
+                          {segment.text}
+                        </button>
+                      );
+                    })}
+                  </span>
                 </li>
               ))}
             </ol>
