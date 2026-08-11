@@ -151,6 +151,10 @@ export interface RecipePhoto {
 export interface CookSession {
   recipeId: string;
   checkedItemIds: string[];
+  /** §8 odchylky: vypnuté suroviny (dnes je nedávám). */
+  offItemIds?: string[];
+  /** §8 odchylky: změněné množství suroviny pro tohle vaření (volný text). */
+  amountOverrides?: Record<string, string>;
   updatedAt: IsoTimestamp;
 }
 

@@ -1,25 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type CookSession } from '../../db';
-import { formatCzechDate } from '../../lib/date';
+import { db } from '../../db';
 import { scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getRecipeItems } from './recipesRepo';
-import { clearCookSession, getCookSession, saveCookSession } from './cookSessionRepo';
+import {
+  clearCookSession,
+  getCookSession,
+  saveCookSession,
+  type CookSessionState,
+} from './cookSessionRepo';
 import { addTimer } from './timerRepo';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
-// Do téhle doby se odškrtnutí obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
+// Do téhle doby se sezení obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
 const STALE_MS = 3 * 60 * 60 * 1000;
 
+function keysOf(record: Record<string, boolean>): string[] {
+  return Object.keys(record).filter((key) => record[key]);
+}
+
 /**
- * Režim vaření (R-22, 6.3): větší písmo, displej nezhasíná (wake lock),
- * suroviny jdou odškrtávat klepnutím. Odškrtnutí je stav sezení – přežije odchod
- * z appky (uloženo v Dexie); po delší době nabídne pokračovat/začít znovu (§6).
+ * Režim vaření (R-22, §6, §7, §8): velké písmo, displej nezhasíná (wake lock),
+ * odškrtávání surovin, časovače, a odchylky (vypnout / změnit množství pro dnešek
+ * bez sáhnutí do receptu). Stav sezení přežije odchod z appky.
  */
 export default function CookingModeScreen() {
   const { id } = useParams();
@@ -31,29 +39,66 @@ export default function CookingModeScreen() {
   }, [id]);
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [off, setOff] = useState<Record<string, boolean>>({});
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [targetServings, setTargetServings] = useState<number | null>(null);
-  const [stalePrompt, setStalePrompt] = useState<CookSession | null>(null);
+  const [stalePrompt, setStalePrompt] = useState<CookSessionState | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [overrideDraft, setOverrideDraft] = useState('');
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
-  // Načtení rozdělaného vaření: čerstvé obnovit tiše, staré nabídnout.
+  // Načtení sezení: čerstvé obnovit tiše, staré nabídnout.
   useEffect(() => {
     setChecked({});
+    setOff({});
+    setOverrides({});
     setStalePrompt(null);
+    setEditingItemId(null);
     if (!id) return;
     let cancelled = false;
     void getCookSession(id).then((session) => {
-      if (cancelled || !session || session.checkedItemIds.length === 0) return;
+      if (cancelled || !session) return;
+      const state: CookSessionState = {
+        checkedItemIds: session.checkedItemIds,
+        offItemIds: session.offItemIds ?? [],
+        amountOverrides: session.amountOverrides ?? {},
+      };
+      const hasContent =
+        state.checkedItemIds.length > 0 ||
+        state.offItemIds.length > 0 ||
+        Object.keys(state.amountOverrides).length > 0;
+      if (!hasContent) return;
       if (Date.now() - Date.parse(session.updatedAt) < STALE_MS) {
-        setChecked(Object.fromEntries(session.checkedItemIds.map((itemId) => [itemId, true])));
+        applyState(state);
       } else {
-        setStalePrompt(session);
+        setStalePrompt(state);
       }
     });
     return () => {
       cancelled = true;
     };
   }, [id]);
+
+  function applyState(state: CookSessionState) {
+    setChecked(Object.fromEntries(state.checkedItemIds.map((itemId) => [itemId, true])));
+    setOff(Object.fromEntries(state.offItemIds.map((itemId) => [itemId, true])));
+    setOverrides(state.amountOverrides);
+  }
+
+  function persist(
+    nextChecked: Record<string, boolean>,
+    nextOff: Record<string, boolean>,
+    nextOverrides: Record<string, string>,
+  ) {
+    // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
+    if (!id || stalePrompt) return;
+    void saveCookSession(id, {
+      checkedItemIds: keysOf(nextChecked),
+      offItemIds: keysOf(nextOff),
+      amountOverrides: nextOverrides,
+    });
+  }
 
   if (data === undefined) return null;
   const { recipe, items } = data;
@@ -68,28 +113,46 @@ export default function CookingModeScreen() {
     );
   }
 
-  function toggleItem(itemId: string) {
+  function toggleCheck(itemId: string) {
     const next = { ...checked, [itemId]: !(checked[itemId] ?? false) };
     setChecked(next);
-    // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
-    if (id && !stalePrompt) {
-      void saveCookSession(
-        id,
-        Object.keys(next).filter((key) => next[key]),
-      );
-    }
+    persist(next, off, overrides);
+  }
+
+  function toggleOff(itemId: string) {
+    const next = { ...off, [itemId]: !(off[itemId] ?? false) };
+    setOff(next);
+    persist(checked, next, overrides);
+    setEditingItemId(null);
+  }
+
+  function saveOverride(itemId: string) {
+    const value = overrideDraft.trim();
+    const next = { ...overrides };
+    if (value) next[itemId] = value;
+    else delete next[itemId];
+    setOverrides(next);
+    persist(checked, off, next);
+    setEditingItemId(null);
+  }
+
+  function openEdit(itemId: string) {
+    setEditingItemId(itemId);
+    setOverrideDraft(overrides[itemId] ?? '');
   }
 
   function continueSession() {
     if (!stalePrompt || !id) return;
-    setChecked(Object.fromEntries(stalePrompt.checkedItemIds.map((itemId) => [itemId, true])));
-    void saveCookSession(id, stalePrompt.checkedItemIds);
+    applyState(stalePrompt);
+    void saveCookSession(id, stalePrompt);
     setStalePrompt(null);
   }
 
   function restartSession() {
     if (!id) return;
     setChecked({});
+    setOff({});
+    setOverrides({});
     void clearCookSession(id);
     setStalePrompt(null);
   }
@@ -125,8 +188,7 @@ export default function CookingModeScreen() {
         {stalePrompt ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
-              Rozdělané vaření z {formatCzechDate(stalePrompt.updatedAt.slice(0, 10))}. Pokračovat,
-              nebo začít znovu?
+              Rozdělané vaření. Pokračovat, nebo začít znovu?
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -162,27 +224,93 @@ export default function CookingModeScreen() {
             </div>
             <ul className="mt-2">
               {items.map((item) => {
-                const isChecked = checked[item.id] ?? false;
+                const isOff = off[item.id] ?? false;
+                const override = overrides[item.id];
+                const baseText = scaleQuantityText(item.rawText, scaleFactor);
+                const isChecked = !isOff && (checked[item.id] ?? false);
+                const editing = editingItemId === item.id;
                 return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => toggleItem(item.id)}
-                      className="flex w-full items-center gap-3 rounded-xl py-3 text-left text-lg transition active:bg-stone-100"
-                    >
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
-                          isChecked
-                            ? 'border-brand bg-brand text-white'
-                            : 'border-stone-300 text-transparent'
-                        }`}
+                  <li key={item.id} className="border-b border-stone-100 last:border-0">
+                    <div className="flex items-center gap-1">
+                      {isOff ? (
+                        <div className="flex flex-1 items-center gap-3 py-3 text-lg text-stone-400">
+                          <span className="h-7 w-7 shrink-0" aria-hidden />
+                          <span className="line-through">{baseText}</span>
+                          <span className="text-xs">· vypnuto</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleCheck(item.id)}
+                          className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100"
+                        >
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
+                              isChecked
+                                ? 'border-brand bg-brand text-white'
+                                : 'border-stone-300 text-transparent'
+                            }`}
+                          >
+                            ✓
+                          </span>
+                          <span className={isChecked ? 'text-stone-400 line-through' : ''}>
+                            {override || baseText}
+                            {override ? (
+                              <span className="ml-2 text-sm text-stone-400 line-through">
+                                {baseText}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item.id)}
+                        className="shrink-0 rounded-lg px-2 py-2 text-stone-400 transition hover:text-stone-600"
+                        aria-label="Úprava suroviny"
                       >
-                        ✓
-                      </span>
-                      <span className={isChecked ? 'text-stone-400 line-through' : ''}>
-                        {scaleQuantityText(item.rawText, scaleFactor)}
-                      </span>
-                    </button>
+                        ⋯
+                      </button>
+                    </div>
+
+                    {editing ? (
+                      <div className="flex flex-wrap items-center gap-2 pb-3 pl-9 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => toggleOff(item.id)}
+                          className="rounded-full border border-stone-300 px-3 py-1 font-medium text-stone-700 transition hover:bg-stone-100"
+                        >
+                          {isOff ? 'Zapnout' : 'Vypnout dnes'}
+                        </button>
+                        {!isOff ? (
+                          <>
+                            <input
+                              value={overrideDraft}
+                              onChange={(event) => setOverrideDraft(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') saveOverride(item.id);
+                              }}
+                              placeholder="jiné množství pro dnešek"
+                              className="min-w-0 flex-1 rounded-full border border-stone-200 px-3 py-1 outline-none focus:border-brand"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveOverride(item.id)}
+                              className="rounded-full bg-brand px-3 py-1 font-medium text-white transition hover:bg-brand-dark"
+                            >
+                              Uložit
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setEditingItemId(null)}
+                          className="text-stone-400 hover:text-stone-600"
+                        >
+                          Zavřít
+                        </button>
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
