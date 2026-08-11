@@ -169,6 +169,30 @@ export interface Timer {
   createdAt: IsoTimestamp;
 }
 
+/** Surovina v záznamu vaření (snímek – jak se reálně vařilo). */
+export interface CookLogIngredient {
+  text: string;
+  off: boolean;
+  changed: boolean;
+}
+
+/**
+ * Záznam dokončeného vaření (§10). Snímek, ne odkaz – recept se v čase mění,
+ * ale záznam zůstává pravdivý. Nese i syrové odchylky pro „uvařit znovu takhle".
+ */
+export interface CookLog {
+  id: string;
+  recipeId: string;
+  recipeName: string;
+  cookedOn: IsoDate;
+  portions: number;
+  ingredients: CookLogIngredient[];
+  note: string | null;
+  offItemIds: string[];
+  amountOverrides: Record<string, string>;
+  createdAt: IsoTimestamp;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -181,6 +205,7 @@ export class KucharkaDB extends Dexie {
   recipePhotos!: Table<RecipePhoto, string>;
   cookSessions!: Table<CookSession, string>;
   timers!: Table<Timer, string>;
+  cookLogs!: Table<CookLog, string>;
 
   constructor() {
     super('kucharka');
@@ -207,6 +232,10 @@ export class KucharkaDB extends Dexie {
     // v4: časovače vaření (§7).
     this.version(4).stores({
       timers: 'id, endsAt',
+    });
+    // v5: historie vaření (§10).
+    this.version(5).stores({
+      cookLogs: 'id, recipeId, createdAt',
     });
   }
 }

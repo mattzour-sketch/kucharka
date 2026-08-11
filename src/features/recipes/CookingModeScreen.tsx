@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
+import { formatCzechDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
@@ -14,6 +15,7 @@ import {
   type CookSessionState,
 } from './cookSessionRepo';
 import { addTimer } from './timerRepo';
+import { addCookLog, getCookLogs } from './cookLogRepo';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
@@ -31,6 +33,11 @@ function keysOf(record: Record<string, boolean>): string[] {
  */
 export default function CookingModeScreen() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const lastLog = useLiveQuery(
+    () => (id ? getCookLogs(id).then((logs) => logs[0] ?? null) : Promise.resolve(null)),
+    [id],
+  );
   const data = useLiveQuery(async () => {
     if (!id) return { recipe: null, items: [] };
     const recipe = (await db.recipes.get(id)) ?? null;
@@ -45,6 +52,8 @@ export default function CookingModeScreen() {
   const [stalePrompt, setStalePrompt] = useState<CookSessionState | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [overrideDraft, setOverrideDraft] = useState('');
+  const [showFinish, setShowFinish] = useState(false);
+  const [finishNote, setFinishNote] = useState('');
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
@@ -166,6 +175,30 @@ export default function CookingModeScreen() {
   const targetPortions = targetServings ?? baseServings;
   const scaleFactor = targetPortions / baseServings;
 
+  function handleFinish() {
+    if (!recipe || !id) return;
+    const ingredients = items.map((item) => {
+      const override = overrides[item.id];
+      return {
+        text: override || scaleQuantityText(item.rawText, scaleFactor),
+        off: off[item.id] ?? false,
+        changed: Boolean(override),
+      };
+    });
+    void addCookLog({
+      recipeId: id,
+      recipeName: recipe.name,
+      portions: targetPortions,
+      ingredients,
+      note: finishNote.trim() || null,
+      offItemIds: keysOf(off),
+      amountOverrides: overrides,
+    }).then(() => {
+      if (id) void clearCookSession(id);
+      navigate(`/recept/${id}`, { replace: true });
+    });
+  }
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
@@ -183,6 +216,13 @@ export default function CookingModeScreen() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-4">
+        {lastLog ? (
+          <div className="mb-4 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+            Naposledy uvařeno {formatCzechDate(lastLog.cookedOn)}
+            {lastLog.note ? ` · ${lastLog.note}` : ''}
+          </div>
+        ) : null}
+
         <CookingTimers />
 
         {stalePrompt ? (
@@ -354,6 +394,44 @@ export default function CookingModeScreen() {
 
         {items.length === 0 && steps.length === 0 ? (
           <p className="mt-6 text-stone-400">Recept zatím nemá suroviny ani postup.</p>
+        ) : null}
+
+        {items.length > 0 || steps.length > 0 ? (
+          showFinish ? (
+            <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-4">
+              <label className="text-sm font-medium">Uložit do historie vaření</label>
+              <textarea
+                value={finishNote}
+                onChange={(event) => setFinishNote(event.target.value)}
+                placeholder="Poznámka (nepovinné) – např. „příště míň soli“"
+                className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 p-3 text-sm outline-none focus:border-brand"
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+                >
+                  Uložit do historie
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFinish(false)}
+                  className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
+                >
+                  Zrušit
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowFinish(true)}
+              className="mt-8 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark active:scale-[0.99]"
+            >
+              Hotovo — uložit do historie
+            </button>
+          )
         ) : null}
       </main>
     </div>

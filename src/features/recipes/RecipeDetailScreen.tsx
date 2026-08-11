@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type CookLog } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
 import { buildRecipeText } from '../../lib/shareText';
@@ -10,6 +10,7 @@ import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos } from '../photos/photosRepo';
 import { softDeleteRecipe } from './recipesRepo';
+import { deleteCookLog, getCookLogs, replayCookLog } from './cookLogRepo';
 import ServingsStepper from './ServingsStepper';
 
 export default function RecipeDetailScreen() {
@@ -39,6 +40,7 @@ export default function RecipeDetailScreen() {
   }, [id]);
 
   const photos = useLiveQuery(() => (id ? getRecipePhotos(id) : Promise.resolve([])), [id]) ?? [];
+  const cookLogs = useLiveQuery(() => (id ? getCookLogs(id) : Promise.resolve([])), [id]) ?? [];
 
   if (data === undefined) return null;
   const { recipe, items } = data;
@@ -62,6 +64,17 @@ export default function RecipeDetailScreen() {
     if (!window.confirm('Smazat fotku?')) return;
     await deleteRecipePhoto(photoId);
     setViewingPhotoId(null);
+  }
+
+  async function handleReplay(log: CookLog) {
+    if (!id) return;
+    await replayCookLog(log);
+    navigate(`/recept/${id}/varit`);
+  }
+
+  async function handleDeleteLog(logId: string) {
+    if (!window.confirm('Smazat záznam z historie?')) return;
+    await deleteCookLog(logId);
   }
 
   const nutrition = nutritionFromData(id, {
@@ -239,6 +252,58 @@ export default function RecipeDetailScreen() {
 
         {!hasIngredients && !hasSteps && !legacyText ? (
           <p className="mt-5 text-stone-400">Zatím bez obsahu. Klepni na „Upravit" nebo přidej fotku.</p>
+        ) : null}
+
+        {cookLogs.length > 0 ? (
+          <section className="mt-6">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+              Historie vaření
+            </h2>
+            <ul className="mt-2 flex flex-col gap-2">
+              {cookLogs.map((log) => (
+                <li key={log.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">
+                      {formatCzechDate(log.cookedOn)} · {log.portions} porcí
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteLog(log.id)}
+                      className="text-stone-400 hover:text-stone-600"
+                      aria-label="Smazat záznam"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
+                  <ul className="mt-2 space-y-0.5 text-sm">
+                    {log.ingredients.map((ingredient, index) => (
+                      <li
+                        key={index}
+                        className={
+                          ingredient.off
+                            ? 'text-stone-400 line-through'
+                            : ingredient.changed
+                              ? 'text-brand-dark'
+                              : 'text-stone-600'
+                        }
+                      >
+                        {ingredient.text}
+                        {ingredient.off ? ' · vynecháno' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => void handleReplay(log)}
+                    className="mt-3 text-sm font-medium text-brand"
+                  >
+                    Uvařit znovu takhle →
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         <button
