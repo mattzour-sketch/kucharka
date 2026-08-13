@@ -13,6 +13,8 @@ export interface NewCookLog {
   note: string | null;
   offItemIds: string[];
   amountOverrides: Record<string, string>;
+  perPortion?: { kcal: number; protein: number; carbs: number; fat: number } | null;
+  nutrition?: { connected: number; countable: number } | null;
 }
 
 export async function addCookLog(data: NewCookLog): Promise<void> {

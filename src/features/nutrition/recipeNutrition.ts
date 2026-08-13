@@ -32,21 +32,24 @@ function foodToValue(food: Food): FoodValue {
   return { kcal: food.energyKcal, protein: food.proteinG, carbs: food.carbsG, fat: food.fatG };
 }
 
-function itemToCalc(item: RecipeItem): CalcItem {
+function itemToCalc(item: RecipeItem, skip: Set<string>): CalcItem {
   return {
     foodId: item.foodId,
     subRecipeId: item.subRecipeId,
     amountG: item.amountG,
-    isSkipped: item.isSkipped,
+    isSkipped: item.isSkipped || skip.has(item.id),
   };
 }
 
+/** `skipItemIds` = položky vynechané při vaření (§8/§10) – nepočítají se do součtu. */
 export function nutritionFromData(
   recipeId: string,
   data: { foods: Food[]; recipes: Recipe[]; items: RecipeItem[] },
+  options: { skipItemIds?: string[] } = {},
 ): RecipeNutritionResult {
   const foodMap = new Map(data.foods.map((food) => [food.id, food]));
   const recipeMap = new Map(data.recipes.map((recipe) => [recipe.id, recipe]));
+  const skip = new Set(options.skipItemIds ?? []);
   const itemsByRecipe = new Map<string, RecipeItem[]>();
   for (const item of data.items) {
     const list = itemsByRecipe.get(item.recipeId) ?? [];
@@ -64,7 +67,7 @@ export function nutritionFromData(
       id: recipe.id,
       servings: recipe.servings,
       cookedWeightG: recipe.cookedWeightG,
-      items: items.map(itemToCalc),
+      items: items.map((item) => itemToCalc(item, skip)),
     };
   }
 

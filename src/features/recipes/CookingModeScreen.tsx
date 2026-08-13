@@ -21,6 +21,7 @@ import {
 } from './cookSessionRepo';
 import { addTimer } from './timerRepo';
 import { addCookLog, getCookLogs } from './cookLogRepo';
+import { nutritionFromData } from '../nutrition/recipeNutrition';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
@@ -44,10 +45,17 @@ export default function CookingModeScreen() {
     [id],
   );
   const data = useLiveQuery(async () => {
-    if (!id) return { recipe: null, items: [] };
+    const empty = { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
+    if (!id) return empty;
     const recipe = (await db.recipes.get(id)) ?? null;
-    const items = recipe ? await getRecipeItems(id) : [];
-    return { recipe, items };
+    if (!recipe) return empty;
+    const [items, foods, recipes, allItems] = await Promise.all([
+      getRecipeItems(id),
+      db.foods.toArray(),
+      db.recipes.toArray(),
+      db.recipeItems.toArray(),
+    ]);
+    return { recipe, items, foods, recipes, allItems };
   }, [id]);
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -117,7 +125,7 @@ export default function CookingModeScreen() {
   }
 
   if (data === undefined) return null;
-  const { recipe, items } = data;
+  const { recipe, items, foods, recipes: allRecipes, allItems } = data;
   if (!recipe || recipe.deletedAt || !id) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
@@ -192,6 +200,12 @@ export default function CookingModeScreen() {
         changed: Boolean(override),
       };
     });
+    // Kalorie té varianty: vynechané suroviny se odečtou (skipItemIds).
+    const result = nutritionFromData(
+      id,
+      { foods, recipes: allRecipes, items: allItems },
+      { skipItemIds: keysOf(off) },
+    );
     void addCookLog({
       recipeId: id,
       recipeName: recipe.name,
@@ -200,6 +214,11 @@ export default function CookingModeScreen() {
       note: finishNote.trim() || null,
       offItemIds: keysOf(off),
       amountOverrides: overrides,
+      perPortion: result.perServing,
+      nutrition: {
+        connected: result.completeness.connected,
+        countable: result.completeness.countable,
+      },
     }).then(() => {
       if (id) void clearCookSession(id);
       navigate(`/recept/${id}`, { replace: true });

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookLog } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { formatNumber } from '../../lib/num';
 import { scaleQuantityText } from '../../lib/scale';
 import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
@@ -276,6 +277,14 @@ export default function RecipeDetailScreen() {
                     </button>
                   </div>
                   {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
+                  {log.perPortion ? (
+                    <p className="mt-1 text-sm font-medium text-brand-dark">
+                      ≈ {formatNumber(log.perPortion.kcal)} kcal / porce
+                      {log.nutrition && log.nutrition.connected < log.nutrition.countable
+                        ? ` · orientační (z ${log.nutrition.connected} z ${log.nutrition.countable})`
+                        : ''}
+                    </p>
+                  ) : null}
                   <ul className="mt-2 space-y-0.5 text-sm">
                     {log.ingredients.map((ingredient, index) => (
                       <li

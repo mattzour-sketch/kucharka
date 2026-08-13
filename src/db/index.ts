@@ -190,6 +190,10 @@ export interface CookLog {
   note: string | null;
   offItemIds: string[];
   amountOverrides: Record<string, string>;
+  /** Kalorie té varianty na porci (vypnuté suroviny odečtené, §9/§10); null = nešlo spočítat. */
+  perPortion?: { kcal: number; protein: number; carbs: number; fat: number } | null;
+  /** Úplnost výpočtu té varianty (napojené / započitatelné suroviny). */
+  nutrition?: { connected: number; countable: number } | null;
   createdAt: IsoTimestamp;
 }
 
