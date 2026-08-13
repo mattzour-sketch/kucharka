@@ -1,6 +1,7 @@
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
+import { combineRawCapture } from '../../lib/recipeText';
 
 /**
  * Zápisy do receptů. Recept má dvě části: suroviny (řádky → `recipe_items`,
@@ -123,6 +124,57 @@ export async function updateRecipeMeta(
 
 export function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
   return db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
+}
+
+/** Po změně jednotlivých položek srovná plnotextové zrcadlo `raw_capture`. */
+async function syncRawCapture(recipeId: string): Promise<void> {
+  const items = await db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
+  const recipe = await db.recipes.get(recipeId);
+  const ingredients = items.map((item) => item.rawText).join('\n');
+  await db.recipes.update(recipeId, {
+    rawCapture: combineRawCapture(ingredients, recipe?.instructions ?? ''),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/** Přidá surovinu do receptu natrvalo (úprava z režimu vaření). */
+export async function addRecipeItem(recipeId: string, rawText: string): Promise<void> {
+  const text = rawText.trim();
+  if (!text) return;
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    const items = await db.recipeItems.where('recipeId').equals(recipeId).toArray();
+    const nextOrder = items.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1;
+    await db.recipeItems.add({
+      id: newId(),
+      recipeId,
+      rawText: text,
+      foodId: null,
+      subRecipeId: null,
+      amountG: null,
+      isSkipped: false,
+      note: null,
+      sortOrder: nextOrder,
+    });
+    await syncRawCapture(recipeId);
+  });
+}
+
+export async function updateRecipeItemText(itemId: string, rawText: string): Promise<void> {
+  const item = await db.recipeItems.get(itemId);
+  if (!item) return;
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    await db.recipeItems.update(itemId, { rawText: rawText.trim() });
+    await syncRawCapture(item.recipeId);
+  });
+}
+
+export async function deleteRecipeItem(itemId: string): Promise<void> {
+  const item = await db.recipeItems.get(itemId);
+  if (!item) return;
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    await db.recipeItems.delete(itemId);
+    await syncRawCapture(item.recipeId);
+  });
 }
 
 /** Nikdy nemažeme natvrdo – jen `deletedAt` (soft delete, E-08). */

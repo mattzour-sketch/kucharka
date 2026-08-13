@@ -7,7 +7,12 @@ import { scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import { getRecipeItems } from './recipesRepo';
+import {
+  addRecipeItem,
+  deleteRecipeItem,
+  getRecipeItems,
+  updateRecipeItemText,
+} from './recipesRepo';
 import {
   clearCookSession,
   getCookSession,
@@ -54,6 +59,8 @@ export default function CookingModeScreen() {
   const [overrideDraft, setOverrideDraft] = useState('');
   const [showFinish, setShowFinish] = useState(false);
   const [finishNote, setFinishNote] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [newItemText, setNewItemText] = useState('');
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
@@ -111,7 +118,7 @@ export default function CookingModeScreen() {
 
   if (data === undefined) return null;
   const { recipe, items } = data;
-  if (!recipe || recipe.deletedAt) {
+  if (!recipe || recipe.deletedAt || !id) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
         <p className="text-stone-500">Recept nenalezen.</p>
@@ -249,21 +256,64 @@ export default function CookingModeScreen() {
           </div>
         ) : null}
 
-        {items.length > 0 ? (
+        {items.length > 0 || editMode ? (
           <section>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">
                 Suroviny
               </h2>
-              <ServingsStepper
-                value={targetPortions}
-                onStep={(delta) =>
-                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
-                }
-              />
+              {editMode ? (
+                <button
+                  type="button"
+                  onClick={() => setEditMode(false)}
+                  className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+                >
+                  Hotovo
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <ServingsStepper
+                    value={targetPortions}
+                    onStep={(delta) =>
+                      setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditMode(true)}
+                    className="rounded-lg px-2 py-1.5 text-stone-400 transition hover:text-stone-600"
+                    aria-label="Upravit suroviny"
+                  >
+                    ✎
+                  </button>
+                </div>
+              )}
             </div>
             <ul className="mt-2">
               {items.map((item) => {
+                if (editMode) {
+                  return (
+                    <li key={item.id} className="flex items-center gap-2 py-1.5">
+                      <input
+                        defaultValue={item.rawText}
+                        onBlur={(event) => {
+                          if (event.target.value.trim() !== item.rawText) {
+                            void updateRecipeItemText(item.id, event.target.value);
+                          }
+                        }}
+                        className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void deleteRecipeItem(item.id)}
+                        className="shrink-0 px-2 text-lg text-red-500 hover:text-red-600"
+                        aria-label="Odebrat surovinu"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  );
+                }
                 const isOff = off[item.id] ?? false;
                 const override = overrides[item.id];
                 const baseText = scaleQuantityText(item.rawText, scaleFactor);
@@ -354,6 +404,32 @@ export default function CookingModeScreen() {
                   </li>
                 );
               })}
+              {editMode ? (
+                <li className="mt-2 flex items-center gap-2">
+                  <input
+                    value={newItemText}
+                    onChange={(event) => setNewItemText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        void addRecipeItem(id, newItemText);
+                        setNewItemText('');
+                      }
+                    }}
+                    placeholder="přidat surovinu…"
+                    className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 outline-none focus:border-brand"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void addRecipeItem(id, newItemText);
+                      setNewItemText('');
+                    }}
+                    className="shrink-0 rounded-lg bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand-dark transition hover:bg-brand/20"
+                  >
+                    Přidat
+                  </button>
+                </li>
+              ) : null}
             </ul>
           </section>
         ) : null}
