@@ -31,7 +31,8 @@ export default function RecipeNutritionScreen() {
   const [pickingItemId, setPickingItemId] = useState<string | null>(null);
   const [servings, setServings] = useState('');
   const [cookedWeight, setCookedWeight] = useState('');
-  const [grams, setGrams] = useState<Record<string, string>>({});
+  const [amount, setAmount] = useState<Record<string, string>>({});
+  const [unit, setUnit] = useState<Record<string, 'g' | 'ks'>>({});
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -39,11 +40,20 @@ export default function RecipeNutritionScreen() {
     seededRef.current = true;
     setServings(data.recipe.servings != null ? String(data.recipe.servings) : '');
     setCookedWeight(data.recipe.cookedWeightG != null ? String(data.recipe.cookedWeightG) : '');
-    const initial: Record<string, string> = {};
+    const initialAmount: Record<string, string> = {};
+    const initialUnit: Record<string, 'g' | 'ks'> = {};
     for (const item of data.items) {
-      if (item.recipeId === id) initial[item.id] = item.amountG != null ? String(item.amountG) : '';
+      if (item.recipeId !== id) continue;
+      if (item.amountKs != null) {
+        initialUnit[item.id] = 'ks';
+        initialAmount[item.id] = String(item.amountKs);
+      } else {
+        initialUnit[item.id] = 'g';
+        initialAmount[item.id] = item.amountG != null ? String(item.amountG) : '';
+      }
     }
-    setGrams(initial);
+    setAmount(initialAmount);
+    setUnit(initialUnit);
   }, [data, id]);
 
   if (data === undefined) return null;
@@ -67,6 +77,42 @@ export default function RecipeNutritionScreen() {
     recipes: data.recipes,
     items: data.items,
   });
+
+  // U „ks" je zdroj pravdy počet kusů; gramáž (a tím kcal) se dopočítá z hmotnosti kusu.
+  function persistAmount(itemId: string, value: string, u: 'g' | 'ks', pieceGrams: number | null) {
+    const parsed = parseDecimal(value);
+    if (u === 'ks') {
+      void updateRecipeItemLink(itemId, {
+        amountKs: parsed,
+        amountG: parsed != null && pieceGrams ? parsed * pieceGrams : null,
+      });
+    } else {
+      void updateRecipeItemLink(itemId, { amountG: parsed, amountKs: null });
+    }
+  }
+
+  function toggleUnit(
+    itemId: string,
+    currentUnit: 'g' | 'ks',
+    pieceGrams: number,
+    itemG: number | null,
+    itemKs: number | null,
+  ) {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    if (currentUnit === 'g') {
+      const grams = parseDecimal(amount[itemId] ?? '') ?? itemG;
+      const next = grams != null ? String(round2(grams / pieceGrams)) : '';
+      setUnit((prev) => ({ ...prev, [itemId]: 'ks' }));
+      setAmount((prev) => ({ ...prev, [itemId]: next }));
+      persistAmount(itemId, next, 'ks', pieceGrams);
+    } else {
+      const ks = parseDecimal(amount[itemId] ?? '') ?? itemKs;
+      const next = ks != null ? String(round2(ks * pieceGrams)) : '';
+      setUnit((prev) => ({ ...prev, [itemId]: 'g' }));
+      setAmount((prev) => ({ ...prev, [itemId]: next }));
+      persistAmount(itemId, next, 'g', pieceGrams);
+    }
+  }
 
   return (
     <div className="min-h-dvh">
@@ -119,6 +165,8 @@ export default function RecipeNutritionScreen() {
             const food = item.foodId ? foodMap.get(item.foodId) : undefined;
             const contribution =
               food && item.amountG != null ? (food.energyKcal * item.amountG) / 100 : null;
+            const currentUnit: 'g' | 'ks' = unit[item.id] ?? (item.amountKs != null ? 'ks' : 'g');
+            const pieceGrams = food?.pieceGrams ?? null;
             return (
               <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-3">
                 <p className="font-medium">{item.rawText}</p>
@@ -138,22 +186,48 @@ export default function RecipeNutritionScreen() {
                   <div className="mt-2 flex items-center gap-2 text-sm">
                     <span className="min-w-0 flex-1 truncate text-stone-600">→ {food.name}</span>
                     <input
-                      value={grams[item.id] ?? ''}
+                      value={amount[item.id] ?? ''}
                       onChange={(event) => {
                         const value = event.target.value;
-                        setGrams((prev) => ({ ...prev, [item.id]: value }));
-                        void updateRecipeItemLink(item.id, { amountG: parseDecimal(value) });
+                        setAmount((prev) => ({ ...prev, [item.id]: value }));
+                        persistAmount(item.id, value, currentUnit, pieceGrams);
                       }}
                       inputMode="decimal"
-                      placeholder="g"
-                      className="w-20 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+                      placeholder={currentUnit}
+                      className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
                     />
-                    <span className="w-16 text-right text-xs text-stone-400">
-                      {contribution != null ? `${formatNumber(contribution)} kcal` : ''}
+                    {pieceGrams ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleUnit(
+                            item.id,
+                            currentUnit,
+                            pieceGrams,
+                            item.amountG ?? null,
+                            item.amountKs ?? null,
+                          )
+                        }
+                        className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
+                        aria-label="Přepnout jednotku g/ks"
+                      >
+                        {currentUnit}
+                      </button>
+                    ) : (
+                      <span className="w-8 text-center text-xs text-stone-400">g</span>
+                    )}
+                    <span className="w-14 text-right text-xs text-stone-400">
+                      {currentUnit === 'ks' && item.amountG != null
+                        ? `${formatNumber(item.amountG)} g`
+                        : contribution != null
+                          ? `${formatNumber(contribution)} kcal`
+                          : ''}
                     </span>
                     <button
                       type="button"
-                      onClick={() => void updateRecipeItemLink(item.id, { foodId: null })}
+                      onClick={() =>
+                        void updateRecipeItemLink(item.id, { foodId: null, amountKs: null })
+                      }
                       className="text-stone-400 hover:text-stone-600"
                       aria-label="Odpojit potravinu"
                     >
@@ -204,6 +278,10 @@ export default function RecipeNutritionScreen() {
         <FoodPicker
           onSelect={(foodId) => {
             void updateRecipeItemLink(pickingItemId, { foodId, isSkipped: false });
+            // Potravina s hmotností kusu → výchozí jednotka „ks" (§9).
+            if (foodMap.get(foodId)?.pieceGrams) {
+              setUnit((prev) => ({ ...prev, [pickingItemId]: 'ks' }));
+            }
             setPickingItemId(null);
           }}
           onClose={() => setPickingItemId(null)}

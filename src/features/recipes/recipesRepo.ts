@@ -109,7 +109,12 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
 /** Napojení suroviny na potravinu + gramáž, nebo přeskočení (R-12). */
 export async function updateRecipeItemLink(
   itemId: string,
-  patch: { foodId?: string | null; amountG?: number | null; isSkipped?: boolean },
+  patch: {
+    foodId?: string | null;
+    amountG?: number | null;
+    amountKs?: number | null;
+    isSkipped?: boolean;
+  },
 ): Promise<void> {
   await db.recipeItems.update(itemId, patch);
 }

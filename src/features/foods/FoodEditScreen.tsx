@@ -20,6 +20,7 @@ export default function FoodEditScreen() {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [pieceGrams, setPieceGrams] = useState('');
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -33,6 +34,7 @@ export default function FoodEditScreen() {
       setProtein(String(existing.proteinG));
       setCarbs(String(existing.carbsG));
       setFat(String(existing.fatG));
+      setPieceGrams(existing.pieceGrams != null ? String(existing.pieceGrams) : '');
     }
   }, [existing, loadedId]);
 
@@ -54,6 +56,7 @@ export default function FoodEditScreen() {
       proteinG: parseDecimal(protein) ?? 0,
       carbsG: parseDecimal(carbs) ?? 0,
       fatG: parseDecimal(fat) ?? 0,
+      pieceGrams: parseDecimal(pieceGrams),
     };
     if (routeId) {
       await updateFood(routeId, payload);
@@ -130,6 +133,17 @@ export default function FoodEditScreen() {
           <NumberField label="Bílkoviny (g)" value={protein} onChange={setProtein} />
           <NumberField label="Sacharidy (g)" value={carbs} onChange={setCarbs} />
           <NumberField label="Tuky (g)" value={fat} onChange={setFat} />
+        </div>
+
+        <div className="mt-4">
+          <NumberField
+            label="Hmotnost 1 kusu (g) – nepovinné"
+            value={pieceGrams}
+            onChange={setPieceGrams}
+          />
+          <p className="mt-1 text-xs text-stone-400">
+            Umožní zadat surovinu v kusech (1 vejce ≈ 60 g).
+          </p>
         </div>
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}

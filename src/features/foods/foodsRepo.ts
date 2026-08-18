@@ -11,6 +11,7 @@ export interface FoodDraft {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  pieceGrams?: number | null;
 }
 
 export async function createFood(draft: FoodDraft): Promise<string> {
@@ -25,6 +26,7 @@ export async function createFood(draft: FoodDraft): Promise<string> {
     proteinG: draft.proteinG,
     carbsG: draft.carbsG,
     fatG: draft.fatG,
+    pieceGrams: draft.pieceGrams ?? null,
     source: 'custom',
     isFavorite: false,
     createdAt: now,

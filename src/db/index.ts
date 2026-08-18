@@ -37,6 +37,8 @@ export interface Food {
   satfatG?: number | null;
   fiberG?: number | null;
   saltG?: number | null;
+  /** Hmotnost 1 kusu v gramech (§2). Umožní zadat surovinu v „ks" a spočítat kcal. */
+  pieceGrams?: number | null;
   source: FoodSource;
   sourceRef?: string | null;
   isFavorite: boolean;
@@ -84,8 +86,10 @@ export interface RecipeItem {
   foodId?: string | null;
   /** Nepovinné napojení na podrecept. */
   subRecipeId?: string | null;
-  /** Nepovinná gramáž. */
+  /** Nepovinná gramáž (zdroj pravdy pro výpočet; u „ks" dopočtená z hmotnosti kusu). */
   amountG?: number | null;
+  /** Počet kusů, když je surovina zadaná v „ks" (§9); jinak null. */
+  amountKs?: number | null;
   /** Koření, voda – nepočítá se do úplnosti. */
   isSkipped: boolean;
   note?: string | null;
