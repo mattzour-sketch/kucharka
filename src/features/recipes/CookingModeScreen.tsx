@@ -206,6 +206,16 @@ export default function CookingModeScreen() {
       { foods, recipes: allRecipes, items: allItems },
       { skipItemIds: keysOf(off) },
     );
+    // Na porci dělíme počtem porcí receptu; když není zadaný, bereme 1 (= celý
+    // recept), stejně jako zbytek režimu vaření. Bez napojených surovin je null (R-4).
+    const perPortion = result.total
+      ? {
+          kcal: result.total.kcal / baseServings,
+          protein: result.total.protein / baseServings,
+          carbs: result.total.carbs / baseServings,
+          fat: result.total.fat / baseServings,
+        }
+      : null;
     void addCookLog({
       recipeId: id,
       recipeName: recipe.name,
@@ -214,7 +224,7 @@ export default function CookingModeScreen() {
       note: finishNote.trim() || null,
       offItemIds: keysOf(off),
       amountOverrides: overrides,
-      perPortion: result.perServing,
+      perPortion,
       nutrition: {
         connected: result.completeness.connected,
         countable: result.completeness.countable,
