@@ -10,7 +10,7 @@ import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos } from '../photos/photosRepo';
-import { softDeleteRecipe } from './recipesRepo';
+import { setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog } from './cookLogRepo';
 import ServingsStepper from './ServingsStepper';
 
@@ -130,6 +130,17 @@ export default function RecipeDetailScreen() {
             ‹
           </Link>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void setRecipeFavorite(recipe.id, !recipe.isFavorite)}
+              className={`rounded-full px-2 py-1.5 text-xl leading-none transition ${
+                recipe.isFavorite ? 'text-amber-500' : 'text-stone-300 hover:text-stone-500'
+              }`}
+              aria-label={recipe.isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
+              aria-pressed={recipe.isFavorite}
+            >
+              {recipe.isFavorite ? '★' : '☆'}
+            </button>
             <Link
               to={`/recept/${recipe.id}/upravit`}
               className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"

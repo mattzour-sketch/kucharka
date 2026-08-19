@@ -182,6 +182,12 @@ export async function deleteRecipeItem(itemId: string): Promise<void> {
   });
 }
 
+/** Přepne oblíbenost receptu. Záměrně nemění `updatedAt`, ať se recept
+ * nepřeskládá v řazení „naposledy upravené". */
+export async function setRecipeFavorite(id: string, isFavorite: boolean): Promise<void> {
+  await db.recipes.update(id, { isFavorite });
+}
+
 /** Nikdy nemažeme natvrdo – jen `deletedAt` (soft delete, E-08). */
 export async function softDeleteRecipe(id: string): Promise<void> {
   const now = new Date().toISOString();

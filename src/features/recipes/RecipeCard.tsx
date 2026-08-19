@@ -17,7 +17,10 @@ export default function RecipeCard({ recipe }: { recipe: Recipe }) {
       className="block rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="truncate font-medium">{recipe.name || '(bez názvu)'}</h2>
+        <h2 className="truncate font-medium">
+          {recipe.isFavorite ? <span className="text-amber-500">★ </span> : null}
+          {recipe.name || '(bez názvu)'}
+        </h2>
         <span className="shrink-0 text-xs text-stone-400">{formatCzechDate(recipe.capturedOn)}</span>
       </div>
       {recipe.tags.length > 0 ? (
