@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Food, Recipe, RecipeItem } from '../../db';
-import { nutritionFromData } from './recipeNutrition';
+import { nutritionFromData, perPortionFromResult } from './recipeNutrition';
 
 function food(id: string, kcal: number, protein: number, carbs: number, fat: number): Food {
   return {
@@ -101,5 +101,30 @@ describe('recipeNutrition', () => {
 
     expect(result.computable).toBe(false);
     expect(result.total).toBeNull();
+  });
+
+  it('perPortionFromResult dělí zadaným počtem porcí', () => {
+    const recipes = [recipe({ id: 'r', servings: 4 })];
+    const items = [item('i1', 'r', 0, { foodId: 'rice', amountG: 200 })];
+    const result = nutritionFromData('r', { foods, recipes, items });
+
+    expect(perPortionFromResult(result, 4)?.kcal).toBeCloseTo(175, 4); // 700 / 4
+  });
+
+  it('perPortionFromResult bere chybějící/nulové porce jako 1 (celý recept)', () => {
+    const recipes = [recipe({ id: 'r', servings: null })];
+    const items = [item('i1', 'r', 0, { foodId: 'rice', amountG: 200 })];
+    const result = nutritionFromData('r', { foods, recipes, items });
+
+    expect(perPortionFromResult(result, null)?.kcal).toBeCloseTo(700, 4);
+    expect(perPortionFromResult(result, 0)?.kcal).toBeCloseTo(700, 4);
+  });
+
+  it('perPortionFromResult je null, když není co počítat', () => {
+    const recipes = [recipe({ id: 'empty' })];
+    const items = [item('x', 'empty', 0)];
+    const result = nutritionFromData('empty', { foods, recipes, items });
+
+    expect(perPortionFromResult(result, 2)).toBeNull();
   });
 });

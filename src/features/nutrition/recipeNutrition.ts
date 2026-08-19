@@ -110,6 +110,25 @@ export function nutritionFromData(
   }
 }
 
+/**
+ * Kalorie na porci ze spočítaného výsledku. Dělí počtem porcí; když není zadaný,
+ * bereme 1 (= celý recept), stejně jako režim vaření. Bez napojených surovin null (R-4).
+ * Používá režim vaření i dopočet historie, ať dávají shodné číslo.
+ */
+export function perPortionFromResult(
+  result: RecipeNutritionResult,
+  servings: number | null | undefined,
+): Nutrients | null {
+  if (!result.total) return null;
+  const base = servings != null && servings > 0 ? servings : 1;
+  return {
+    kcal: result.total.kcal / base,
+    protein: result.total.protein / base,
+    carbs: result.total.carbs / base,
+    fat: result.total.fat / base,
+  };
+}
+
 export async function computeRecipeNutrition(recipeId: string): Promise<RecipeNutritionResult> {
   const [foods, recipes, items] = await Promise.all([
     db.foods.toArray(),

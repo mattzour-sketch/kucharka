@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import TabLayout from './components/TabLayout';
+import { backfillMissingNutrition } from './features/recipes/cookLogRepo';
 import RecipeListScreen from './features/recipes/RecipeListScreen';
 import RecipeEditScreen from './features/recipes/RecipeEditScreen';
 import ImportRecipeScreen from './features/recipes/ImportRecipeScreen';
@@ -15,6 +17,12 @@ import TrashScreen from './features/trash/TrashScreen';
 export default function App() {
   // Base path podle nasazení (GitHub Pages běží na /nazev-repa/, jinak /).
   const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+
+  // Jednorázově dopočítej kalorie u starších záznamů vaření, které je nemají
+  // (vznikly dřív, než se na porci počítalo i bez zadaných porcí).
+  useEffect(() => {
+    void backfillMissingNutrition();
+  }, []);
   return (
     <BrowserRouter basename={basename}>
       <Routes>

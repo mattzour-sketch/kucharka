@@ -21,7 +21,7 @@ import {
 } from './cookSessionRepo';
 import { addTimer } from './timerRepo';
 import { addCookLog, getCookLogs } from './cookLogRepo';
-import { nutritionFromData } from '../nutrition/recipeNutrition';
+import { nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
@@ -206,16 +206,7 @@ export default function CookingModeScreen() {
       { foods, recipes: allRecipes, items: allItems },
       { skipItemIds: keysOf(off) },
     );
-    // Na porci dělíme počtem porcí receptu; když není zadaný, bereme 1 (= celý
-    // recept), stejně jako zbytek režimu vaření. Bez napojených surovin je null (R-4).
-    const perPortion = result.total
-      ? {
-          kcal: result.total.kcal / baseServings,
-          protein: result.total.protein / baseServings,
-          carbs: result.total.carbs / baseServings,
-          fat: result.total.fat / baseServings,
-        }
-      : null;
+    const perPortion = perPortionFromResult(result, recipe.servings);
     void addCookLog({
       recipeId: id,
       recipeName: recipe.name,
