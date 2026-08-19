@@ -8,6 +8,7 @@ import ImportRecipeScreen from './features/recipes/ImportRecipeScreen';
 import RecipeDetailScreen from './features/recipes/RecipeDetailScreen';
 import RecipeNutritionScreen from './features/recipes/RecipeNutritionScreen';
 import CookingModeScreen from './features/recipes/CookingModeScreen';
+import StatisticsScreen from './features/recipes/StatisticsScreen';
 import SearchScreen from './features/search/SearchScreen';
 import FoodsScreen from './features/foods/FoodsScreen';
 import FoodEditScreen from './features/foods/FoodEditScreen';
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/recept/:id/upravit" element={<RecipeEditScreen />} />
         <Route path="/recept/:id/varit" element={<CookingModeScreen />} />
         <Route path="/recept/:id/kalorie" element={<RecipeNutritionScreen />} />
+        <Route path="/statistiky" element={<StatisticsScreen />} />
         <Route path="/potraviny/nova" element={<FoodEditScreen />} />
         <Route path="/potraviny/:id/upravit" element={<FoodEditScreen />} />
         <Route path="/kos" element={<TrashScreen />} />

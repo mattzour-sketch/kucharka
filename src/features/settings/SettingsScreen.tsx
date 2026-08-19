@@ -85,6 +85,14 @@ export default function SettingsScreen() {
         </section>
 
         <Link
+          to="/statistiky"
+          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
+        >
+          <span className="font-medium">Statistiky vaření</span>
+          <span className="text-stone-400">›</span>
+        </Link>
+
+        <Link
           to="/kos"
           className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
         >
