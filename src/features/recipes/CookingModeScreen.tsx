@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type CookReplacement } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { parseDecimal } from '../../lib/num';
 import { scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
@@ -21,7 +22,8 @@ import {
 } from './cookSessionRepo';
 import { addTimer } from './timerRepo';
 import { addCookLog, getCookLogs } from './cookLogRepo';
-import { nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
+import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
+import FoodPicker from '../foods/FoodPicker';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 
@@ -69,6 +71,14 @@ export default function CookingModeScreen() {
   const [finishNote, setFinishNote] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [newItemText, setNewItemText] = useState('');
+  // §8 náhrady suroviny (jen tohle vaření). Klíč = id původní suroviny.
+  const [replacements, setReplacements] = useState<Record<string, CookReplacement>>({});
+  const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
+  const [replText, setReplText] = useState('');
+  const [replFoodId, setReplFoodId] = useState<string | null>(null);
+  const [replAmount, setReplAmount] = useState('');
+  const [replUnit, setReplUnit] = useState<'g' | 'ks'>('g');
+  const [replPickerOpen, setReplPickerOpen] = useState(false);
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
@@ -77,6 +87,8 @@ export default function CookingModeScreen() {
     setChecked({});
     setOff({});
     setOverrides({});
+    setReplacements({});
+    setReplacingItemId(null);
     setStalePrompt(null);
     setEditingItemId(null);
     if (!id) return;
@@ -87,11 +99,13 @@ export default function CookingModeScreen() {
         checkedItemIds: session.checkedItemIds,
         offItemIds: session.offItemIds ?? [],
         amountOverrides: session.amountOverrides ?? {},
+        replacements: session.replacements ?? {},
       };
       const hasContent =
         state.checkedItemIds.length > 0 ||
         state.offItemIds.length > 0 ||
-        Object.keys(state.amountOverrides).length > 0;
+        Object.keys(state.amountOverrides).length > 0 ||
+        Object.keys(state.replacements ?? {}).length > 0;
       if (!hasContent) return;
       if (Date.now() - Date.parse(session.updatedAt) < STALE_MS) {
         applyState(state);
@@ -108,12 +122,14 @@ export default function CookingModeScreen() {
     setChecked(Object.fromEntries(state.checkedItemIds.map((itemId) => [itemId, true])));
     setOff(Object.fromEntries(state.offItemIds.map((itemId) => [itemId, true])));
     setOverrides(state.amountOverrides);
+    setReplacements(state.replacements ?? {});
   }
 
   function persist(
     nextChecked: Record<string, boolean>,
     nextOff: Record<string, boolean>,
     nextOverrides: Record<string, string>,
+    nextReplacements: Record<string, CookReplacement> = replacements,
   ) {
     // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
     if (!id || stalePrompt) return;
@@ -121,11 +137,13 @@ export default function CookingModeScreen() {
       checkedItemIds: keysOf(nextChecked),
       offItemIds: keysOf(nextOff),
       amountOverrides: nextOverrides,
+      replacements: nextReplacements,
     });
   }
 
   if (data === undefined) return null;
   const { recipe, items, foods, recipes: allRecipes, allItems } = data;
+  const foodMap = new Map(foods.map((food) => [food.id, food]));
   if (!recipe || recipe.deletedAt || !id) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
@@ -145,9 +163,78 @@ export default function CookingModeScreen() {
 
   function toggleOff(itemId: string) {
     const next = { ...off, [itemId]: !(off[itemId] ?? false) };
+    // Vypnutí ruší případnou náhradu (vylučují se).
+    const nextRepl = { ...replacements };
+    if (next[itemId]) delete nextRepl[itemId];
     setOff(next);
-    persist(checked, next, overrides);
+    setReplacements(nextRepl);
+    persist(checked, next, overrides, nextRepl);
     setEditingItemId(null);
+  }
+
+  function openReplace(itemId: string) {
+    const existing = replacements[itemId];
+    setReplacingItemId(itemId);
+    setReplText(existing?.text ?? '');
+    setReplFoodId(existing?.foodId ?? null);
+    if (existing?.amountKs != null) {
+      setReplUnit('ks');
+      setReplAmount(String(existing.amountKs));
+    } else {
+      setReplUnit('g');
+      setReplAmount(existing?.amountG != null ? String(existing.amountG) : '');
+    }
+    setEditingItemId(null);
+  }
+
+  function toggleReplUnit() {
+    const pieceGrams = replFoodId ? (foodMap.get(replFoodId)?.pieceGrams ?? null) : null;
+    if (!pieceGrams) return;
+    const parsed = parseDecimal(replAmount);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    if (replUnit === 'g') {
+      setReplUnit('ks');
+      setReplAmount(parsed != null ? String(round2(parsed / pieceGrams)) : '');
+    } else {
+      setReplUnit('g');
+      setReplAmount(parsed != null ? String(round2(parsed * pieceGrams)) : '');
+    }
+  }
+
+  function saveReplacement(itemId: string) {
+    const food = replFoodId ? foodMap.get(replFoodId) : undefined;
+    const text = replText.trim() || food?.name || '';
+    if (!text) {
+      setReplacingItemId(null);
+      return;
+    }
+    const parsed = parseDecimal(replAmount);
+    let amountG: number | null = null;
+    let amountKs: number | null = null;
+    if (replUnit === 'ks') {
+      amountKs = parsed;
+      amountG = parsed != null && food?.pieceGrams ? parsed * food.pieceGrams : null;
+    } else {
+      amountG = parsed;
+    }
+    const nextRepl = {
+      ...replacements,
+      [itemId]: { text, foodId: replFoodId, amountG, amountKs },
+    };
+    // Náhrada ruší „vypnuto" (vylučují se).
+    const nextOff = { ...off, [itemId]: false };
+    setReplacements(nextRepl);
+    setOff(nextOff);
+    persist(checked, nextOff, overrides, nextRepl);
+    setReplacingItemId(null);
+  }
+
+  function removeReplacement(itemId: string) {
+    const nextRepl = { ...replacements };
+    delete nextRepl[itemId];
+    setReplacements(nextRepl);
+    persist(checked, off, overrides, nextRepl);
+    setReplacingItemId(null);
   }
 
   function saveOverride(itemId: string) {
@@ -177,6 +264,8 @@ export default function CookingModeScreen() {
     setChecked({});
     setOff({});
     setOverrides({});
+    setReplacements({});
+    setReplacingItemId(null);
     void clearCookSession(id);
     setStalePrompt(null);
   }
@@ -194,17 +283,20 @@ export default function CookingModeScreen() {
     if (!recipe || !id) return;
     const ingredients = items.map((item) => {
       const override = overrides[item.id];
+      const replacement = replacements[item.id];
       return {
         text: override || scaleQuantityText(item.rawText, scaleFactor),
         off: off[item.id] ?? false,
         changed: Boolean(override),
+        replacedWith: replacement ? replacement.text : null,
       };
     });
-    // Kalorie té varianty: vynechané suroviny se odečtou (skipItemIds).
+    // Kalorie té varianty: vynechané suroviny se odečtou, náhrady se přičtou (§8).
+    const withRepl = applyReplacements(allItems, id, replacements);
     const result = nutritionFromData(
       id,
-      { foods, recipes: allRecipes, items: allItems },
-      { skipItemIds: keysOf(off) },
+      { foods, recipes: allRecipes, items: withRepl.items },
+      { skipItemIds: [...keysOf(off), ...withRepl.replacedIds] },
     );
     const perPortion = perPortionFromResult(result, recipe.servings);
     void addCookLog({
@@ -215,6 +307,7 @@ export default function CookingModeScreen() {
       note: finishNote.trim() || null,
       offItemIds: keysOf(off),
       amountOverrides: overrides,
+      replacements,
       perPortion,
       nutrition: {
         connected: result.completeness.connected,
@@ -335,14 +428,34 @@ export default function CookingModeScreen() {
                   );
                 }
                 const isOff = off[item.id] ?? false;
+                const replacement = replacements[item.id];
+                const isReplaced = Boolean(replacement);
+                const replAmountLabel = replacement
+                  ? replacement.amountKs != null
+                    ? `${replacement.amountKs} ks`
+                    : replacement.amountG != null
+                      ? `${replacement.amountG} g`
+                      : ''
+                  : '';
                 const override = overrides[item.id];
                 const baseText = scaleQuantityText(item.rawText, scaleFactor);
-                const isChecked = !isOff && (checked[item.id] ?? false);
+                const isChecked = !isOff && !isReplaced && (checked[item.id] ?? false);
                 const editing = editingItemId === item.id;
                 return (
                   <li key={item.id} className="border-b border-stone-100 last:border-0">
                     <div className="flex items-center gap-1">
-                      {isOff ? (
+                      {isReplaced ? (
+                        <div className="flex flex-1 items-center gap-2 py-3 text-lg">
+                          <span className="h-7 w-7 shrink-0" aria-hidden />
+                          <span className="min-w-0">
+                            <span className="text-stone-400 line-through">{baseText}</span>
+                            <span className="font-medium text-brand-dark"> → {replacement.text}</span>
+                            {replAmountLabel ? (
+                              <span className="ml-1 text-sm text-stone-400">{replAmountLabel}</span>
+                            ) : null}
+                          </span>
+                        </div>
+                      ) : isOff ? (
                         <div className="flex flex-1 items-center gap-3 py-3 text-lg text-stone-400">
                           <span className="h-7 w-7 shrink-0" aria-hidden />
                           <span className="line-through">{baseText}</span>
@@ -412,6 +525,15 @@ export default function CookingModeScreen() {
                             </button>
                           </>
                         ) : null}
+                        {!isOff ? (
+                          <button
+                            type="button"
+                            onClick={() => openReplace(item.id)}
+                            className="rounded-full border border-stone-300 px-3 py-1 font-medium text-stone-700 transition hover:bg-stone-100"
+                          >
+                            {isReplaced ? 'Upravit náhradu' : 'Nahradit'}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setEditingItemId(null)}
@@ -419,6 +541,84 @@ export default function CookingModeScreen() {
                         >
                           Zavřít
                         </button>
+                      </div>
+                    ) : null}
+
+                    {replacingItemId === item.id ? (
+                      <div className="flex flex-col gap-2 pb-3 pl-9 pr-2 text-sm">
+                        <input
+                          value={replText}
+                          onChange={(event) => setReplText(event.target.value)}
+                          placeholder="čím nahradit (např. tvaroh)"
+                          className="w-full rounded-full border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
+                        />
+                        {replFoodId ? (
+                          <div className="flex items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate text-stone-600">
+                              → {foodMap.get(replFoodId)?.name}
+                            </span>
+                            <input
+                              value={replAmount}
+                              onChange={(event) => setReplAmount(event.target.value)}
+                              inputMode="decimal"
+                              placeholder={replUnit}
+                              className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+                            />
+                            {foodMap.get(replFoodId)?.pieceGrams ? (
+                              <button
+                                type="button"
+                                onClick={toggleReplUnit}
+                                className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
+                                aria-label="Přepnout jednotku g/ks"
+                              >
+                                {replUnit}
+                              </button>
+                            ) : (
+                              <span className="w-8 text-center text-xs text-stone-400">g</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setReplFoodId(null)}
+                              className="text-stone-400 hover:text-stone-600"
+                              aria-label="Odpojit potravinu"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setReplPickerOpen(true)}
+                            className="self-start rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
+                          >
+                            napojit potravinu (kvůli kaloriím)
+                          </button>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => saveReplacement(item.id)}
+                            className="rounded-full bg-brand px-3 py-1 font-medium text-white transition hover:bg-brand-dark"
+                          >
+                            Uložit náhradu
+                          </button>
+                          {isReplaced ? (
+                            <button
+                              type="button"
+                              onClick={() => removeReplacement(item.id)}
+                              className="rounded-full px-3 py-1 font-medium text-red-600 transition hover:bg-red-50"
+                            >
+                              Odebrat
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setReplacingItemId(null)}
+                            className="text-stone-400 hover:text-stone-600"
+                          >
+                            Zavřít
+                          </button>
+                        </div>
                       </div>
                     ) : null}
                   </li>
@@ -530,6 +730,19 @@ export default function CookingModeScreen() {
           )
         ) : null}
       </main>
+
+      {replPickerOpen ? (
+        <FoodPicker
+          onSelect={(foodId) => {
+            setReplFoodId(foodId);
+            const food = foodMap.get(foodId);
+            if (!replText.trim() && food) setReplText(food.name);
+            if (food?.pieceGrams) setReplUnit('ks');
+            setReplPickerOpen(false);
+          }}
+          onClose={() => setReplPickerOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

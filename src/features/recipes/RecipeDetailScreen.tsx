@@ -292,12 +292,13 @@ export default function RecipeDetailScreen() {
                         className={
                           ingredient.off
                             ? 'text-stone-400 line-through'
-                            : ingredient.changed
+                            : ingredient.replacedWith || ingredient.changed
                               ? 'text-brand-dark'
                               : 'text-stone-600'
                         }
                       >
                         {ingredient.text}
+                        {ingredient.replacedWith ? ` → ${ingredient.replacedWith}` : ''}
                         {ingredient.off ? ' · vynecháno' : ''}
                       </li>
                     ))}

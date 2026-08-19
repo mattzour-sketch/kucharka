@@ -1,4 +1,4 @@
-import { db, type Food, type Recipe, type RecipeItem } from '../../db';
+import { db, type CookReplacement, type Food, type Recipe, type RecipeItem } from '../../db';
 import {
   completeness,
   per100g,
@@ -108,6 +108,32 @@ export function nutritionFromData(
     // cyklická reference podreceptů (E-03)
     return { ...notComputable, hasCycle: true };
   }
+}
+
+/**
+ * Založí náhrady (§8) do výpočtu: vloží je jako syntetické položky receptu a
+ * vrátí id původních surovin, které se místo nich mají přeskočit. Náhrada bez
+ * napojení potraviny se počítá jako nenapojená položka (sníží úplnost, R-4).
+ */
+export function applyReplacements(
+  items: RecipeItem[],
+  recipeId: string,
+  replacements: Record<string, CookReplacement> | undefined,
+): { items: RecipeItem[]; replacedIds: string[] } {
+  const entries = Object.entries(replacements ?? {});
+  if (entries.length === 0) return { items, replacedIds: [] };
+  const synthetic: RecipeItem[] = entries.map(([originalId, replacement], index) => ({
+    id: `repl:${originalId}`,
+    recipeId,
+    rawText: replacement.text,
+    foodId: replacement.foodId ?? null,
+    subRecipeId: null,
+    amountG: replacement.amountG ?? null,
+    amountKs: replacement.amountKs ?? null,
+    isSkipped: false,
+    sortOrder: 100000 + index,
+  }));
+  return { items: [...items, ...synthetic], replacedIds: entries.map(([id]) => id) };
 }
 
 /**

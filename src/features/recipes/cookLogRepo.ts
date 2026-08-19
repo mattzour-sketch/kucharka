@@ -1,8 +1,8 @@
-import { db, type CookLog, type CookLogIngredient } from '../../db';
+import { db, type CookLog, type CookLogIngredient, type CookReplacement } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
 import { saveCookSession } from './cookSessionRepo';
-import { nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
+import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 
 /** Historie vaření (§10). Snímek dokončeného vaření, ne odkaz na recept. */
 
@@ -14,6 +14,7 @@ export interface NewCookLog {
   note: string | null;
   offItemIds: string[];
   amountOverrides: Record<string, string>;
+  replacements?: Record<string, CookReplacement>;
   perPortion?: { kcal: number; protein: number; carbs: number; fat: number } | null;
   nutrition?: { connected: number; countable: number } | null;
 }
@@ -59,10 +60,11 @@ export async function backfillMissingNutrition(): Promise<number> {
 
   let filled = 0;
   for (const log of missing) {
+    const withRepl = applyReplacements(items, log.recipeId, log.replacements);
     const result = nutritionFromData(
       log.recipeId,
-      { foods, recipes, items },
-      { skipItemIds: log.offItemIds },
+      { foods, recipes, items: withRepl.items },
+      { skipItemIds: [...log.offItemIds, ...withRepl.replacedIds] },
     );
     const perPortion = perPortionFromResult(result, recipeById.get(log.recipeId)?.servings);
     if (!perPortion) continue; // stále nespočitatelné → necháme prázdné
@@ -84,5 +86,6 @@ export async function replayCookLog(log: CookLog): Promise<void> {
     checkedItemIds: [],
     offItemIds: log.offItemIds,
     amountOverrides: log.amountOverrides,
+    replacements: log.replacements ?? {},
   });
 }

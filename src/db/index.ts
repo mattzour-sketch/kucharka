@@ -149,6 +149,20 @@ export interface RecipePhoto {
 }
 
 /**
+ * §8 náhrada suroviny pro jedno vaření (jogurt → tvaroh). Volitelně napojená na
+ * potravinu (+ gramáž/ks), aby se přepočítaly kalorie té porce. Klíčem je id
+ * původní suroviny receptu, kterou nahrazuje.
+ */
+export interface CookReplacement {
+  /** Čím se nahrazuje, jak se zobrazí (např. „tvaroh"). */
+  text: string;
+  foodId?: string | null;
+  /** Gramáž náhrady – zdroj pravdy pro kcal (u „ks" dopočtená z hmotnosti kusu). */
+  amountG?: number | null;
+  amountKs?: number | null;
+}
+
+/**
  * Rozdělané vaření (§6): které suroviny jsou odškrtnuté. Stav sezení – přežije
  * odchod z appky a návrat. Po delší době appka nabídne pokračovat/začít znovu.
  */
@@ -159,6 +173,8 @@ export interface CookSession {
   offItemIds?: string[];
   /** §8 odchylky: změněné množství suroviny pro tohle vaření (volný text). */
   amountOverrides?: Record<string, string>;
+  /** §8 náhrady: čím se která surovina pro tohle vaření nahradila. */
+  replacements?: Record<string, CookReplacement>;
   updatedAt: IsoTimestamp;
 }
 
@@ -178,6 +194,8 @@ export interface CookLogIngredient {
   text: string;
   off: boolean;
   changed: boolean;
+  /** §8 náhrada: čím se surovina nahradila (např. „tvaroh"); jinak null. */
+  replacedWith?: string | null;
 }
 
 /**
@@ -194,6 +212,8 @@ export interface CookLog {
   note: string | null;
   offItemIds: string[];
   amountOverrides: Record<string, string>;
+  /** §8 náhrady použité při tomhle vaření (pro zobrazení, přepočet a „uvařit znovu"). */
+  replacements?: Record<string, CookReplacement>;
   /** Kalorie té varianty na porci (vypnuté suroviny odečtené, §9/§10); null = nešlo spočítat. */
   perPortion?: { kcal: number; protein: number; carbs: number; fat: number } | null;
   /** Úplnost výpočtu té varianty (napojené / započitatelné suroviny). */

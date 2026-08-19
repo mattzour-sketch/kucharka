@@ -1,14 +1,15 @@
-import { db, type CookSession } from '../../db';
+import { db, type CookSession, type CookReplacement } from '../../db';
 
 /**
  * Sezení vaření (§6, §8): odškrtnuté suroviny + odchylky (vypnuté / změněné
- * množství). Přežije odchod z appky; jedno sezení na recept.
+ * množství / náhrady). Přežije odchod z appky; jedno sezení na recept.
  */
 
 export interface CookSessionState {
   checkedItemIds: string[];
   offItemIds: string[];
   amountOverrides: Record<string, string>;
+  replacements?: Record<string, CookReplacement>;
 }
 
 export function getCookSession(recipeId: string): Promise<CookSession | undefined> {
@@ -21,6 +22,7 @@ export async function saveCookSession(recipeId: string, state: CookSessionState)
     checkedItemIds: state.checkedItemIds,
     offItemIds: state.offItemIds,
     amountOverrides: state.amountOverrides,
+    replacements: state.replacements ?? {},
     updatedAt: new Date().toISOString(),
   });
 }
