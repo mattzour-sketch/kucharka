@@ -10,6 +10,7 @@ export interface CookSessionState {
   offItemIds: string[];
   amountOverrides: Record<string, string>;
   replacements?: Record<string, CookReplacement>;
+  doneStepIndices?: number[];
 }
 
 export function getCookSession(recipeId: string): Promise<CookSession | undefined> {
@@ -23,6 +24,7 @@ export async function saveCookSession(recipeId: string, state: CookSessionState)
     offItemIds: state.offItemIds,
     amountOverrides: state.amountOverrides,
     replacements: state.replacements ?? {},
+    doneStepIndices: state.doneStepIndices ?? [],
     updatedAt: new Date().toISOString(),
   });
 }

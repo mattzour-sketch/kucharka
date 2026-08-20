@@ -34,6 +34,13 @@ function keysOf(record: Record<string, boolean>): string[] {
   return Object.keys(record).filter((key) => record[key]);
 }
 
+/** Jemná odezva při odškrtnutí (kde to zařízení umí). */
+function buzz(): void {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(8);
+  }
+}
+
 /**
  * Režim vaření (R-22, §6, §7, §8): velké písmo, displej nezhasíná (wake lock),
  * odškrtávání surovin, časovače, a odchylky (vypnout / změnit množství pro dnešek
@@ -79,6 +86,7 @@ export default function CookingModeScreen() {
   const [replAmount, setReplAmount] = useState('');
   const [replUnit, setReplUnit] = useState<'g' | 'ks'>('g');
   const [replPickerOpen, setReplPickerOpen] = useState(false);
+  const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
 
@@ -89,6 +97,7 @@ export default function CookingModeScreen() {
     setOverrides({});
     setReplacements({});
     setReplacingItemId(null);
+    setDoneSteps(new Set());
     setStalePrompt(null);
     setEditingItemId(null);
     if (!id) return;
@@ -100,12 +109,14 @@ export default function CookingModeScreen() {
         offItemIds: session.offItemIds ?? [],
         amountOverrides: session.amountOverrides ?? {},
         replacements: session.replacements ?? {},
+        doneStepIndices: session.doneStepIndices ?? [],
       };
       const hasContent =
         state.checkedItemIds.length > 0 ||
         state.offItemIds.length > 0 ||
         Object.keys(state.amountOverrides).length > 0 ||
-        Object.keys(state.replacements ?? {}).length > 0;
+        Object.keys(state.replacements ?? {}).length > 0 ||
+        (state.doneStepIndices ?? []).length > 0;
       if (!hasContent) return;
       if (Date.now() - Date.parse(session.updatedAt) < STALE_MS) {
         applyState(state);
@@ -123,6 +134,7 @@ export default function CookingModeScreen() {
     setOff(Object.fromEntries(state.offItemIds.map((itemId) => [itemId, true])));
     setOverrides(state.amountOverrides);
     setReplacements(state.replacements ?? {});
+    setDoneSteps(new Set(state.doneStepIndices ?? []));
   }
 
   function persist(
@@ -130,6 +142,7 @@ export default function CookingModeScreen() {
     nextOff: Record<string, boolean>,
     nextOverrides: Record<string, string>,
     nextReplacements: Record<string, CookReplacement> = replacements,
+    nextDoneSteps: Set<number> = doneSteps,
   ) {
     // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
     if (!id || stalePrompt) return;
@@ -138,6 +151,7 @@ export default function CookingModeScreen() {
       offItemIds: keysOf(nextOff),
       amountOverrides: nextOverrides,
       replacements: nextReplacements,
+      doneStepIndices: [...nextDoneSteps],
     });
   }
 
@@ -159,6 +173,16 @@ export default function CookingModeScreen() {
     const next = { ...checked, [itemId]: !(checked[itemId] ?? false) };
     setChecked(next);
     persist(next, off, overrides);
+    buzz();
+  }
+
+  function toggleStep(index: number) {
+    const next = new Set(doneSteps);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    setDoneSteps(next);
+    persist(checked, off, overrides, replacements, next);
+    buzz();
   }
 
   function toggleOff(itemId: string) {
@@ -266,6 +290,7 @@ export default function CookingModeScreen() {
     setOverrides({});
     setReplacements({});
     setReplacingItemId(null);
+    setDoneSteps(new Set());
     void clearCookSession(id);
     setStalePrompt(null);
   }
@@ -278,6 +303,20 @@ export default function CookingModeScreen() {
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
   const targetPortions = targetServings ?? baseServings;
   const scaleFactor = targetPortions / baseServings;
+
+  // Průběh vaření: odškrtané suroviny (mimo vypnuté a nahrazené) + hotové kroky.
+  const ingredientUnits = items.filter((item) => !(off[item.id] ?? false) && !replacements[item.id]);
+  const checkedCount = ingredientUnits.filter((item) => checked[item.id]).length;
+  const doneStepCount = steps.filter((_, index) => doneSteps.has(index)).length;
+  const totalUnits = ingredientUnits.length + steps.length;
+  const doneUnits = checkedCount + doneStepCount;
+  const progressPct = totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0;
+  const allDone = totalUnits > 0 && doneUnits === totalUnits;
+  const currentStepIndex = steps.findIndex((_, index) => !doneSteps.has(index));
+  const progressParts = [
+    ingredientUnits.length > 0 ? `Suroviny ${checkedCount}/${ingredientUnits.length}` : null,
+    steps.length > 0 ? `Postup ${doneStepCount}/${steps.length}` : null,
+  ].filter(Boolean);
 
   function handleFinish() {
     if (!recipe || !id) return;
@@ -365,6 +404,23 @@ export default function CookingModeScreen() {
               >
                 Začít znovu
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {totalUnits > 0 && !editMode && !stalePrompt ? (
+          <div className="mb-4">
+            <div className="mb-1 flex items-center justify-between text-xs font-medium text-stone-500">
+              <span className={allDone ? 'text-brand-dark' : ''}>
+                {allDone ? 'Hotovo 🎉' : `Hotovo ${progressPct} %`}
+              </span>
+              <span>{progressParts.join(' · ')}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-stone-200">
+              <div
+                className="h-full rounded-full bg-brand transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
           </div>
         ) : null}
@@ -658,10 +714,29 @@ export default function CookingModeScreen() {
           <section className="mt-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
             <ol className="mt-2 space-y-4">
-              {steps.map((step, index) => (
+              {steps.map((step, index) => {
+                const stepDone = doneSteps.has(index);
+                const isCurrent = index === currentStepIndex;
+                return (
                 <li key={index} className="flex gap-3 text-lg leading-relaxed">
-                  <span className="shrink-0 font-semibold text-brand">{index + 1}.</span>
-                  <span>
+                  <button
+                    type="button"
+                    onClick={() => toggleStep(index)}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition ${
+                      stepDone
+                        ? 'border-brand bg-brand text-white'
+                        : isCurrent
+                          ? 'border-brand text-brand'
+                          : 'border-stone-300 text-stone-400'
+                    }`}
+                    aria-label={
+                      stepDone ? `Krok ${index + 1} hotový` : `Označit krok ${index + 1} za hotový`
+                    }
+                    aria-pressed={stepDone}
+                  >
+                    {stepDone ? '✓' : index + 1}
+                  </button>
+                  <span className={stepDone ? 'text-stone-400 line-through' : ''}>
                     {splitStepByDurations(step).map((segment, segIndex) => {
                       if (segment.seconds == null) {
                         return <span key={segIndex}>{segment.text}</span>;
@@ -683,7 +758,8 @@ export default function CookingModeScreen() {
                     })}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ol>
           </section>
         ) : null}

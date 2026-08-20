@@ -175,6 +175,8 @@ export interface CookSession {
   amountOverrides?: Record<string, string>;
   /** §8 náhrady: čím se která surovina pro tohle vaření nahradila. */
   replacements?: Record<string, CookReplacement>;
+  /** Hotové kroky postupu (indexy) – průběh vaření. */
+  doneStepIndices?: number[];
   updatedAt: IsoTimestamp;
 }
 
