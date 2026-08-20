@@ -18,7 +18,11 @@ export default function RecipeListScreen() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const data = useLiveQuery(async () => {
-    const [all, logs] = await Promise.all([db.recipes.toArray(), db.cookLogs.toArray()]);
+    const [all, logs, photos] = await Promise.all([
+      db.recipes.toArray(),
+      db.cookLogs.toArray(),
+      db.recipePhotos.toArray(),
+    ]);
     const recipes = all.filter((recipe) => !recipe.deletedAt);
     // Poslední uvaření podle nejnovějšího záznamu v historii (ISO timestamp řadí chronologicky).
     const lastCooked = new Map<string, string>();
@@ -26,12 +30,23 @@ export default function RecipeListScreen() {
       const prev = lastCooked.get(log.recipeId);
       if (!prev || log.createdAt > prev) lastCooked.set(log.recipeId, log.createdAt);
     }
-    return { recipes, lastCooked };
+    // Obálka receptu = jeho nejstarší fotka.
+    const coverByRecipe = new Map<string, Blob>();
+    const coverAt = new Map<string, string>();
+    for (const photo of photos) {
+      const prev = coverAt.get(photo.recipeId);
+      if (!prev || photo.createdAt < prev) {
+        coverAt.set(photo.recipeId, photo.createdAt);
+        coverByRecipe.set(photo.recipeId, photo.blob);
+      }
+    }
+    return { recipes, lastCooked, coverByRecipe };
   }, []);
 
   const loading = data === undefined;
   const recipes = data?.recipes ?? [];
   const lastCooked = data?.lastCooked ?? new Map<string, string>();
+  const coverByRecipe = data?.coverByRecipe ?? new Map<string, Blob>();
 
   const tagSet = new Set<string>();
   for (const recipe of recipes) for (const tag of recipe.tags) tagSet.add(tag);
@@ -135,7 +150,7 @@ export default function RecipeListScreen() {
               <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((recipe) => (
                   <li key={recipe.id}>
-                    <RecipeCard recipe={recipe} />
+                    <RecipeCard recipe={recipe} cover={coverByRecipe.get(recipe.id) ?? null} />
                   </li>
                 ))}
               </ul>
