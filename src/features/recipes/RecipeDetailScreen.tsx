@@ -21,6 +21,8 @@ export default function RecipeDetailScreen() {
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
   const [targetServings, setTargetServings] = useState<number | null>(null);
   const [shareMsg, setShareMsg] = useState('');
+  // Historie: kalorie na porci, nebo za celou uvařenou dávku.
+  const [histMode, setHistMode] = useState<'porce' | 'cely'>('porce');
 
   // Detail se mezi recepty neremountuje – při změně id vynuluj cíl porcí.
   useEffect(() => setTargetServings(null), [id]);
@@ -268,9 +270,27 @@ export default function RecipeDetailScreen() {
 
         {cookLogs.length > 0 ? (
           <section className="mt-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-              Historie vaření
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                Historie vaření
+              </h2>
+              {cookLogs.some((log) => Boolean(log.perPortion) && log.portions > 1) ? (
+                <div className="flex rounded-full border border-stone-200 p-0.5 text-xs font-medium">
+                  {(['porce', 'cely'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setHistMode(mode)}
+                      className={`rounded-full px-2.5 py-0.5 transition ${
+                        histMode === mode ? 'bg-brand text-white' : 'text-stone-500'
+                      }`}
+                    >
+                      {mode === 'porce' ? 'Na porci' : 'Celý'}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <ul className="mt-2 flex flex-col gap-2">
               {cookLogs.map((log) => (
                 <li key={log.id} className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -290,7 +310,11 @@ export default function RecipeDetailScreen() {
                   {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
                   {log.perPortion ? (
                     <p className="mt-1 text-sm font-medium text-brand-dark">
-                      ≈ {formatNumber(log.perPortion.kcal)} kcal / porce
+                      ≈{' '}
+                      {formatNumber(
+                        histMode === 'cely' ? log.perPortion.kcal * log.portions : log.perPortion.kcal,
+                      )}{' '}
+                      kcal {histMode === 'cely' ? 'celkem' : '/ porce'}
                       {log.nutrition && log.nutrition.connected < log.nutrition.countable
                         ? ` · orientační (z ${log.nutrition.connected} z ${log.nutrition.countable})`
                         : ''}
