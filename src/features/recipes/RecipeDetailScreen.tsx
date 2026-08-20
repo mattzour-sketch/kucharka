@@ -9,9 +9,11 @@ import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
-import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos } from '../photos/photosRepo';
+import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos, restoreRecipePhoto } from '../photos/photosRepo';
 import { setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
-import { deleteCookLog, getCookLogs, replayCookLog } from './cookLogRepo';
+import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
+import { restoreRecipe } from '../trash/trashRepo';
+import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
 
 export default function RecipeDetailScreen() {
@@ -23,6 +25,7 @@ export default function RecipeDetailScreen() {
   const [shareMsg, setShareMsg] = useState('');
   // Historie: kalorie na porci, nebo za celou uvařenou dávku.
   const [histMode, setHistMode] = useState<'porce' | 'cely'>('porce');
+  const { showUndo } = useUndo();
 
   // Detail se mezi recepty neremountuje – při změně id vynuluj cíl porcí.
   useEffect(() => setTargetServings(null), [id]);
@@ -51,8 +54,9 @@ export default function RecipeDetailScreen() {
 
   async function handleDelete() {
     if (!id) return;
-    if (!window.confirm('Opravdu smazat tenhle recept?')) return;
-    await softDeleteRecipe(id);
+    const recipeId = id;
+    await softDeleteRecipe(recipeId);
+    showUndo({ message: 'Recept smazán', undo: () => restoreRecipe(recipeId) });
     navigate('/', { replace: true });
   }
 
@@ -64,9 +68,10 @@ export default function RecipeDetailScreen() {
   }
 
   async function handleDeletePhoto(photoId: string) {
-    if (!window.confirm('Smazat fotku?')) return;
+    const photo = photos.find((item) => item.id === photoId);
     await deleteRecipePhoto(photoId);
     setViewingPhotoId(null);
+    if (photo) showUndo({ message: 'Fotka smazána', undo: () => restoreRecipePhoto(photo) });
   }
 
   async function handleReplay(log: CookLog) {
@@ -76,8 +81,9 @@ export default function RecipeDetailScreen() {
   }
 
   async function handleDeleteLog(logId: string) {
-    if (!window.confirm('Smazat záznam z historie?')) return;
+    const log = cookLogs.find((item) => item.id === logId);
     await deleteCookLog(logId);
+    if (log) showUndo({ message: 'Záznam smazán', undo: () => restoreCookLog(log) });
   }
 
   const nutrition = nutritionFromData(id, {

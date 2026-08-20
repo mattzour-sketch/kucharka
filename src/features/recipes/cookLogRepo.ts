@@ -38,6 +38,11 @@ export async function deleteCookLog(id: string): Promise<void> {
   await db.cookLogs.delete(id);
 }
 
+/** Vrátit zpět smazání – vrátí přesně ten samý záznam (i s odchylkami a kaloriemi). */
+export async function restoreCookLog(log: CookLog): Promise<void> {
+  await db.cookLogs.put(log);
+}
+
 /**
  * Dopočítá kalorie u starších záznamů, které je nemají (`perPortion == null`),
  * podle toho, jak se vařilo (vynechané suroviny se odečtou přes `offItemIds`).

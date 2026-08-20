@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import TabLayout from './components/TabLayout';
+import { UndoProvider } from './components/UndoProvider';
 import { backfillMissingNutrition } from './features/recipes/cookLogRepo';
 import RecipeListScreen from './features/recipes/RecipeListScreen';
 import RecipeEditScreen from './features/recipes/RecipeEditScreen';
@@ -26,7 +27,8 @@ export default function App() {
   }, []);
   return (
     <BrowserRouter basename={basename}>
-      <Routes>
+      <UndoProvider>
+        <Routes>
         {/* Obrazovky se spodní lištou. */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<RecipeListScreen />} />
@@ -46,7 +48,8 @@ export default function App() {
         <Route path="/potraviny/:id/upravit" element={<FoodEditScreen />} />
         <Route path="/kos" element={<TrashScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </UndoProvider>
     </BrowserRouter>
   );
 }

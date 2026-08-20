@@ -25,3 +25,8 @@ export function getRecipePhotos(recipeId: string): Promise<RecipePhoto[]> {
 export async function deleteRecipePhoto(id: string): Promise<void> {
   await db.recipePhotos.delete(id);
 }
+
+/** Vrátit zpět smazání – uloží fotku i s blobem přesně tak, jak byla. */
+export async function restoreRecipePhoto(photo: RecipePhoto): Promise<void> {
+  await db.recipePhotos.put(photo);
+}

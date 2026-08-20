@@ -4,6 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type FoodBasis } from '../../db';
 import { parseDecimal } from '../../lib/num';
 import { createFood, softDeleteFood, updateFood } from './foodsRepo';
+import { restoreFood } from '../trash/trashRepo';
+import { useUndo } from '../../components/undoContext';
 
 /** Ruční založení a editace potraviny (F-02, F-04, F-08). Hodnoty na 100 g/ml. */
 export default function FoodEditScreen() {
@@ -23,6 +25,7 @@ export default function FoodEditScreen() {
   const [pieceGrams, setPieceGrams] = useState('');
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const { showUndo } = useUndo();
 
   useEffect(() => {
     if (existing && loadedId !== existing.id) {
@@ -68,8 +71,9 @@ export default function FoodEditScreen() {
 
   async function handleDelete() {
     if (!routeId) return;
-    if (!window.confirm('Opravdu smazat tuhle potravinu?')) return;
-    await softDeleteFood(routeId);
+    const foodId = routeId;
+    await softDeleteFood(foodId);
+    showUndo({ message: 'Potravina smazána', undo: () => restoreFood(foodId) });
     navigate('/potraviny', { replace: true });
   }
 
