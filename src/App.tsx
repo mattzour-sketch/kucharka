@@ -12,6 +12,7 @@ import CookingModeScreen from './features/recipes/CookingModeScreen';
 import StatisticsScreen from './features/recipes/StatisticsScreen';
 import SearchScreen from './features/search/SearchScreen';
 import FoodsScreen from './features/foods/FoodsScreen';
+import ShoppingListScreen from './features/shopping/ShoppingListScreen';
 import FoodEditScreen from './features/foods/FoodEditScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 import TrashScreen from './features/trash/TrashScreen';
@@ -33,6 +34,7 @@ export default function App() {
         <Route element={<TabLayout />}>
           <Route path="/" element={<RecipeListScreen />} />
           <Route path="/hledat" element={<SearchScreen />} />
+          <Route path="/nakup" element={<ShoppingListScreen />} />
           <Route path="/potraviny" element={<FoodsScreen />} />
           <Route path="/vic" element={<SettingsScreen />} />
         </Route>

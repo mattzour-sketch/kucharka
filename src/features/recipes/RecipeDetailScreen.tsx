@@ -13,6 +13,7 @@ import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos, restoreRecipePhoto 
 import { setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
 import { restoreRecipe } from '../trash/trashRepo';
+import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
 import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
 
@@ -78,6 +79,15 @@ export default function RecipeDetailScreen() {
     if (!id) return;
     await replayCookLog(log);
     navigate(`/recept/${id}/varit`);
+  }
+
+  async function handleAddToShopping() {
+    if (!recipe) return;
+    const lines = items.map((item) => scaleQuantityText(item.rawText, scaleFactor));
+    const ids = await addLinesToShopping(lines, recipe.name || null);
+    if (ids.length > 0) {
+      showUndo({ message: `Přidáno do nákupu (${ids.length})`, undo: () => removeShoppingItems(ids) });
+    }
   }
 
   async function handleDeleteLog(logId: string) {
@@ -254,6 +264,13 @@ export default function RecipeDetailScreen() {
                 Recept nemá počet porcí – počítám od 1. Nastavíš ho ve „Spočítat kalorie".
               </p>
             ) : null}
+            <button
+              type="button"
+              onClick={() => void handleAddToShopping()}
+              className="mt-3 rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
+            >
+              🛒 Do nákupního seznamu
+            </button>
           </section>
         ) : null}
 

@@ -223,6 +223,20 @@ export interface CookLog {
   createdAt: IsoTimestamp;
 }
 
+/**
+ * Položka nákupního seznamu (lokální, odškrtávací). Text je volný – suroviny
+ * jdou do seznamu jako text receptu (naškálovaný podle porcí), plus ruční přídavky.
+ */
+export interface ShoppingItem {
+  id: string;
+  text: string;
+  checked: boolean;
+  /** Z jakého receptu položka pochází (název, pro přehled); null = ručně přidaná. */
+  source?: string | null;
+  createdAt: IsoTimestamp;
+  sortOrder: number;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -236,6 +250,7 @@ export class KucharkaDB extends Dexie {
   cookSessions!: Table<CookSession, string>;
   timers!: Table<Timer, string>;
   cookLogs!: Table<CookLog, string>;
+  shoppingItems!: Table<ShoppingItem, string>;
 
   constructor() {
     super('kucharka');
@@ -266,6 +281,10 @@ export class KucharkaDB extends Dexie {
     // v5: historie vaření (§10).
     this.version(5).stores({
       cookLogs: 'id, recipeId, createdAt',
+    });
+    // v6: nákupní seznam (lokální, odškrtávací).
+    this.version(6).stores({
+      shoppingItems: 'id, checked, sortOrder, createdAt',
     });
   }
 }
