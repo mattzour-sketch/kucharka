@@ -142,8 +142,15 @@ async function syncRawCapture(recipeId: string): Promise<void> {
   });
 }
 
-/** Přidá surovinu do receptu natrvalo (úprava z režimu vaření). */
-export async function addRecipeItem(recipeId: string, rawText: string): Promise<void> {
+/**
+ * Přidá surovinu do receptu natrvalo (úprava z režimu vaření). `raw_text` je i nadále
+ * jediné povinné pole (pravidlo 1, 3); `link` je volitelné napojení na potravinu a gramáž.
+ */
+export async function addRecipeItem(
+  recipeId: string,
+  rawText: string,
+  link?: { foodId?: string | null; amountG?: number | null; amountKs?: number | null },
+): Promise<void> {
   const text = rawText.trim();
   if (!text) return;
   await db.transaction('rw', db.recipes, db.recipeItems, async () => {
@@ -153,9 +160,10 @@ export async function addRecipeItem(recipeId: string, rawText: string): Promise<
       id: newId(),
       recipeId,
       rawText: text,
-      foodId: null,
+      foodId: link?.foodId ?? null,
       subRecipeId: null,
-      amountG: null,
+      amountG: link?.amountG ?? null,
+      amountKs: link?.amountKs ?? null,
       isSkipped: false,
       note: null,
       sortOrder: nextOrder,

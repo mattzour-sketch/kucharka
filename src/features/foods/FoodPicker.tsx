@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { matchesQuery } from '../../lib/search';
 import { formatNumber } from '../../lib/num';
+import QuickFoodForm from './QuickFoodForm';
 
 /** Vyhledání a výběr potraviny pro napojení suroviny (overlay). */
 export default function FoodPicker({
@@ -14,13 +14,17 @@ export default function FoodPicker({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
   const foods = useLiveQuery(async () => {
     const all = await db.foods.toArray();
     return all.filter((food) => !food.deletedAt).sort((a, b) => a.name.localeCompare(b.name, 'cs'));
   }, []);
+  const loading = foods === undefined;
   const results = (foods ?? []).filter((food) =>
     matchesQuery(`${food.name} ${food.brand ?? ''}`, query),
   );
+  const trimmedQuery = query.trim();
+  const emptyDb = !loading && foods.length === 0;
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-white">
@@ -44,13 +48,25 @@ export default function FoodPicker({
       </header>
 
       <div className="flex-1 overflow-y-auto p-3">
-        {results.length === 0 ? (
-          <div className="mt-8 text-center text-sm text-stone-400">
-            <p>Žádná potravina.</p>
-            <Link to="/potraviny/nova" className="mt-2 inline-block font-medium text-brand">
-              + Založit potravinu
-            </Link>
-          </div>
+        {creating ? (
+          <QuickFoodForm
+            initialName={emptyDb ? '' : trimmedQuery}
+            onCreated={(foodId) => onSelect(foodId)}
+            onCancel={() => setCreating(false)}
+          />
+        ) : results.length === 0 ? (
+          loading ? null : (
+            <div className="mt-8 flex flex-col items-center gap-3 text-center text-sm text-stone-400">
+              <p>{emptyDb ? 'Zatím žádná potravina.' : 'Nic nenalezeno.'}</p>
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
+              >
+                {emptyDb ? 'Založit potravinu' : `Založit „${trimmedQuery}“`}
+              </button>
+            </div>
+          )
         ) : (
           <ul className="flex flex-col gap-1.5">
             {results.map((food) => (

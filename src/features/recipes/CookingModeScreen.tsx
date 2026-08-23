@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookReplacement } from '../../db';
 import { formatCzechDate } from '../../lib/date';
-import { parseDecimal } from '../../lib/num';
+import { formatNumber, parseDecimal } from '../../lib/num';
+import { matchesQuery } from '../../lib/search';
 import { scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
@@ -78,6 +79,10 @@ export default function CookingModeScreen() {
   const [finishNote, setFinishNote] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [newItemText, setNewItemText] = useState('');
+  // Nepovinné napojení nové suroviny na potravinu (kvůli kaloriím). Vlastní picker,
+  // ať se neplete s náhradou. Text je zdroj pravdy, napojení je štítek vedle.
+  const [newItemFoodId, setNewItemFoodId] = useState<string | null>(null);
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
   // §8 náhrady suroviny (jen tohle vaření). Klíč = id původní suroviny.
   const [replacements, setReplacements] = useState<Record<string, CookReplacement>>({});
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
@@ -100,6 +105,8 @@ export default function CookingModeScreen() {
     setDoneSteps(new Set());
     setStalePrompt(null);
     setEditingItemId(null);
+    setNewItemFoodId(null);
+    setAddPickerOpen(false);
     if (!id) return;
     let cancelled = false;
     void getCookSession(id).then((session) => {
@@ -276,6 +283,18 @@ export default function CookingModeScreen() {
     setOverrideDraft(overrides[itemId] ?? '');
   }
 
+  // Přidání suroviny: text zůstává zdrojem pravdy, napojení potraviny je nepovinné
+  // (pravidlo 1). Když je pole prázdné, použije se aspoň název napojené potraviny.
+  function handleAddItem() {
+    if (!id) return;
+    const food = newItemFoodId ? foodMap.get(newItemFoodId) : undefined;
+    const text = newItemText.trim() || food?.name || '';
+    if (!text) return;
+    void addRecipeItem(id, text, newItemFoodId ? { foodId: newItemFoodId } : undefined);
+    setNewItemText('');
+    setNewItemFoodId(null);
+  }
+
   function continueSession() {
     if (!stalePrompt || !id) return;
     applyState(stalePrompt);
@@ -317,6 +336,18 @@ export default function CookingModeScreen() {
     ingredientUnits.length > 0 ? `Suroviny ${checkedCount}/${ingredientUnits.length}` : null,
     steps.length > 0 ? `Postup ${doneStepCount}/${steps.length}` : null,
   ].filter(Boolean);
+
+  // Našeptávač u přidání suroviny: dokud není potravina napojená, nabídni odpovídající
+  // založené potraviny. Ťuknutí vyplní název (editovatelně) a napojí – volný text funguje dál.
+  const addSuggestions =
+    newItemText.trim() && !newItemFoodId
+      ? foods
+          .filter(
+            (food) =>
+              !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, newItemText),
+          )
+          .slice(0, 6)
+      : [];
 
   function handleFinish() {
     if (!recipe || !id) return;
@@ -681,29 +712,69 @@ export default function CookingModeScreen() {
                 );
               })}
               {editMode ? (
-                <li className="mt-2 flex items-center gap-2">
-                  <input
-                    value={newItemText}
-                    onChange={(event) => setNewItemText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        void addRecipeItem(id, newItemText);
-                        setNewItemText('');
-                      }
-                    }}
-                    placeholder="přidat surovinu…"
-                    className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 outline-none focus:border-brand"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void addRecipeItem(id, newItemText);
-                      setNewItemText('');
-                    }}
-                    className="shrink-0 rounded-lg bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand-dark transition hover:bg-brand/20"
-                  >
-                    Přidat
-                  </button>
+                <li className="mt-2 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={newItemText}
+                      onChange={(event) => setNewItemText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') handleAddItem();
+                      }}
+                      placeholder="přidat surovinu…"
+                      className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 outline-none focus:border-brand"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="shrink-0 rounded-lg bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand-dark transition hover:bg-brand/20"
+                    >
+                      Přidat
+                    </button>
+                  </div>
+                  {addSuggestions.length > 0 ? (
+                    <ul className="flex flex-col gap-1">
+                      {addSuggestions.map((food) => (
+                        <li key={food.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewItemText(food.name);
+                              setNewItemFoodId(food.id);
+                            }}
+                            className="flex w-full items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-1.5 text-left text-sm transition hover:border-brand active:scale-[0.99]"
+                          >
+                            <span className="min-w-0 truncate">{food.name}</span>
+                            <span className="shrink-0 text-xs text-stone-400">
+                              {formatNumber(food.energyKcal)} kcal / 100 {food.basis}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="pl-1 text-sm">
+                    {newItemFoodId ? (
+                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark">
+                        <span className="truncate">→ {foodMap.get(newItemFoodId)?.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewItemFoodId(null)}
+                          className="shrink-0 text-brand-dark/70 hover:text-brand-dark"
+                          aria-label="Odpojit potravinu"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setAddPickerOpen(true)}
+                        className="rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
+                      >
+                        napojit potravinu (kvůli kaloriím)
+                      </button>
+                    )}
+                  </div>
                 </li>
               ) : null}
             </ul>
@@ -817,6 +888,19 @@ export default function CookingModeScreen() {
             setReplPickerOpen(false);
           }}
           onClose={() => setReplPickerOpen(false)}
+        />
+      ) : null}
+
+      {addPickerOpen ? (
+        <FoodPicker
+          onSelect={(foodId) => {
+            setNewItemFoodId(foodId);
+            // Text předvyplníme názvem jen když je pole prázdné (pravidlo 2).
+            const food = foodMap.get(foodId);
+            if (!newItemText.trim() && food) setNewItemText(food.name);
+            setAddPickerOpen(false);
+          }}
+          onClose={() => setAddPickerOpen(false)}
         />
       ) : null}
     </div>
