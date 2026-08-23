@@ -155,3 +155,21 @@ Rozhodl uživatel + user-advocate, potvrzeno uživatelem. Reviewer kontroluje pr
 **Napříč místy:** princip „**text zůstává, potravina je štítek vedle**" platí pro **přidání**
 (nové) i **Kalorie** (už tak funguje). **Náhrada** ve vaření zůstává beze změny (tam je zadaný
 text = název náhrady, dává smysl; rychlé založení ale i tam funguje „zdarma" přes `onSelect`).
+
+## REVIZE po review (2026-08-21) — reaguje na nálezy reviewera + user-advocate
+
+Uživatel si vyžádal **inline našeptávač** u „přidat surovinu" (mění OO1 pro tohle jediné místo)
+a zvolil chování „**text zůstává**". Reviewer a user-advocate pak našli reálné mouchy. Uživatel
+rozhodl „**předělat**". Nová závazná pravidla pro našeptávač (nahrazují dřívější):
+
+- [ ] **OO1 revize:** u pole „přidat surovinu" ve vaření je povolen **inline našeptávač** (rozbalovací
+  seznam pod polem). Ostatní místa (Kalorie, náhrada) dál používají celoobrazovkový overlay.
+- [ ] **Ťuknutí na návrh NEPŘEPISUJE text** (ruší dřívější „vyplnit název"). Napsaný text zůstane
+  („2 vejce" zůstane „2 vejce") a potravina se jen **napojí** (štítek „→ název", křížek odpojí).
+  Tím platí pravidlo 2 i pro inline cestu.
+- [ ] **Návrhy fungují i s vedoucím množstvím:** hledá se podle názvu suroviny bez vedoucího čísla
+  a jednotky („2 vejce" → nabídne „Vejce", „200 g mouky" → „Mouka").
+- [ ] **Napojení u přidání má malé pole na množství (g/ks)** jako u „Nahradit" — aby napojení
+  „kvůli kaloriím" opravdu počítalo. Bez množství se surovina uloží (napojení nepovinné), jen se
+  do kcal nezapočítá a projeví se v úplnosti (pravidlo 4). U potraviny s `pieceGrams` výchozí „ks".
+- [ ] Volný text bez výběru dál funguje (pravidlo 1). Návrhy se skryjí, když je potravina napojená.

@@ -5,7 +5,7 @@ import { db, type CookReplacement } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { formatNumber, parseDecimal } from '../../lib/num';
 import { matchesQuery } from '../../lib/search';
-import { scaleQuantityText } from '../../lib/scale';
+import { parseLeadingQuantity, scaleQuantityText } from '../../lib/scale';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
@@ -40,6 +40,25 @@ function buzz(): void {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(8);
   }
+}
+
+// Běžné kuchyňské jednotky, které za vedoucím číslem nepatří do názvu (kvůli našeptávači).
+const LEADING_UNIT =
+  /^(kg|dkg|dag|g|mg|ml|dl|cl|l|ks|lžíce|lžíc[ei]|lžička|lžičk[uy]|hrst|hrsti|špetka|špetk[uy]|plátek|plátky|stroužek|stroužky|hrnek|hrnku|šálek|balení|konzerva|konzervy|plechovka|sáček)$/i;
+
+/**
+ * Název suroviny pro našeptávač: odřízne vedoucí množství („2", „200 g") a
+ * jednotku, ať „2 vejce" najde „Vejce" a „200 g mouky" najde „Mouka".
+ */
+function searchTermFromText(text: string): string {
+  const parsed = parseLeadingQuantity(text.trim());
+  let rest = (parsed ? parsed.rest : text).trim();
+  if (parsed && rest) {
+    const space = rest.indexOf(' ');
+    const firstWord = space === -1 ? rest : rest.slice(0, space);
+    if (LEADING_UNIT.test(firstWord)) rest = space === -1 ? '' : rest.slice(space + 1).trim();
+  }
+  return rest;
 }
 
 /**
@@ -82,6 +101,8 @@ export default function CookingModeScreen() {
   // Nepovinné napojení nové suroviny na potravinu (kvůli kaloriím). Vlastní picker,
   // ať se neplete s náhradou. Text je zdroj pravdy, napojení je štítek vedle.
   const [newItemFoodId, setNewItemFoodId] = useState<string | null>(null);
+  const [newItemAmount, setNewItemAmount] = useState('');
+  const [newItemUnit, setNewItemUnit] = useState<'g' | 'ks'>('g');
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   // §8 náhrady suroviny (jen tohle vaření). Klíč = id původní suroviny.
   const [replacements, setReplacements] = useState<Record<string, CookReplacement>>({});
@@ -106,6 +127,8 @@ export default function CookingModeScreen() {
     setStalePrompt(null);
     setEditingItemId(null);
     setNewItemFoodId(null);
+    setNewItemAmount('');
+    setNewItemUnit('g');
     setAddPickerOpen(false);
     if (!id) return;
     let cancelled = false;
@@ -285,14 +308,49 @@ export default function CookingModeScreen() {
 
   // Přidání suroviny: text zůstává zdrojem pravdy, napojení potraviny je nepovinné
   // (pravidlo 1). Když je pole prázdné, použije se aspoň název napojené potraviny.
+  // U napojení se uloží i množství (g/ks), ať se kalorie fakt spočítají.
   function handleAddItem() {
     if (!id) return;
     const food = newItemFoodId ? foodMap.get(newItemFoodId) : undefined;
     const text = newItemText.trim() || food?.name || '';
     if (!text) return;
-    void addRecipeItem(id, text, newItemFoodId ? { foodId: newItemFoodId } : undefined);
+    let link: { foodId: string; amountG: number | null; amountKs: number | null } | undefined;
+    if (newItemFoodId) {
+      const parsed = parseDecimal(newItemAmount);
+      const amountKs = newItemUnit === 'ks' ? parsed : null;
+      const amountG =
+        newItemUnit === 'ks'
+          ? parsed != null && food?.pieceGrams
+            ? parsed * food.pieceGrams
+            : null
+          : parsed;
+      link = { foodId: newItemFoodId, amountG, amountKs };
+    }
+    void addRecipeItem(id, text, link);
     setNewItemText('');
     setNewItemFoodId(null);
+    setNewItemAmount('');
+    setNewItemUnit('g');
+  }
+
+  function linkNewItemFood(foodId: string) {
+    setNewItemFoodId(foodId);
+    // Potravina s hmotností kusu → výchozí jednotka „ks" (§9).
+    setNewItemUnit(foodMap.get(foodId)?.pieceGrams ? 'ks' : 'g');
+  }
+
+  function toggleAddUnit() {
+    const pieceGrams = newItemFoodId ? (foodMap.get(newItemFoodId)?.pieceGrams ?? null) : null;
+    if (!pieceGrams) return;
+    const parsed = parseDecimal(newItemAmount);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    if (newItemUnit === 'g') {
+      setNewItemUnit('ks');
+      setNewItemAmount(parsed != null ? String(round2(parsed / pieceGrams)) : '');
+    } else {
+      setNewItemUnit('g');
+      setNewItemAmount(parsed != null ? String(round2(parsed * pieceGrams)) : '');
+    }
   }
 
   function continueSession() {
@@ -338,13 +396,15 @@ export default function CookingModeScreen() {
   ].filter(Boolean);
 
   // Našeptávač u přidání suroviny: dokud není potravina napojená, nabídni odpovídající
-  // založené potraviny. Ťuknutí vyplní název (editovatelně) a napojí – volný text funguje dál.
+  // založené potraviny. Hledá podle názvu bez vedoucího množství („2 vejce" → „Vejce").
+  // Ťuknutí NECHÁ napsaný text a jen napojí (pravidlo 2); volný text funguje dál.
+  const addSearchTerm = searchTermFromText(newItemText);
   const addSuggestions =
-    newItemText.trim() && !newItemFoodId
+    addSearchTerm && !newItemFoodId
       ? foods
           .filter(
             (food) =>
-              !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, newItemText),
+              !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, addSearchTerm),
           )
           .slice(0, 6)
       : [];
@@ -737,10 +797,7 @@ export default function CookingModeScreen() {
                         <li key={food.id}>
                           <button
                             type="button"
-                            onClick={() => {
-                              setNewItemText(food.name);
-                              setNewItemFoodId(food.id);
-                            }}
+                            onClick={() => linkNewItemFood(food.id)}
                             className="flex w-full items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-1.5 text-left text-sm transition hover:border-brand active:scale-[0.99]"
                           >
                             <span className="min-w-0 truncate">{food.name}</span>
@@ -752,19 +809,43 @@ export default function CookingModeScreen() {
                       ))}
                     </ul>
                   ) : null}
-                  <div className="pl-1 text-sm">
+                  <div className="flex flex-wrap items-center gap-2 pl-1 text-sm">
                     {newItemFoodId ? (
-                      <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark">
-                        <span className="truncate">→ {foodMap.get(newItemFoodId)?.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => setNewItemFoodId(null)}
-                          className="shrink-0 text-brand-dark/70 hover:text-brand-dark"
-                          aria-label="Odpojit potravinu"
-                        >
-                          ×
-                        </button>
-                      </span>
+                      <>
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark">
+                          <span className="truncate">→ {foodMap.get(newItemFoodId)?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setNewItemFoodId(null)}
+                            className="shrink-0 text-brand-dark/70 hover:text-brand-dark"
+                            aria-label="Odpojit potravinu"
+                          >
+                            ×
+                          </button>
+                        </span>
+                        <input
+                          value={newItemAmount}
+                          onChange={(event) => setNewItemAmount(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') handleAddItem();
+                          }}
+                          inputMode="decimal"
+                          placeholder={newItemUnit}
+                          className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+                        />
+                        {foodMap.get(newItemFoodId)?.pieceGrams ? (
+                          <button
+                            type="button"
+                            onClick={toggleAddUnit}
+                            className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
+                            aria-label="Přepnout jednotku g/ks"
+                          >
+                            {newItemUnit}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-stone-400">g</span>
+                        )}
+                      </>
                     ) : (
                       <button
                         type="button"
@@ -894,7 +975,7 @@ export default function CookingModeScreen() {
       {addPickerOpen ? (
         <FoodPicker
           onSelect={(foodId) => {
-            setNewItemFoodId(foodId);
+            linkNewItemFood(foodId);
             // Text předvyplníme názvem jen když je pole prázdné (pravidlo 2).
             const food = foodMap.get(foodId);
             if (!newItemText.trim() && food) setNewItemText(food.name);
