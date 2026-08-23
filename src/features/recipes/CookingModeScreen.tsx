@@ -335,6 +335,8 @@ export default function CookingModeScreen() {
 
   function linkNewItemFood(foodId: string) {
     setNewItemFoodId(foodId);
+    // Nová potravina → vynuluj množství, ať nezůstane po předchozí/odpojené.
+    setNewItemAmount('');
     // Potravina s hmotností kusu → výchozí jednotka „ks" (§9).
     setNewItemUnit(foodMap.get(foodId)?.pieceGrams ? 'ks' : 'g');
   }
