@@ -9,6 +9,36 @@ function snippet(text: string | null | undefined, max = 120): string {
   return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
 }
 
+// Teplé, „jídelní" gradienty pro obálku receptu bez fotky – ať je mřížka jednotná.
+const COVER_GRADIENTS: readonly [string, string][] = [
+  ['#f59e0b', '#b45309'], // amber
+  ['#ea9250', '#a3521c'], // terakota
+  ['#8aa87b', '#4f6b47'], // šalvěj
+  ['#b98a5e', '#6f4518'], // hnědá
+  ['#cf7071', '#8c3b41'], // tlumená červená
+  ['#c9a227', '#7c5e12'], // hořčicová
+];
+
+function gradientFor(name: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) % 9973;
+  return COVER_GRADIENTS[hash % COVER_GRADIENTS.length];
+}
+
+function CoverPlaceholder({ name }: { name: string }) {
+  const [from, to] = gradientFor(name);
+  const letter = (name.trim()[0] ?? '?').toUpperCase();
+  return (
+    <div
+      className="flex h-32 w-full items-center justify-center"
+      style={{ backgroundImage: `linear-gradient(135deg, ${from}, ${to})` }}
+      aria-hidden
+    >
+      <span className="text-4xl font-bold text-white/85">{letter}</span>
+    </div>
+  );
+}
+
 /** Karta receptu v seznamu i ve výsledcích hledání. */
 export default function RecipeCard({ recipe, cover }: { recipe: Recipe; cover?: Blob | null }) {
   const preview = snippet(recipe.rawCapture);
@@ -16,11 +46,13 @@ export default function RecipeCard({ recipe, cover }: { recipe: Recipe; cover?: 
   return (
     <Link
       to={`/recept/${recipe.id}`}
-      className="block overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 active:scale-[0.99]"
+      className="block overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-sm active:scale-[0.99]"
     >
       {coverUrl ? (
         <img src={coverUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
-      ) : null}
+      ) : (
+        <CoverPlaceholder name={recipe.name || '?'} />
+      )}
       <div className="p-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="truncate font-medium">
