@@ -4,6 +4,11 @@ import { db } from '../../db';
 import { formatCzechDate, todayIso } from '../../lib/date';
 import { formatNumber } from '../../lib/num';
 import { computeCookingStats } from './cookingStats';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
+import { cardClass } from '../../components/ui/cardClass';
+import { ReadingSkeleton } from '../../components/ui/Loading';
 
 /** Statistiky vaření (§10) – přehled z historie. Dostupné z „Víc". */
 export default function StatisticsScreen() {
@@ -12,32 +17,28 @@ export default function StatisticsScreen() {
     return { logs, recipes };
   }, []);
 
-  if (data === undefined) return null;
+  if (data === undefined) {
+    return (
+      <div className="min-h-dvh">
+        <ScreenHeader variant="stack" width="narrow" backTo="/vic" title="Statistiky" />
+        <main className="mx-auto max-w-2xl px-4 py-4">
+          <ReadingSkeleton />
+        </main>
+      </div>
+    );
+  }
   const stats = computeCookingStats(data.logs, data.recipes, todayIso());
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-2 px-2 py-2">
-          <Link
-            to="/vic"
-            className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-200/60"
-            aria-label="Zpět"
-          >
-            ‹
-          </Link>
-          <h1 className="text-sm font-medium text-stone-600">Statistiky</h1>
-        </div>
-      </header>
+      <ScreenHeader variant="stack" width="narrow" backTo="/vic" title="Statistiky" />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         {stats.totalCooks === 0 ? (
-          <div className="mt-10 text-center">
-            <p className="text-stone-500">Zatím žádná historie vaření.</p>
-            <p className="mt-1 text-sm text-stone-400">
-              Uvař recept a dej „Hotovo", ať se sem něco zapíše.
-            </p>
-          </div>
+          <EmptyState
+            title="Zatím žádná historie vaření"
+            description={'Uvař recept a dej „Hotovo", ať se sem něco zapíše.'}
+          />
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
@@ -57,7 +58,7 @@ export default function StatisticsScreen() {
               <ul className="mt-2 flex flex-col gap-2">
                 {stats.top.map((item) => {
                   const row = (
-                    <div className="flex items-baseline justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-3">
+                    <div className="flex items-baseline justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-medium">{item.name}</p>
                         <p className="text-xs text-stone-400">
@@ -72,11 +73,14 @@ export default function StatisticsScreen() {
                   return (
                     <li key={item.recipeId}>
                       {item.exists ? (
-                        <Link to={`/recept/${item.recipeId}`} className="block transition active:scale-[0.99]">
+                        <Link
+                          to={`/recept/${item.recipeId}`}
+                          className={cardClass({ padding: 'row', interactive: true })}
+                        >
                           {row}
                         </Link>
                       ) : (
-                        row
+                        <div className={cardClass({ padding: 'row' })}>{row}</div>
                       )}
                     </li>
                   );
@@ -98,9 +102,9 @@ export default function StatisticsScreen() {
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-4">
+    <Card>
       <p className="text-xs text-stone-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-    </div>
+    </Card>
   );
 }

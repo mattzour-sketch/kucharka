@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import type { Recipe } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
+import { cardClass } from '../../components/ui/cardClass';
+import Tag from '../../components/ui/Tag';
 
 function snippet(text: string | null | undefined, max = 120): string {
   if (!text) return '';
@@ -46,7 +48,7 @@ export default function RecipeCard({ recipe, cover }: { recipe: Recipe; cover?: 
   return (
     <Link
       to={`/recept/${recipe.id}`}
-      className="block overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-sm active:scale-[0.99]"
+      className={cardClass({ padding: 'none', interactive: true, className: 'block overflow-hidden' })}
     >
       {coverUrl ? (
         <img src={coverUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
@@ -64,9 +66,7 @@ export default function RecipeCard({ recipe, cover }: { recipe: Recipe; cover?: 
         {recipe.tags.length > 0 ? (
           <div className="mt-1 flex flex-wrap gap-1">
             {recipe.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand-dark">
-                {tag}
-              </span>
+              <Tag key={tag}>{tag}</Tag>
             ))}
           </div>
         ) : null}

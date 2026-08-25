@@ -1,6 +1,7 @@
 import { formatNumber } from '../../lib/num';
 import type { Nutrients } from '../../lib/nutrition';
 import type { RecipeNutritionResult } from './recipeNutrition';
+import { cardClass } from '../../components/ui/cardClass';
 
 function macros(n: Nutrients): string {
   return `B ${formatNumber(n.protein)} · S ${formatNumber(n.carbs)} · T ${formatNumber(n.fat)} g`;
@@ -24,10 +25,11 @@ export default function NutritionSummary({ result }: { result: RecipeNutritionRe
   const partial = comp.ratio < 1;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+    <div className={cardClass({ padding: 'none', className: 'overflow-hidden' })}>
       {partial ? (
-        <p className="bg-amber-50 px-4 py-2 text-xs text-amber-700">
-          ⚠ Orientační – spočítáno z {comp.connected} z {comp.countable} surovin
+        <p className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700">
+          <span aria-hidden>⚠</span>
+          <span>Orientační – spočítáno z {comp.connected} z {comp.countable} surovin</span>
         </p>
       ) : null}
       <div className="divide-y divide-stone-100">

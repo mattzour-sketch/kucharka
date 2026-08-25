@@ -4,6 +4,10 @@ import { db } from '../../db';
 import { matchesQuery } from '../../lib/search';
 import { formatNumber } from '../../lib/num';
 import QuickFoodForm from './QuickFoodForm';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import { RowsSkeleton } from '../../components/ui/Loading';
+import { cardClass } from '../../components/ui/cardClass';
 
 /** Vyhledání a výběr potraviny pro napojení suroviny (overlay). */
 export default function FoodPicker({
@@ -37,13 +41,9 @@ export default function FoodPicker({
             placeholder="hledat potravinu…"
             className="min-w-0 flex-1 rounded-full border border-stone-200 px-4 py-2 text-sm outline-none focus:border-brand"
           />
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-stone-500 hover:bg-stone-100"
-          >
+          <Button role="ghost" onClick={onClose}>
             Zavřít
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -54,19 +54,17 @@ export default function FoodPicker({
             onCreated={(foodId) => onSelect(foodId)}
             onCancel={() => setCreating(false)}
           />
+        ) : loading ? (
+          <RowsSkeleton />
         ) : results.length === 0 ? (
-          loading ? null : (
-            <div className="mt-8 flex flex-col items-center gap-3 text-center text-sm text-stone-400">
-              <p>{emptyDb ? 'Zatím žádná potravina.' : 'Nic nenalezeno.'}</p>
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                className="rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-              >
+          <EmptyState
+            title={emptyDb ? 'Zatím žádná potravina' : 'Nic nenalezeno'}
+            action={
+              <Button role="primary" onClick={() => setCreating(true)}>
                 {emptyDb ? 'Založit potravinu' : `Založit „${trimmedQuery}“`}
-              </button>
-            </div>
-          )
+              </Button>
+            }
+          />
         ) : (
           <ul className="flex flex-col gap-1.5">
             {results.map((food) => (
@@ -74,7 +72,11 @@ export default function FoodPicker({
                 <button
                   type="button"
                   onClick={() => onSelect(food.id)}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-stone-200 p-3 text-left transition hover:border-brand active:scale-[0.99]"
+                  className={cardClass({
+                    padding: 'row',
+                    interactive: true,
+                    className: 'flex w-full items-center justify-between gap-3 text-left',
+                  })}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{food.name}</span>

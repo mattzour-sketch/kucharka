@@ -6,6 +6,9 @@ import { parseDecimal } from '../../lib/num';
 import { createFood, softDeleteFood, updateFood } from './foodsRepo';
 import { restoreFood } from '../trash/trashRepo';
 import { useUndo } from '../../components/undoContext';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import Segmented from '../../components/ui/Segmented';
 
 /** Ruční založení a editace potraviny (F-02, F-04, F-08). Hodnoty na 100 g/ml. */
 export default function FoodEditScreen() {
@@ -79,28 +82,18 @@ export default function FoodEditScreen() {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-2 py-2">
-          <button
-            type="button"
-            onClick={() => navigate('/potraviny')}
-            className="rounded-lg px-3 py-1.5 text-stone-500 transition hover:bg-stone-200/60"
-            aria-label="Zavřít"
-          >
-            ✕
-          </button>
-          <span className="text-sm font-medium text-stone-600">
-            {isEdit ? 'Upravit potravinu' : 'Nová potravina'}
-          </span>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-          >
+      <ScreenHeader
+        variant="stack"
+        width="narrow"
+        closeIcon
+        onBack={() => navigate('/potraviny')}
+        title={isEdit ? 'Upravit potravinu' : 'Nová potravina'}
+        actions={
+          <Button role="primary" onClick={() => void handleSave()}>
             Uložit
-          </button>
-        </div>
-      </header>
+          </Button>
+        }
+      />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         <input
@@ -118,18 +111,15 @@ export default function FoodEditScreen() {
 
         <div className="mt-4 flex items-center gap-2 text-sm">
           <span className="text-stone-500">Hodnoty na 100</span>
-          {(['g', 'ml'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setBasis(option)}
-              className={`rounded-full px-3 py-1 font-medium transition ${
-                basis === option ? 'bg-brand text-white' : 'border border-stone-200 text-stone-600'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+          <Segmented
+            value={basis}
+            onChange={setBasis}
+            ariaLabel="Jednotka hodnot"
+            options={[
+              { value: 'g', label: 'g' },
+              { value: 'ml', label: 'ml' },
+            ]}
+          />
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -153,13 +143,11 @@ export default function FoodEditScreen() {
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
         {isEdit ? (
-          <button
-            type="button"
-            onClick={() => void handleDelete()}
-            className="mt-8 w-full rounded-xl py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.99]"
-          >
-            Smazat potravinu
-          </button>
+          <div className="mt-8">
+            <Button role="destructive" fullWidth onClick={() => void handleDelete()}>
+              Smazat potravinu
+            </Button>
+          </div>
         ) : null}
       </main>
     </div>

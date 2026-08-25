@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookReplacement } from '../../db';
 import { formatCzechDate } from '../../lib/date';
@@ -27,6 +27,14 @@ import { applyReplacements, nutritionFromData, perPortionFromResult } from '../n
 import FoodPicker from '../foods/FoodPicker';
 import CookingTimers from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import IconButton from '../../components/ui/IconButton';
+import Tag from '../../components/ui/Tag';
+import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
+import { cardClass } from '../../components/ui/cardClass';
+import { Skeleton, ReadingSkeleton } from '../../components/ui/Loading';
 
 // Do téhle doby se sezení obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
 const STALE_MS = 3 * 60 * 60 * 1000;
@@ -185,16 +193,39 @@ export default function CookingModeScreen() {
     });
   }
 
-  if (data === undefined) return null;
+  if (data === undefined) {
+    return (
+      <div className="min-h-dvh bg-white">
+        <ScreenHeader
+          variant="stack"
+          width="narrow"
+          backTo={id ? `/recept/${id}` : '/'}
+          backLabel="Zpět na recept"
+          title={<Skeleton className="h-4 w-32" />}
+        />
+        <main className="mx-auto max-w-2xl px-4 py-4">
+          <ReadingSkeleton />
+        </main>
+      </div>
+    );
+  }
   const { recipe, items, foods, recipes: allRecipes, allItems } = data;
   const foodMap = new Map(foods.map((food) => [food.id, food]));
   if (!recipe || recipe.deletedAt || !id) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-stone-500">Recept nenalezen.</p>
-        <Link to="/" className="text-sm font-medium text-brand">
-          Zpět na seznam
-        </Link>
+      <div className="min-h-dvh bg-white">
+        <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" />
+        <main className="mx-auto max-w-2xl px-4">
+          <EmptyState
+            fill
+            title="Recept nenalezen"
+            action={
+              <Button role="primary" to="/">
+                Zpět na seznam
+              </Button>
+            }
+          />
+        </main>
       </div>
     );
   }
@@ -453,19 +484,13 @@ export default function CookingModeScreen() {
 
   return (
     <div className="min-h-dvh bg-white">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-2 py-2">
-          <Link
-            to={`/recept/${recipe.id}`}
-            className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-100"
-            aria-label="Zpět na recept"
-          >
-            ‹
-          </Link>
-          <span className="truncate text-sm font-medium text-stone-600">{recipe.name}</span>
-          <span className="w-9" aria-hidden />
-        </div>
-      </header>
+      <ScreenHeader
+        variant="stack"
+        width="narrow"
+        backTo={`/recept/${recipe.id}`}
+        backLabel="Zpět na recept"
+        title={recipe.name}
+      />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         {lastLog ? (
@@ -483,20 +508,12 @@ export default function CookingModeScreen() {
               Rozdělané vaření. Pokračovat, nebo začít znovu?
             </p>
             <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={continueSession}
-                className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-              >
+              <Button role="primary" onClick={continueSession}>
                 Pokračovat
-              </button>
-              <button
-                type="button"
-                onClick={restartSession}
-                className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-              >
+              </Button>
+              <Button role="secondary" onClick={restartSession}>
                 Začít znovu
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -521,17 +538,13 @@ export default function CookingModeScreen() {
         {items.length > 0 || editMode ? (
           <section>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Suroviny
               </h2>
               {editMode ? (
-                <button
-                  type="button"
-                  onClick={() => setEditMode(false)}
-                  className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-                >
+                <Button role="primary" onClick={() => setEditMode(false)}>
                   Hotovo
-                </button>
+                </Button>
               ) : (
                 <div className="flex items-center gap-1">
                   <ServingsStepper
@@ -540,14 +553,9 @@ export default function CookingModeScreen() {
                       setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
                     }
                   />
-                  <button
-                    type="button"
-                    onClick={() => setEditMode(true)}
-                    className="rounded-lg px-2 py-1.5 text-stone-400 transition hover:text-stone-600"
-                    aria-label="Upravit suroviny"
-                  >
+                  <IconButton onClick={() => setEditMode(true)} aria-label="Upravit suroviny">
                     ✎
-                  </button>
+                  </IconButton>
                 </div>
               )}
             </div>
@@ -565,14 +573,14 @@ export default function CookingModeScreen() {
                         }}
                         className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
                       />
-                      <button
-                        type="button"
+                      <IconButton
+                        size="sm"
+                        tone="danger"
                         onClick={() => void deleteRecipeItem(item.id)}
-                        className="shrink-0 px-2 text-lg text-red-500 hover:text-red-600"
                         aria-label="Odebrat surovinu"
                       >
                         ×
-                      </button>
+                      </IconButton>
                     </li>
                   );
                 }
@@ -635,25 +643,16 @@ export default function CookingModeScreen() {
                           </span>
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => openEdit(item.id)}
-                        className="shrink-0 rounded-lg px-2 py-2 text-stone-400 transition hover:text-stone-600"
-                        aria-label="Úprava suroviny"
-                      >
+                      <IconButton onClick={() => openEdit(item.id)} aria-label="Úprava suroviny">
                         ⋯
-                      </button>
+                      </IconButton>
                     </div>
 
                     {editing ? (
                       <div className="flex flex-wrap items-center gap-2 pb-3 pl-9 text-sm">
-                        <button
-                          type="button"
-                          onClick={() => toggleOff(item.id)}
-                          className="rounded-full border border-stone-300 px-3 py-1 font-medium text-stone-700 transition hover:bg-stone-100"
-                        >
+                        <Button role="secondary" onClick={() => toggleOff(item.id)}>
                           {isOff ? 'Zapnout' : 'Vypnout dnes'}
-                        </button>
+                        </Button>
                         {!isOff ? (
                           <>
                             <input
@@ -665,31 +664,19 @@ export default function CookingModeScreen() {
                               placeholder="jiné množství pro dnešek"
                               className="min-w-0 flex-1 rounded-full border border-stone-200 px-3 py-1 outline-none focus:border-brand"
                             />
-                            <button
-                              type="button"
-                              onClick={() => saveOverride(item.id)}
-                              className="rounded-full bg-brand px-3 py-1 font-medium text-white transition hover:bg-brand-dark"
-                            >
+                            <Button role="primary" onClick={() => saveOverride(item.id)}>
                               Uložit
-                            </button>
+                            </Button>
                           </>
                         ) : null}
                         {!isOff ? (
-                          <button
-                            type="button"
-                            onClick={() => openReplace(item.id)}
-                            className="rounded-full border border-stone-300 px-3 py-1 font-medium text-stone-700 transition hover:bg-stone-100"
-                          >
+                          <Button role="secondary" onClick={() => openReplace(item.id)}>
                             {isReplaced ? 'Upravit náhradu' : 'Nahradit'}
-                          </button>
+                          </Button>
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={() => setEditingItemId(null)}
-                          className="text-stone-400 hover:text-stone-600"
-                        >
+                        <Button role="ghost" onClick={() => setEditingItemId(null)}>
                           Zavřít
-                        </button>
+                        </Button>
                       </div>
                     ) : null}
 
@@ -725,48 +712,33 @@ export default function CookingModeScreen() {
                             ) : (
                               <span className="w-8 text-center text-xs text-stone-400">g</span>
                             )}
-                            <button
-                              type="button"
+                            <IconButton
+                              size="sm"
                               onClick={() => setReplFoodId(null)}
-                              className="text-stone-400 hover:text-stone-600"
                               aria-label="Odpojit potravinu"
                             >
                               ×
-                            </button>
+                            </IconButton>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setReplPickerOpen(true)}
-                            className="self-start rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
-                          >
-                            napojit potravinu (kvůli kaloriím)
-                          </button>
+                          <div className="self-start">
+                            <Button role="tint" onClick={() => setReplPickerOpen(true)}>
+                              napojit potravinu (kvůli kaloriím)
+                            </Button>
+                          </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => saveReplacement(item.id)}
-                            className="rounded-full bg-brand px-3 py-1 font-medium text-white transition hover:bg-brand-dark"
-                          >
+                          <Button role="primary" onClick={() => saveReplacement(item.id)}>
                             Uložit náhradu
-                          </button>
+                          </Button>
                           {isReplaced ? (
-                            <button
-                              type="button"
-                              onClick={() => removeReplacement(item.id)}
-                              className="rounded-full px-3 py-1 font-medium text-red-600 transition hover:bg-red-50"
-                            >
+                            <Button role="destructive" onClick={() => removeReplacement(item.id)}>
                               Odebrat
-                            </button>
+                            </Button>
                           ) : null}
-                          <button
-                            type="button"
-                            onClick={() => setReplacingItemId(null)}
-                            className="text-stone-400 hover:text-stone-600"
-                          >
+                          <Button role="ghost" onClick={() => setReplacingItemId(null)}>
                             Zavřít
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : null}
@@ -785,13 +757,11 @@ export default function CookingModeScreen() {
                       placeholder="přidat surovinu…"
                       className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 outline-none focus:border-brand"
                     />
-                    <button
-                      type="button"
-                      onClick={handleAddItem}
-                      className="shrink-0 rounded-lg bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand-dark transition hover:bg-brand/20"
-                    >
-                      Přidat
-                    </button>
+                    <div className="shrink-0">
+                      <Button role="tint" onClick={handleAddItem}>
+                        Přidat
+                      </Button>
+                    </div>
                   </div>
                   {addSuggestions.length > 0 ? (
                     <ul className="flex flex-col gap-1">
@@ -800,7 +770,12 @@ export default function CookingModeScreen() {
                           <button
                             type="button"
                             onClick={() => linkNewItemFood(food.id)}
-                            className="flex w-full items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-1.5 text-left text-sm transition hover:border-brand active:scale-[0.99]"
+                            className={cardClass({
+                              padding: 'row',
+                              interactive: true,
+                              className:
+                                'flex w-full items-center justify-between gap-3 text-left text-sm',
+                            })}
                           >
                             <span className="min-w-0 truncate">{food.name}</span>
                             <span className="shrink-0 text-xs text-stone-400">
@@ -814,17 +789,12 @@ export default function CookingModeScreen() {
                   <div className="flex flex-wrap items-center gap-2 pl-1 text-sm">
                     {newItemFoodId ? (
                       <>
-                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark">
-                          <span className="truncate">→ {foodMap.get(newItemFoodId)?.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => setNewItemFoodId(null)}
-                            className="shrink-0 text-brand-dark/70 hover:text-brand-dark"
-                            aria-label="Odpojit potravinu"
-                          >
-                            ×
-                          </button>
-                        </span>
+                        <Tag
+                          onRemove={() => setNewItemFoodId(null)}
+                          removeLabel="Odpojit potravinu"
+                        >
+                          → {foodMap.get(newItemFoodId)?.name}
+                        </Tag>
                         <input
                           value={newItemAmount}
                           onChange={(event) => setNewItemAmount(event.target.value)}
@@ -849,13 +819,9 @@ export default function CookingModeScreen() {
                         )}
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setAddPickerOpen(true)}
-                        className="rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
-                      >
+                      <Button role="tint" onClick={() => setAddPickerOpen(true)}>
                         napojit potravinu (kvůli kaloriím)
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </li>
@@ -866,7 +832,7 @@ export default function CookingModeScreen() {
 
         {steps.length > 0 ? (
           <section className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
             <ol className="mt-2 space-y-4">
               {steps.map((step, index) => {
                 const stepDone = doneSteps.has(index);
@@ -924,7 +890,7 @@ export default function CookingModeScreen() {
 
         {items.length > 0 || steps.length > 0 ? (
           showFinish ? (
-            <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-4">
+            <Card className="mt-8">
               <label className="text-sm font-medium">Uložit do historie vaření</label>
               <textarea
                 value={finishNote}
@@ -933,27 +899,21 @@ export default function CookingModeScreen() {
                 className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 p-3 text-sm outline-none focus:border-brand"
               />
               <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleFinish}
-                  className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-                >
+                <Button role="primary" onClick={handleFinish}>
                   Uložit do historie
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowFinish(false)}
-                  className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-                >
+                </Button>
+                <Button role="secondary" onClick={() => setShowFinish(false)}>
                   Zrušit
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           ) : (
+            // Dokumentovaná výjimka z jedné velikosti primary: hlavní CTA vaření
+            // zůstává výrazné (větší písmo, py-3) a přes celou šířku. Radius sjednocen na pill.
             <button
               type="button"
               onClick={() => setShowFinish(true)}
-              className="mt-8 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark active:scale-[0.99]"
+              className="mt-8 w-full rounded-full bg-brand py-3 text-base font-semibold text-white shadow-sm transition hover:bg-brand-dark active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               Hotovo — uložit do historie
             </button>

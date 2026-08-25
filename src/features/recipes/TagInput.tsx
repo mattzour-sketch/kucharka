@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { addTag, removeTag } from '../../lib/tags';
+import Tag from '../../components/ui/Tag';
 
 interface TagInputProps {
   value: string[];
@@ -34,20 +35,13 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
     <div>
       <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-stone-200 bg-white p-2 focus-within:border-brand">
         {value.map((tag) => (
-          <span
+          <Tag
             key={tag}
-            className="flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-sm text-brand-dark"
+            onRemove={() => onChange(removeTag(value, tag))}
+            removeLabel={`Odebrat štítek ${tag}`}
           >
             {tag}
-            <button
-              type="button"
-              onClick={() => onChange(removeTag(value, tag))}
-              className="text-brand-dark/60 hover:text-brand-dark"
-              aria-label={`Odebrat štítek ${tag}`}
-            >
-              ×
-            </button>
-          </span>
+          </Tag>
         ))}
         <input
           value={draft}

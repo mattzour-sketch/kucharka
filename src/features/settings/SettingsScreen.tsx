@@ -6,6 +6,9 @@ import { todayIso } from '../../lib/date';
 import { downloadTextFile } from '../../lib/download';
 import { estimateStorage, isStoragePersisted } from '../../lib/storage';
 import { exportBackupJson, importBackupJson } from '../backup/dbBackup';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import { cardClass } from '../../components/ui/cardClass';
 
 function formatMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -41,34 +44,22 @@ export default function SettingsScreen() {
 
   return (
     <div>
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <h1 className="text-xl font-semibold tracking-tight">Víc</h1>
-        </div>
-      </header>
+      <ScreenHeader width="narrow" title="Víc" />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
-        <section className="rounded-2xl border border-stone-200 bg-white p-4">
+        <section className={cardClass()}>
           <h2 className="font-medium">Záloha dat</h2>
           <p className="mt-1 text-sm text-stone-500">
             Data jsou uložená jen v tomhle prohlížeči. Export je tvoje záloha i způsob, jak recepty
             přenést na jiné zařízení.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleExport()}
-              className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-            >
+            <Button role="primary" onClick={() => void handleExport()}>
               Exportovat do souboru
-            </button>
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-            >
+            </Button>
+            <Button role="secondary" onClick={() => fileRef.current?.click()}>
               Obnovit ze zálohy
-            </button>
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -86,7 +77,11 @@ export default function SettingsScreen() {
 
         <Link
           to="/statistiky"
-          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
+          className={cardClass({
+            padding: 'panel',
+            interactive: true,
+            className: 'mt-3 flex items-center justify-between',
+          })}
         >
           <span className="font-medium">Statistiky vaření</span>
           <span className="text-stone-400">›</span>
@@ -94,13 +89,17 @@ export default function SettingsScreen() {
 
         <Link
           to="/kos"
-          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
+          className={cardClass({
+            padding: 'panel',
+            interactive: true,
+            className: 'mt-3 flex items-center justify-between',
+          })}
         >
           <span className="font-medium">Koš</span>
           <span className="text-stone-400">›</span>
         </Link>
 
-        <section className="mt-3 rounded-2xl border border-stone-200 bg-white p-4 text-sm">
+        <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
           <h2 className="font-medium">Úložiště</h2>
           <dl className="mt-2 space-y-1 text-stone-600">
             <div className="flex justify-between">
@@ -125,7 +124,7 @@ export default function SettingsScreen() {
           ) : null}
         </section>
 
-        <section className="mt-3 rounded-2xl border border-stone-200 bg-white p-4 text-sm">
+        <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
           <h2 className="font-medium">O aplikaci</h2>
           <p className="mt-1 text-stone-500">
             Osobní kuchařka · Fáze 1. Local-first, funguje offline, bez serveru a bez účtu.

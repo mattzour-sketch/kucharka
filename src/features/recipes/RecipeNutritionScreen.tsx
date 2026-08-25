@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Food } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
@@ -9,6 +9,12 @@ import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import FoodPicker from '../foods/FoodPicker';
 import { updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import IconButton from '../../components/ui/IconButton';
+import EmptyState from '../../components/ui/EmptyState';
+import { cardClass } from '../../components/ui/cardClass';
+import { ReadingSkeleton } from '../../components/ui/Loading';
 
 /**
  * Návrh napojení podle textu suroviny (S4, „40g másla" → gramáž 40 + tip na
@@ -74,14 +80,37 @@ export default function RecipeNutritionScreen() {
     setUnit(initialUnit);
   }, [data, id]);
 
-  if (data === undefined) return null;
+  if (data === undefined) {
+    return (
+      <div className="min-h-dvh">
+        <ScreenHeader
+          variant="stack"
+          width="narrow"
+          backTo={id ? `/recept/${id}` : '/'}
+          backLabel="Zpět na recept"
+          title="Kalorie"
+        />
+        <main className="mx-auto max-w-2xl px-4 py-4">
+          <ReadingSkeleton />
+        </main>
+      </div>
+    );
+  }
   if (!data || !data.recipe || !id) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-stone-500">Recept nenalezen.</p>
-        <Link to="/" className="text-sm font-medium text-brand">
-          Zpět na seznam
-        </Link>
+      <div className="min-h-dvh">
+        <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" title="Kalorie" />
+        <main className="mx-auto max-w-2xl px-4">
+          <EmptyState
+            fill
+            title="Recept nenalezen"
+            action={
+              <Button role="primary" to="/">
+                Zpět na seznam
+              </Button>
+            }
+          />
+        </main>
       </div>
     );
   }
@@ -152,19 +181,13 @@ export default function RecipeNutritionScreen() {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-2 py-2">
-          <Link
-            to={`/recept/${id}`}
-            className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-200/60"
-            aria-label="Zpět na recept"
-          >
-            ‹
-          </Link>
-          <span className="text-sm font-medium text-stone-600">Kalorie</span>
-          <span className="w-9" aria-hidden />
-        </div>
-      </header>
+      <ScreenHeader
+        variant="stack"
+        width="narrow"
+        backTo={`/recept/${id}`}
+        backLabel="Zpět na recept"
+        title="Kalorie"
+      />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         <div className="flex flex-wrap gap-4 text-sm">
@@ -208,7 +231,7 @@ export default function RecipeNutritionScreen() {
                 ? suggestFood(parseIngredientLine(item.rawText).foodQuery, data.foods)
                 : null;
             return (
-              <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-3">
+              <li key={item.id} className={cardClass({ padding: 'row' })}>
                 <p className="font-medium">{item.rawText}</p>
 
                 {item.isSkipped ? (
@@ -263,42 +286,35 @@ export default function RecipeNutritionScreen() {
                           ? `${formatNumber(contribution)} kcal`
                           : ''}
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
+                      size="sm"
                       onClick={() =>
                         void updateRecipeItemLink(item.id, { foodId: null, amountKs: null })
                       }
-                      className="text-stone-400 hover:text-stone-600"
                       aria-label="Odpojit potravinu"
                     >
                       ×
-                    </button>
+                    </IconButton>
                   </div>
                 ) : (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     {suggestion ? (
-                      <button
-                        type="button"
+                      <Button
+                        role="secondary"
                         onClick={() => linkFood(item.id, suggestion.id, suggestion, item.rawText)}
-                        className="rounded-full border border-brand/40 bg-brand/5 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
                       >
                         → {suggestion.name}?
-                      </button>
+                      </Button>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={() => setPickingItemId(item.id)}
-                      className="rounded-full bg-brand/10 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
-                    >
+                    <Button role="tint" onClick={() => setPickingItemId(item.id)}>
                       napojit potravinu
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      role="ghost"
                       onClick={() => void updateRecipeItemLink(item.id, { isSkipped: true })}
-                      className="rounded-full px-3 py-1 text-stone-500 transition hover:bg-stone-100"
                     >
                       přeskočit
-                    </button>
+                    </Button>
                   </div>
                 )}
               </li>
@@ -307,9 +323,7 @@ export default function RecipeNutritionScreen() {
         </ul>
 
         {items.length === 0 ? (
-          <p className="mt-6 text-sm text-stone-400">
-            Recept nemá suroviny. Přidej je v úpravě receptu.
-          </p>
+          <EmptyState title="Recept nemá suroviny" description="Přidej je v úpravě receptu." />
         ) : null}
 
         <div className="mt-5">

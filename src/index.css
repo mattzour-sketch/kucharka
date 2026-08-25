@@ -11,3 +11,15 @@
     @apply bg-stone-50 text-stone-900 antialiased;
   }
 }
+
+/* Respekt k „omezit pohyb": utlumí animace/přechody (puls skeletonů, časovač,
+   progress bar). Komponenty už nesou `motion-reduce:`; tohle chytne zbytek. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

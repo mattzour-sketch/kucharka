@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { formatCountdown } from '../../lib/duration';
 import { primeAlarm, startAlarm, stopAlarm } from '../../lib/alarm';
 import { addTimer, getTimers, removeTimer } from './timerRepo';
+import Button from '../../components/ui/Button';
 
 /**
  * Panel časovačů v režimu vaření (§7). Odpočet se dopočítává z cílového času,
@@ -55,13 +56,9 @@ export default function CookingTimers() {
                     {done ? 'Hotovo!' : formatCountdown(remaining)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void removeTimer(timer.id)}
-                  className="shrink-0 rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-                >
+                <Button role="secondary" onClick={() => void removeTimer(timer.id)}>
                   {done ? 'Zastavit' : 'Zrušit'}
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -79,13 +76,9 @@ export default function CookingTimers() {
           placeholder="min"
           className="w-20 rounded-full border border-stone-200 px-3 py-1.5 text-sm outline-none focus:border-brand"
         />
-        <button
-          type="button"
-          onClick={addAdhoc}
-          className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-        >
+        <Button role="secondary" onClick={addAdhoc}>
           + Časovač
-        </button>
+        </Button>
       </div>
     </section>
   );

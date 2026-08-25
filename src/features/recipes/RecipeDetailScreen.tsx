@@ -16,6 +16,15 @@ import { restoreRecipe } from '../trash/trashRepo';
 import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
 import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import IconButton from '../../components/ui/IconButton';
+import Tag from '../../components/ui/Tag';
+import Segmented from '../../components/ui/Segmented';
+import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
+import { cardClass } from '../../components/ui/cardClass';
+import { ReadingSkeleton } from '../../components/ui/Loading';
 
 export default function RecipeDetailScreen() {
   const { id } = useParams();
@@ -49,7 +58,16 @@ export default function RecipeDetailScreen() {
   const photos = useLiveQuery(() => (id ? getRecipePhotos(id) : Promise.resolve([])), [id]) ?? [];
   const cookLogs = useLiveQuery(() => (id ? getCookLogs(id) : Promise.resolve([])), [id]) ?? [];
 
-  if (data === undefined) return null;
+  if (data === undefined) {
+    return (
+      <div className="min-h-dvh">
+        <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" />
+        <main className="mx-auto max-w-2xl px-4 py-4">
+          <ReadingSkeleton />
+        </main>
+      </div>
+    );
+  }
   const { recipe, items } = data;
   if (!recipe || recipe.deletedAt || !id) return <NotFound />;
 
@@ -138,56 +156,40 @@ export default function RecipeDetailScreen() {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-2 py-2">
-          <Link
-            to="/"
-            className="rounded-lg px-3 py-1.5 text-lg text-stone-500 transition hover:bg-stone-200/60"
-            aria-label="Zpět na seznam"
-          >
-            ‹
-          </Link>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
+      <ScreenHeader
+        variant="stack"
+        width="narrow"
+        backTo="/"
+        backLabel="Zpět na seznam"
+        actions={
+          <>
+            <IconButton
+              tone="favorite"
+              active={recipe.isFavorite}
               onClick={() => void setRecipeFavorite(recipe.id, !recipe.isFavorite)}
-              className={`rounded-full px-2 py-1.5 text-xl leading-none transition ${
-                recipe.isFavorite ? 'text-amber-500' : 'text-stone-300 hover:text-stone-500'
-              }`}
               aria-label={recipe.isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
               aria-pressed={recipe.isFavorite}
             >
               {recipe.isFavorite ? '★' : '☆'}
-            </button>
-            <Link
-              to={`/recept/${recipe.id}/upravit`}
-              className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-            >
+            </IconButton>
+            <Button role="secondary" to={`/recept/${recipe.id}/upravit`}>
               Upravit
-            </Link>
-            <Link
-              to={`/recept/${recipe.id}/varit`}
-              className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-            >
+            </Button>
+            <Button role="primary" to={`/recept/${recipe.id}/varit`}>
               Vařit
-            </Link>
-          </div>
-        </div>
-      </header>
+            </Button>
+          </>
+        }
+      />
 
-      <main className="mx-auto max-w-3xl px-4 py-4">
+      <main className="mx-auto max-w-2xl px-4 py-4">
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">{formatCzechDate(recipe.capturedOn)}</p>
 
         {recipe.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {recipe.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs text-brand-dark"
-              >
-                {tag}
-              </span>
+              <Tag key={tag}>{tag}</Tag>
             ))}
           </div>
         ) : null}
@@ -264,13 +266,11 @@ export default function RecipeDetailScreen() {
                 Recept nemá počet porcí – počítám od 1. Nastavíš ho ve „Spočítat kalorie".
               </p>
             ) : null}
-            <button
-              type="button"
-              onClick={() => void handleAddToShopping()}
-              className="mt-3 rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-            >
-              🛒 Do nákupního seznamu
-            </button>
+            <div className="mt-3">
+              <Button role="secondary" onClick={() => void handleAddToShopping()}>
+                🛒 Do nákupního seznamu
+              </Button>
+            </div>
           </section>
         ) : null}
 
@@ -282,9 +282,9 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {legacyText ? (
-          <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-4">
+          <Card className="mt-5">
             <p className="whitespace-pre-wrap leading-relaxed">{legacyText}</p>
-          </div>
+          </Card>
         ) : null}
 
         {!hasIngredients && !hasSteps && !legacyText ? (
@@ -298,37 +298,31 @@ export default function RecipeDetailScreen() {
                 Historie vaření
               </h2>
               {cookLogs.some((log) => Boolean(log.perPortion) && log.portions > 1) ? (
-                <div className="flex rounded-full border border-stone-200 p-0.5 text-xs font-medium">
-                  {(['porce', 'cely'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setHistMode(mode)}
-                      className={`rounded-full px-2.5 py-0.5 transition ${
-                        histMode === mode ? 'bg-brand text-white' : 'text-stone-500'
-                      }`}
-                    >
-                      {mode === 'porce' ? 'Na porci' : 'Celý'}
-                    </button>
-                  ))}
-                </div>
+                <Segmented
+                  value={histMode}
+                  onChange={setHistMode}
+                  ariaLabel="Kalorie na porci nebo celkem"
+                  options={[
+                    { value: 'porce', label: 'Na porci' },
+                    { value: 'cely', label: 'Celý' },
+                  ]}
+                />
               ) : null}
             </div>
             <ul className="mt-2 flex flex-col gap-2">
               {cookLogs.map((log) => (
-                <li key={log.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                <li key={log.id} className={cardClass({ padding: 'panel' })}>
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm font-medium">
                       {formatCzechDate(log.cookedOn)} · {log.portions} porcí
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
+                      size="sm"
                       onClick={() => void handleDeleteLog(log.id)}
-                      className="text-stone-400 hover:text-stone-600"
                       aria-label="Smazat záznam"
                     >
                       ×
-                    </button>
+                    </IconButton>
                   </div>
                   {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
                   {log.perPortion ? (
@@ -374,22 +368,18 @@ export default function RecipeDetailScreen() {
           </section>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => void handleShare()}
-          className="mt-8 w-full rounded-xl border border-stone-300 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-[0.99]"
-        >
-          Sdílet jako text
-        </button>
+        <div className="mt-8">
+          <Button role="secondary" fullWidth onClick={() => void handleShare()}>
+            Sdílet jako text
+          </Button>
+        </div>
         {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark">{shareMsg}</p> : null}
 
-        <button
-          type="button"
-          onClick={() => void handleDelete()}
-          className="mt-3 w-full rounded-xl py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.99]"
-        >
-          Smazat recept
-        </button>
+        <div className="mt-3">
+          <Button role="destructive" fullWidth onClick={() => void handleDelete()}>
+            Smazat recept
+          </Button>
+        </div>
       </main>
 
       {viewingPhoto ? (
@@ -440,11 +430,19 @@ function FullPhoto({ blob }: { blob: Blob }) {
 
 function NotFound() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
-      <p className="text-stone-500">Recept nenalezen.</p>
-      <Link to="/" className="text-sm font-medium text-brand">
-        Zpět na seznam
-      </Link>
+    <div className="min-h-dvh">
+      <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" />
+      <main className="mx-auto max-w-2xl px-4">
+        <EmptyState
+          fill
+          title="Recept nenalezen"
+          action={
+            <Button role="primary" to="/">
+              Zpět na seznam
+            </Button>
+          }
+        />
+      </main>
     </div>
   );
 }

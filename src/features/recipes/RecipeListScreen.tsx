@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import RecipeCard from './RecipeCard';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import FilterChip from '../../components/ui/FilterChip';
+import EmptyState from '../../components/ui/EmptyState';
+import { RecipeGridSkeleton } from '../../components/ui/Loading';
 
 type SortKey = 'updated' | 'cooked' | 'name';
 
@@ -70,29 +74,35 @@ export default function RecipeListScreen() {
 
   return (
     <div>
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <h1 className="text-xl font-semibold tracking-tight">Recepty</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/vlozit"
-              className="rounded-full border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 active:scale-95"
-            >
+      <ScreenHeader
+        width="wide"
+        title="Recepty"
+        actions={
+          <>
+            <Button role="secondary" to="/vlozit">
               Vložit
-            </Link>
-            <Link
-              to="/novy"
-              className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-            >
+            </Button>
+            <Button role="primary" to="/novy">
               + Nový recept
-            </Link>
-          </div>
-        </div>
-      </header>
+            </Button>
+          </>
+        }
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-4">
-        {loading ? null : recipes.length === 0 ? (
-          <EmptyState />
+        {loading ? (
+          <RecipeGridSkeleton />
+        ) : recipes.length === 0 ? (
+          <EmptyState
+            fill
+            icon="🍲"
+            title="Zatím žádné recepty"
+            action={
+              <Button role="primary" to="/novy">
+                + Nový recept
+              </Button>
+            }
+          />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -108,44 +118,32 @@ export default function RecipeListScreen() {
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
+              <FilterChip
+                active={favOnly}
+                activeTone="amber"
                 onClick={() => setFavOnly((value) => !value)}
                 aria-pressed={favOnly}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                  favOnly
-                    ? 'border-amber-300 bg-amber-50 text-amber-600'
-                    : 'border-stone-300 text-stone-700 hover:bg-stone-100'
-                }`}
               >
                 ★ Oblíbené
-              </button>
+              </FilterChip>
             </div>
 
             {tags.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {tags.map((tag) => {
-                  const active = tagFilter === tag;
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setActiveTag(active ? null : tag)}
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
-                        active
-                          ? 'bg-brand text-white'
-                          : 'bg-brand/10 text-brand-dark hover:bg-brand/20'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
+                {tags.map((tag) => (
+                  <FilterChip
+                    key={tag}
+                    active={tagFilter === tag}
+                    onClick={() => setActiveTag(tagFilter === tag ? null : tag)}
+                  >
+                    {tag}
+                  </FilterChip>
+                ))}
               </div>
             ) : null}
 
             {visible.length === 0 ? (
-              <p className="mt-8 text-center text-sm text-stone-400">Nic neodpovídá filtru.</p>
+              <EmptyState title="Nic neodpovídá filtru" />
             ) : (
               <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((recipe) => (
@@ -158,23 +156,6 @@ export default function RecipeListScreen() {
           </>
         )}
       </main>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-3xl">
-        🍲
-      </div>
-      <h2 className="text-lg font-medium">Zatím žádné recepty</h2>
-      <Link
-        to="/novy"
-        className="mt-2 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-      >
-        + Nový recept
-      </Link>
     </div>
   );
 }

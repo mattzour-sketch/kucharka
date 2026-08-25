@@ -5,6 +5,11 @@ import { db } from '../../db';
 import { matchesQuery } from '../../lib/search';
 import { formatNumber } from '../../lib/num';
 import { basicFoodCount, seedBasicFoods } from './seedFoods';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import { RowsSkeleton } from '../../components/ui/Loading';
+import { cardClass } from '../../components/ui/cardClass';
 
 /** Seznam a hledání potravin (F-01). Potraviny slouží k napojení surovin receptů. */
 export default function FoodsScreen() {
@@ -19,6 +24,7 @@ export default function FoodsScreen() {
   const results = (foods ?? []).filter((food) =>
     matchesQuery(`${food.name} ${food.brand ?? ''}`, query),
   );
+  const emptyDb = !loading && foods.length === 0;
 
   async function handleSeed() {
     const added = await seedBasicFoods();
@@ -27,44 +33,40 @@ export default function FoodsScreen() {
 
   return (
     <div>
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-xl font-semibold tracking-tight">Potraviny</h1>
-            <Link
-              to="/potraviny/nova"
-              className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-            >
-              + Nová
-            </Link>
-          </div>
+      <ScreenHeader
+        width="wide"
+        title="Potraviny"
+        actions={
+          <Button role="primary" to="/potraviny/nova">
+            + Nová
+          </Button>
+        }
+        below={
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="hledat potravinu…"
-            className="mt-2 w-full rounded-full border border-stone-200 bg-white px-4 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-brand"
+            className="w-full rounded-full border border-stone-200 bg-white px-4 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-brand"
           />
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-4">
         {message ? <p className="mb-3 text-sm text-brand-dark">{message}</p> : null}
 
-        {loading ? null : results.length === 0 ? (
-          <div className="mt-10 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm text-stone-400">
-              {foods && foods.length === 0 ? 'Zatím žádné potraviny.' : 'Nic nenalezeno.'}
-            </p>
-            {foods && foods.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => void handleSeed()}
-                className="rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-              >
-                Přidat základní potraviny ({basicFoodCount()})
-              </button>
-            ) : null}
-          </div>
+        {loading ? (
+          <RowsSkeleton />
+        ) : results.length === 0 ? (
+          <EmptyState
+            title={emptyDb ? 'Zatím žádné potraviny' : 'Nic nenalezeno'}
+            action={
+              emptyDb ? (
+                <Button role="primary" onClick={() => void handleSeed()}>
+                  Přidat základní potraviny ({basicFoodCount()})
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -72,7 +74,11 @@ export default function FoodsScreen() {
                 <li key={food.id}>
                   <Link
                     to={`/potraviny/${food.id}/upravit`}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 active:scale-[0.99]"
+                    className={cardClass({
+                      padding: 'row',
+                      interactive: true,
+                      className: 'flex items-center justify-between gap-3',
+                    })}
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{food.name}</p>

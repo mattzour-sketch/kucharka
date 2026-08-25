@@ -3,6 +3,10 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { matchesQuery, recipeHaystack } from '../../lib/search';
 import RecipeCard from '../recipes/RecipeCard';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import FilterChip from '../../components/ui/FilterChip';
+import EmptyState from '../../components/ui/EmptyState';
+import { RecipeGridSkeleton } from '../../components/ui/Loading';
 
 /** Fulltextové hledání a filtr podle štítků (R-20, R-21). Hledá se lokálně. */
 export default function SearchScreen() {
@@ -37,10 +41,11 @@ export default function SearchScreen() {
 
   return (
     <div>
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-3">
-          <h1 className="text-xl font-semibold tracking-tight">Hledat</h1>
-          <div className="mt-2 flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 focus-within:border-brand">
+      <ScreenHeader
+        width="wide"
+        title="Hledat"
+        below={
+          <div className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 focus-within:border-brand">
             <span className="text-stone-400" aria-hidden>
               🔍
             </span>
@@ -62,36 +67,31 @@ export default function SearchScreen() {
               </button>
             ) : null}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-4">
         {allTags.length > 0 ? (
           <div className="mb-4 flex flex-wrap gap-1.5">
-            {allTags.map((tag) => {
-              const active = activeTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    active
-                      ? 'bg-brand text-white'
-                      : 'border border-stone-200 text-stone-600 hover:border-stone-300'
-                  }`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
+            {allTags.map((tag) => (
+              <FilterChip
+                key={tag}
+                active={activeTags.includes(tag)}
+                onClick={() => toggleTag(tag)}
+              >
+                {tag}
+              </FilterChip>
+            ))}
           </div>
         ) : null}
 
-        {loading ? null : results.length === 0 ? (
-          <p className="mt-10 text-center text-sm text-stone-400">
-            Nic nenalezeno. Zkus jiné slovo nebo štítek.
-          </p>
+        {loading ? (
+          <RecipeGridSkeleton />
+        ) : results.length === 0 ? (
+          <EmptyState
+            title="Nic nenalezeno"
+            description="Zkus jiné slovo nebo štítek."
+          />
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((recipe) => (

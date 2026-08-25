@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { type FoodBasis } from '../../db';
 import { parseDecimal } from '../../lib/num';
 import { createFood } from './foodsRepo';
+import Button from '../../components/ui/Button';
+import Segmented from '../../components/ui/Segmented';
 
 /**
  * Rychlé inline založení potraviny přímo z výběru (FoodPicker): jen název + energie
@@ -68,39 +70,28 @@ export default function QuickFoodForm({
             className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 outline-none focus:border-brand"
           />
         </label>
-        <div className="flex items-center gap-1 pb-1">
-          {(['g', 'ml'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setBasis(option)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                basis === option ? 'bg-brand text-white' : 'border border-stone-200 text-stone-600'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+        <div className="pb-1">
+          <Segmented
+            value={basis}
+            onChange={setBasis}
+            options={[
+              { value: 'g', label: 'g' },
+              { value: 'ml', label: 'ml' },
+            ]}
+            ariaLabel="Jednotka"
+          />
         </div>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void handleCreate()}
-          className="rounded-full bg-brand px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-        >
+        <Button role="primary" onClick={() => void handleCreate()}>
           Založit a napojit
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition hover:bg-stone-100"
-        >
+        </Button>
+        <Button role="ghost" onClick={onCancel}>
           Zpět
-        </button>
+        </Button>
       </div>
     </div>
   );

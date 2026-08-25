@@ -11,6 +11,8 @@ import {
   updateRecipeContent,
   type RecipeContent,
 } from './recipesRepo';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import Button from '../../components/ui/Button';
 
 function snapshotOf(
   name: string,
@@ -148,28 +150,18 @@ export default function RecipeEditScreen() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-2 py-2">
-          <button
-            type="button"
-            onClick={() => void handleClose()}
-            className="rounded-lg px-3 py-1.5 text-stone-500 transition hover:bg-stone-200/60"
-            aria-label="Zavřít"
-          >
-            ✕
-          </button>
-          <span className="text-sm font-medium text-stone-600">
-            {isEdit ? 'Upravit recept' : 'Nový recept'}
-          </span>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark active:scale-95"
-          >
+      <ScreenHeader
+        variant="stack"
+        width="narrow"
+        closeIcon
+        onBack={() => void handleClose()}
+        title={isEdit ? 'Upravit recept' : 'Nový recept'}
+        actions={
+          <Button role="primary" onClick={() => void handleSave()}>
             Uložit
-          </button>
-        </div>
-      </header>
+          </Button>
+        }
+      />
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-3">
         <input
