@@ -1,12 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type Food } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
+import { parseIngredientLine } from '../../lib/ingredientParse';
+import { matchesQuery } from '../../lib/search';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import FoodPicker from '../foods/FoodPicker';
 import { updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
+
+/**
+ * Návrh napojení podle textu suroviny (S4, „40g másla" → gramáž 40 + tip na
+ * potravinu „máslo"). Jen návrh k potvrzení jedním klepnutím — `raw_text` se
+ * nemění a nic se nenapojí samo (pravidlo 1, 2; mimo rozsah je jen tiché
+ * automatické napojení bez potvrzení).
+ */
+function suggestFood(query: string, foods: Food[]): Food | null {
+  const trimmed = query.trim();
+  if (trimmed.length < 3) return null;
+  return (
+    foods.find(
+      (food) => !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, trimmed),
+    ) ?? null
+  );
+}
 
 /**
  * Doplnění nutričních hodnot k receptu (SPEC 6.6). Levý text suroviny je
@@ -77,6 +95,24 @@ export default function RecipeNutritionScreen() {
     recipes: data.recipes,
     items: data.items,
   });
+
+  // Napojení potraviny na surovinu — ať přijde z ručního výběru, nebo z návrhu
+  // (viz suggestFood výše). Gramáž se předvyplní z rawText, jen když ještě
+  // není zadaná a potravina nemá hmotnost kusu (tam by „g" pletlo „ks").
+  function linkFood(itemId: string, foodId: string, food: Food | undefined, rawText: string) {
+    void updateRecipeItemLink(itemId, { foodId, isSkipped: false });
+    if (food?.pieceGrams) {
+      setUnit((prev) => ({ ...prev, [itemId]: 'ks' }));
+      return;
+    }
+    if ((amount[itemId] ?? '') !== '') return;
+    const parsedAmount = parseIngredientLine(rawText).amountG;
+    if (parsedAmount == null) return;
+    const value = String(parsedAmount);
+    setUnit((prev) => ({ ...prev, [itemId]: 'g' }));
+    setAmount((prev) => ({ ...prev, [itemId]: value }));
+    persistAmount(itemId, value, 'g', null);
+  }
 
   // U „ks" je zdroj pravdy počet kusů; gramáž (a tím kcal) se dopočítá z hmotnosti kusu.
   function persistAmount(itemId: string, value: string, u: 'g' | 'ks', pieceGrams: number | null) {
@@ -167,6 +203,10 @@ export default function RecipeNutritionScreen() {
               food && item.amountG != null ? (food.energyKcal * item.amountG) / 100 : null;
             const currentUnit: 'g' | 'ks' = unit[item.id] ?? (item.amountKs != null ? 'ks' : 'g');
             const pieceGrams = food?.pieceGrams ?? null;
+            const suggestion =
+              !food && !item.isSkipped
+                ? suggestFood(parseIngredientLine(item.rawText).foodQuery, data.foods)
+                : null;
             return (
               <li key={item.id} className="rounded-2xl border border-stone-200 bg-white p-3">
                 <p className="font-medium">{item.rawText}</p>
@@ -235,7 +275,16 @@ export default function RecipeNutritionScreen() {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-2 flex gap-2 text-sm">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                    {suggestion ? (
+                      <button
+                        type="button"
+                        onClick={() => linkFood(item.id, suggestion.id, suggestion, item.rawText)}
+                        className="rounded-full border border-brand/40 bg-brand/5 px-3 py-1 font-medium text-brand-dark transition hover:bg-brand/20"
+                      >
+                        → {suggestion.name}?
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => setPickingItemId(item.id)}
@@ -277,11 +326,8 @@ export default function RecipeNutritionScreen() {
       {pickingItemId ? (
         <FoodPicker
           onSelect={(foodId) => {
-            void updateRecipeItemLink(pickingItemId, { foodId, isSkipped: false });
-            // Potravina s hmotností kusu → výchozí jednotka „ks" (§9).
-            if (foodMap.get(foodId)?.pieceGrams) {
-              setUnit((prev) => ({ ...prev, [pickingItemId]: 'ks' }));
-            }
+            const pickedItem = items.find((item) => item.id === pickingItemId);
+            linkFood(pickingItemId, foodId, foodMap.get(foodId), pickedItem?.rawText ?? '');
             setPickingItemId(null);
           }}
           onClose={() => setPickingItemId(null)}
