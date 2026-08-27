@@ -1,10 +1,11 @@
 # Use casy — Fáze 1 (Kuchařka)
 
 Vazba na `docs/SPEC.md`, sekci 3 (Uživatelské scénáře S1–S7) a sekci 4.1 (funkční
-požadavky R-xx). Zapsané hlavně pro **fázi 1** — bez potravin, nutrice a deníku
-(ty přijdou v use casech pro fázi 2 a 3, až na ně dojde řada, viz sekce 9 roadmapy).
-Výjimka je UC007: kus fáze 2 (napojení na potraviny) už v appce reálně existuje,
-tak je zapsaný rovnou, aby dokumentace odpovídala kódu.
+požadavky R-xx). Základ (UC001–UC006) je čistě **fáze 1** — bez potravin, nutrice
+a deníku. Zbytek (UC007–UC015) je nad rámec formální fáze 1, ale v appce už
+reálně existuje (nákupní seznam, koš, sdílení, časovače, historie vaření…),
+tak je zapsaný rovnou, aby dokumentace odpovídala skutečnému stavu appky,
+ne jen roadmapě.
 
 Formát: hlavní tok jako číslovaný scénář (rychlá orientace), pod ním alternativní/chybové
 toky a akceptační kritéria ve stylu Given/When/Then — stejně jako u ostatních
@@ -212,11 +213,228 @@ automatické napojení — `raw_text` se tím nemění (pravidlo 2).
 
 ---
 
+## UC008 — Smazání a obnovení receptu (koš)
+
+Vazba: pravidlo 7, E-08, `/kos`
+
+**Hlavní tok:**
+1. V seznamu receptů smažu recept.
+2. Recept zmizí ze seznamu, appka ukáže toast „Smazáno" s možností „Zpět".
+3. Klepnu na „Zpět" do pár vteřin → recept se vrátí, jako by se nic nestalo.
+4. Pokud toast proklikám, recept zůstává v „Koši" (`/kos`), odkud ho jde
+   kdykoliv obnovit ručně.
+
+**Alternativní a chybové toky:**
+- Recept smažu na jednom zařízení offline → soft-delete (`deleted_at`) se
+  synchronizuje jako běžná změna; tvrdé mazání se nepoužívá nikde, právě
+  proto, aby se smazaný záznam neobjevil znovu z druhého zařízení (pravidlo 7).
+- Smažu potravinu, která je někde napojená na surovinu → napojení zůstává
+  (`food_id` ukazuje na smazaný, ale stále existující řádek), jen se potravina
+  dál nenabízí při novém napojování (E-08).
+
+**Akceptační kritéria:**
+- Given smažu recept, Then zmizí ze seznamu i z hledání okamžitě, ale řádek
+  v databázi zůstává s vyplněným `deleted_at` (pravidlo 7).
+- Given klepnu na „Zpět" v toastu, Then se `deleted_at` vrátí na `null` a
+  recept je opět všude vidět.
+- Given otevřu „Koš", Then vidím jen smazané záznamy a můžu je obnovit.
+
+---
+
+## UC009 — Oblíbené, řazení a filtrování seznamu receptů
+
+Vazba: R-16, R-21 (rozšíření UC003)
+
+**Hlavní tok:**
+1. V seznamu receptů označím recept jako oblíbený (hvězdička).
+2. Přepnu řazení seznamu — naposledy upravené / abecedně / oblíbené první.
+3. Ke štítkům a autorovi (UC003) přidám i filtr „jen oblíbené".
+
+**Alternativní a chybové toky:**
+- Žádný recept není oblíbený → filtr „jen oblíbené" ukáže prázdný stav,
+  ne chybu.
+- Řazení a filtrování se kombinuje s fulltextovým hledáním z UC003 zároveň,
+  ne místo něj.
+
+**Akceptační kritéria:**
+- Given recept označím jako oblíbený, Then zůstane oblíbený i po zavření a
+  znovuotevření appky (perzistentní, ne jen v paměti).
+- Given přepnu řazení na „oblíbené první", Then se seznam přeuspořádá bez
+  ztráty aktivního filtru/hledání.
+
+---
+
+## UC010 — Nákupní seznam z receptů
+
+Vazba: Fáze 4 roadmapy (`docs/SPEC.md` §9), `/nakup`
+
+**Hlavní tok:**
+1. Vyberu jeden nebo víc receptů (např. na týden dopředu).
+2. Appka sesbírá jejich suroviny jako volný text do nákupního seznamu,
+   stejně pojmenované položky sloučí.
+3. V obchodě odškrtávám položky, jak je dávám do košíku.
+4. Nákupní seznam žije nezávisle na receptech — úprava receptu ho zpětně
+   nemění.
+
+**Alternativní a chybové toky:**
+- Dvě suroviny mají mírně jiný text („mrkev" vs. „mrkve") → sloučení je jen
+  na přesnou shodu textu, appka nehádá skloňování (aby nesloučila omylem
+  něco jiného); jinak zůstanou jako dvě položky.
+- Přidám si do seznamu i položku ručně, mimo recepty (např. „toaletní papír").
+
+**Akceptační kritéria:**
+- Given vyberu dva recepty se stejnou surovinou „vejce", Then se v nákupním
+  seznamu objeví jen jednou.
+- Given odškrtnu položku, Then zůstane odškrtnutá i po zavření appky, dokud
+  ji ručně nesmažu nebo nevyčistím celý seznam.
+- Given appka je offline, When si udělám nákupní seznam, Then to funguje
+  bez sítě jako všechno ostatní (pravidlo 11).
+
+---
+
+## UC011 — Sdílení a vložení receptu jako text
+
+Vazba: SPEC §11 (dokončeno), `/vlozit`
+
+**Hlavní tok (sdílení):**
+1. Otevřu recept → „Sdílet".
+2. Appka poskládá recept (název, suroviny, postup) do čistého textu a
+   předá ho systémovému sdílení telefonu (SMS, WhatsApp, e-mail, …).
+
+**Hlavní tok (vložení):**
+1. Mám zkopírovaný text receptu odjinud (SMS od babičky, poznámka).
+2. V appce otevřu „Vložit ze schránky" (`/vlozit`).
+3. Appka z vloženého textu rovnou založí nový recept — stejná filozofie
+   jako S1: žádné parsování, které by nutilo cokoliv opravovat před uložením.
+
+**Alternativní a chybové toky:**
+- Schránka je prázdná nebo appka k ní nemá přístup (oprávnění prohlížeče) →
+  appka to řekne rovnou, nespadne, nabídne i ruční vložení do pole.
+- Vložený text je nestrukturovaný (jeden blok bez řádkování) → uloží se
+  celý jako `raw_capture`/`raw_text`, stejně jako u UC001 — nic se nezahazuje.
+
+**Akceptační kritéria:**
+- Given recept sdílím, Then vygenerovaný text obsahuje název, suroviny a
+  postup čitelně, bez interních ID nebo HTML.
+- Given vložím zkopírovaný text, Then appka nabídne uložit ho jako nový
+  recept, aniž bych cokoliv psal ručně (S1 varianta).
+- Given appka je offline, Then vložení ze schránky i sdílení funguje beze
+  změny (sdílení systémovým dialogem, žádná síť navíc).
+
+---
+
+## UC012 — Náhrada suroviny při vaření
+
+Vazba: S3, rozšíření UC005
+
+**Hlavní tok:**
+1. Jsem v režimu vaření (UC005).
+2. U jedné suroviny místo napojené potraviny nemám doma přesně to, co recept
+   chce (mám řepkový olej místo olivového).
+3. Klepnu na surovinu → „nahradit pro dnešní vaření" → vyberu jinou potravinu.
+4. Kalorie tohodle vaření se dopočítají podle náhrady; recept samotný
+   (`recipe_items`, `raw_text`) zůstává nezměněný.
+
+**Alternativní a chybové toky:**
+- Surovinu pro dnešek jen vypnu (nedávám ji vůbec) → nejde kombinovat s
+  náhradou zároveň, appka nabídne jedno nebo druhé (aktuální chování).
+- Recept nemá na tuhle surovinu napojenou potravinu vůbec → náhrada nemá co
+  nahrazovat, appka nabídne rovnou napojit (viz UC007), ne „nahradit".
+
+**Akceptační kritéria:**
+- Given nahradím surovinu při vaření, Then se dopočítané kalorie tohodle
+  vaření změní podle náhrady, ale recept samotný zůstává beze změny.
+- Given zavřu a znovu otevřu recept mimo vaření, Then je surovina zpátky
+  původní, bez náhrady (náhrada je jen pro daný běh vaření).
+
+---
+
+## UC013 — Časovače v režimu vaření
+
+Vazba: S3, rozšíření UC005
+
+**Hlavní tok:**
+1. Jsem v režimu vaření, postup obsahuje krok s časem („peč 20 minut").
+2. U kroku appka nabídne spustit časovač na rozpoznaný čas.
+3. Klepnu na start → časovač běží, i když telefon uzamknu nebo appku
+   na chvíli opustím.
+4. Po doběhnutí appka upozorní (zvuk/vibrace/notifikace, podle platformy).
+
+**Alternativní a chybové toky:**
+- Appka nerozpozná čas v kroku (nestandardní formulace) → časovač se
+  nenabídne, krok jinak funguje normálně (žádná chyba, jen chybí zkratka).
+- Zavřu appku úplně (ne jen uzamknu telefon) → časovač může přestat běžet
+  podle možností platformy; to je otevřená otázka mimo rozsah tohoto UC.
+
+**Akceptační kritéria:**
+- Given krok obsahuje „20 minut", Then appka nabídne časovač předvyplněný
+  na 20 minut.
+- Given časovač doběhne, Then appka na to zřetelně upozorní, i když mám
+  telefon uzamknutý.
+
+---
+
+## UC014 — Historie vaření a statistiky
+
+Vazba: S6/S7 (částečně, mimo dosah plného deníku fáze 3), `/statistiky`
+
+Tohle **není** deník z fáze 3 (žádné cíle, žádné makroživiny přes den) —
+je to jednodušší: záznam o tom, že jsem recept uvařil, kdy a s jakými
+kaloriemi (pokud je recept napojený, jinak bez čísla, viz pravidlo 4).
+
+**Hlavní tok:**
+1. Dovařím podle receptu, v režimu vaření klepnu „Hotovo".
+2. Appka zapíše záznam do historie: recept, datum, počet porcí, kalorie
+   na porci/na celý dávka (pokud je spočítatelné).
+3. V „Statistiky" vidím přehled — nejčastěji vařené recepty, historii v čase.
+
+**Alternativní a chybové toky:**
+- Recept nemá napojené žádné suroviny → záznam v historii vznikne i tak,
+  jen bez kalorií (pravidlo 4 — žádné číslo, ne odhad).
+- Recept nemá vyplněný počet porcí → appka umí zobrazit kalorie na uvařenou
+  dávku místo na porci (přepínání celek/porce).
+
+**Akceptační kritéria:**
+- Given dovařím recept a klepnu „Hotovo", Then se do historie zapíše
+  záznam s dnešním datem.
+- Given recept nemá žádné napojené suroviny, Then záznam v historii
+  neukazuje žádné kalorické číslo (pravidlo 4).
+- Given otevřu „Statistiky", Then vidím přehled historie napříč recepty,
+  ne jen posledního vaření.
+
+---
+
+## UC015 — Instalace appky na telefon (PWA)
+
+Vazba: Fáze 0 roadmapy, sekce 7.1 SPEC.md
+
+**Hlavní tok:**
+1. Otevřu appku poprvé ve webovém prohlížeči na telefonu.
+2. Prohlížeč (nebo appka vlastní výzvou) nabídne „Přidat na plochu".
+3. Nainstaluju → appka běží jako samostatná ikona, bez adresního řádku
+   prohlížeče.
+4. Appka funguje offline i po instalaci (Service Worker, stejná IndexedDB).
+
+**Alternativní a chybové toky:**
+- Platforma instalaci PWA nepodporuje nebo ji uživatel odmítne → appka
+  funguje dál normálně v prohlížeči, nic se nerozbije.
+- Appka se aktualizuje na produkci (nový deploy) → nainstalovaná appka
+  dostane update Service Workera, aniž bych ji musel znovu instalovat.
+
+**Akceptační kritéria:**
+- Given appku nainstaluju na telefon, Then jde spustit ikonou z plochy bez
+  otevírání prohlížeče.
+- Given appka je nainstalovaná a zapnu letadlový režim, Then appka jde
+  spustit a plně používat offline (kontrola po Fázi 1 podle SPEC §9).
+
+---
+
 ## Mimo rozsah (fáze 1)
 
 - Zbytek nutriční nadstavby mimo UC007 — výpočet celkových hodnot na porci
   a na 100 g, ukazatel úplnosti, CRUD potravin (fáze 2, viz
   `docs/specs/food-picker-vyber.md`).
-- Cokoliv kolem deníku, cílů a statistik (fáze 3).
+- Plný deník s cíli a makroživinami přes den (fáze 3) — UC014 je jen
+  jednoduchá historie vaření, ne deník.
 - Sken čárového kódu, diktování přes Web Speech API, tisk/export do PDF (v3,
   případně E-14 — vědomě neděláno).
