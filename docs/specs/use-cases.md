@@ -1,8 +1,10 @@
 # Use casy — Fáze 1 (Kuchařka)
 
 Vazba na `docs/SPEC.md`, sekci 3 (Uživatelské scénáře S1–S7) a sekci 4.1 (funkční
-požadavky R-xx). Zapsané jen pro **fázi 1** — bez potravin, nutrice a deníku
+požadavky R-xx). Zapsané hlavně pro **fázi 1** — bez potravin, nutrice a deníku
 (ty přijdou v use casech pro fázi 2 a 3, až na ně dojde řada, viz sekce 9 roadmapy).
+Výjimka je UC007: kus fáze 2 (napojení na potraviny) už v appce reálně existuje,
+tak je zapsaný rovnou, aby dokumentace odpovídala kódu.
 
 Formát: hlavní tok jako číslovaný scénář (rychlá orientace), pod ním alternativní/chybové
 toky a akceptační kritéria ve stylu Given/When/Then — stejně jako u ostatních
@@ -164,10 +166,57 @@ Vazba: pravidlo 11, R-02, NF-3, sekce 7.7 SPEC.md
 
 ---
 
+## UC007 — Napojení suroviny na potravinu s návrhem gramáže
+
+Vazba: S4, R-12, R-31, `docs/specs/food-picker-vyber.md`. Formálně fáze 2
+(nutriční nadstavba), ale v kódu už existuje, proto je zapsaný i tady, aby
+UC dokumentace odpovídala skutečnému stavu appky.
+
+Tenhle use case existoval dřív jen jako ruční napojení (otevřít vyhledávací
+výběr, najít potravinu, pak ještě samostatně napsat gramáž — i když ji
+uživatel často už napsal v `raw_text`, např. „40g másla"). Teď appka tu
+gramáž a odhad potraviny nabízí sama, jako **návrh k potvrzení**, ne jako
+automatické napojení — `raw_text` se tím nemění (pravidlo 2).
+
+**Hlavní tok:**
+1. Otevřu recept → „Kalorie" (obrazovka doplnění nutričních hodnot, S4).
+2. U suroviny, kterou appka umí rozpoznat (např. „40g másla"), se vedle
+   „napojit potravinu" objeví návrh `→ Máslo?`.
+3. Klepnu na návrh → potravina se napojí a gramáž (40 g) se rovnou předvyplní
+   z textu suroviny, aniž bych ji psal znovu.
+4. U surovin bez jednoznačné gramáže (např. „hrst mouky", „2 vejce") appka
+   nic nehádá — nabídne jen běžné ruční napojení nebo přeskočení.
+
+**Alternativní a chybové toky:**
+- Appka najde shodu, ale je špatná (jiná potravina stejného/podobného
+  názvu) → klepnu na „napojit potravinu" a vyberu ručně; návrh se tím
+  nezruší nijak automaticky, jen ho ignoruju.
+- Text obsahuje gramáž, ale žádná odpovídající potravina v databázi není →
+  zobrazí se jen běžné „napojit potravinu" bez návrhu; gramáž se i tak
+  předvyplní, jakmile potravinu napojím ručně.
+- Potravina má vyplněnou hmotnost kusu (`pieceGrams`) → gramáž se
+  nepředvyplňuje automaticky, protože jednotka je „ks", ne „g" (aby se to
+  nespletlo).
+
+**Akceptační kritéria:**
+- Given surovina s `raw_text` „40g másla" a existující potravina „Máslo",
+  When otevřu obrazovku Kalorie, Then se u položky nabídne návrh „→ Máslo?".
+- Given klepnu na návrh, Then se potravina napojí a pole gramáže se
+  vyplní hodnotou 40, aniž bych cokoliv psal (R-12).
+- Given návrh se nezobrazí nebo ho ignoruju, Then se nic nenapojí samo —
+  napojení je pořád jen na moje potvrzení (pravidlo 1).
+- Given `raw_text` neobsahuje rozpoznatelnou jednotku (např. „hrst mouky"),
+  Then se gramáž nepředvyplní a musím ji zadat ručně.
+- Given `raw_text` suroviny, Then se po napojení nezmění ani o písmeno
+  (pravidlo 2 — návrh čte text, nikdy ho nepřepisuje).
+
+---
+
 ## Mimo rozsah (fáze 1)
 
-- Napojení suroviny na potravinu z databáze a gramáž (fáze 2, viz
-  `docs/specs/food-picker-vyber.md` a use casy pro fázi 2).
+- Zbytek nutriční nadstavby mimo UC007 — výpočet celkových hodnot na porci
+  a na 100 g, ukazatel úplnosti, CRUD potravin (fáze 2, viz
+  `docs/specs/food-picker-vyber.md`).
 - Cokoliv kolem deníku, cílů a statistik (fáze 3).
 - Sken čárového kódu, diktování přes Web Speech API, tisk/export do PDF (v3,
   případně E-14 — vědomě neděláno).
