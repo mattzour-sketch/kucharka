@@ -20,7 +20,7 @@ Vazba: S1 ★ nejdůležitější scénář, R-01, R-02, R-03, R-05
 **Hlavní tok:**
 1. Na domovské obrazovce kliknu na velké tlačítko „Nový recept".
 2. Zadám název receptu.
-3. (Nepovinně) zadám „od koho" a datum zachycení.
+3. (Nepovinně) upravím datum zachycení (jinak se použije dnešní).
 4. Do jednoho velkého textového pole napíšu suroviny a postup volně za sebou,
    jak to slyším — žádné dohledávání, žádný číselník.
 5. Zavřu obrazovku (uložení běží průběžně na pozadí, viz E-16/pravidlo 11).
@@ -34,10 +34,11 @@ Vazba: S1 ★ nejdůležitější scénář, R-01, R-02, R-03, R-05
 **Akceptační kritéria:**
 - Given prázdný formulář, When vyplním jen název, Then jde recept uložit (pravidlo 3).
 - Given appka je offline, When recept uložím, Then se uloží okamžitě do IndexedDB
-  a čeká v outboxu na synchronizaci (pravidlo 11, R-02).
+  (appka je lokální, žádná síť ani synchronizace — pravidlo 11).
 - Given uložený recept, Then `raw_capture`/`raw_text` obsahuje přesně to, co
   jsem napsal, beze změny (pravidlo 2, R-05).
-- Given recept nemá vyplněné „od koho" ani datum, Then se přesto uloží bez chyby.
+- Given recept nemá vyplněné datum, Then se přesto uloží bez chyby (jediné
+  povinné pole je název).
 
 ---
 
@@ -51,16 +52,16 @@ Vazba: S2, R-04
 3. Zavřu obrazovku bez přepisu textu — fotka sama je dostatečný podklad.
 
 **Alternativní a chybové toky:**
-- Fotka je pořízená offline → uloží se lokálně (blob v IndexedDB) hned,
-  nahrání do Storage proběhne přes outbox, až se objeví signál (E-16).
+- Fotka se uloží lokálně (blob v IndexedDB) hned; žádné nahrávání na server –
+  appka je lokální, fotka žije jen v tomhle prohlížeči (E-16).
 - Později se k receptu doplní i přepsaný text → fotka zůstává u receptu dál
   jako podklad, nemaže se automaticky.
 
 **Akceptační kritéria:**
 - Given recept má jen název a fotku, Then je platně uložený (S2 je nepovinný scénář,
   ale nesmí být blokovaný).
-- Given appka je offline při focení, Then se fotka neztratí a nahraje se, až
-  bude signál.
+- Given appka je offline při focení, Then se fotka uloží lokálně a neztratí se
+  (nikam se nenahrává, žije jen v tomhle prohlížeči).
 
 ---
 
@@ -71,9 +72,10 @@ Vazba: S5, R-20, R-21
 **Hlavní tok:**
 1. Otevřu záložku „Recepty" → vidím seznam všech nesmazaných receptů.
 2. Napíšu do hledání dotaz, např. „kure smetana" → appka hledá fulltextově
-   napříč názvem, surovinami, postupem i polem „od koho", bez ohledu na
-   diakritiku a české skloňování.
-3. Volitelně filtruju podle štítku nebo autora.
+   napříč názvem, surovinami i postupem, bez ohledu na diakritiku a české
+   skloňování.
+3. Volitelně řadím (naposledy upravené / uvařené / podle názvu) a filtruju
+   podle štítku nebo jen oblíbené.
 4. Kliknu na recept → otevře se detail.
 
 **Alternativní a chybové toky:**
@@ -130,9 +132,9 @@ Vazba: S3, R-22
 **Alternativní a chybové toky:**
 - Zařízení nepodporuje Screen Wake Lock API → appka to neshodí, jen displej
   zhasne jako obvykle (fallback, E-15).
-- Odškrtnuté suroviny se při zavření a znovuotevření receptu nezapamatovávají
-  (žádný trvalý stav odškrtnutí mezi vařeními — otevřená otázka, pokud bys
-  chtěl jinak).
+- Odškrtnuté suroviny i hotové kroky se pamatují: když vaření opustím a vrátím
+  se (do pár hodin), stav je zachovaný (sezení vaření, §6). Nahoře vidím průběh
+  – kolik surovin a kroků mám hotových.
 
 **Akceptační kritéria:**
 - Given otevřený režim vaření, Then je písmo výrazně větší než v běžném
@@ -140,30 +142,38 @@ Vazba: S3, R-22
 - Given režim vaření je aktivní, Then displej nezhasne, dokud ho neopustím
   (kde to platforma podporuje).
 - Given klepnu na surovinu, Then se vizuálně označí jako odškrtnutá.
+- Given odškrtnu suroviny (a označím hotové kroky) a odejdu z vaření, When se
+  za chvíli vrátím, Then je ten stav zachovaný (sezení vaření, §6).
 
 ---
 
-## UC006 — Práce offline a synchronizace
+## UC006 — Práce offline a lokální data (bez serveru)
 
-Vazba: pravidlo 11, R-02, NF-3, sekce 7.7 SPEC.md
+Vazba: pravidlo 6/11, NF-3, rozhodnutí „bez serveru"
+
+Appka jede **čistě lokálně, bez serveru** (vědomé rozhodnutí projektu): žádné
+přihlášení, žádná synchronizace, žádný Supabase ani outbox. Všechna data žijí
+v IndexedDB v tomhle prohlížeči. „Offline" tím pádem není zvláštní režim, je to
+výchozí stav. Záloha a přenos na jiné zařízení = ruční **export/import JSON**.
 
 **Hlavní tok:**
-1. Appka je offline (letadlový režim, žádný signál).
-2. Zachytím/upravím recept normálně (UC001–UC005 fungují beze změny).
-3. Zápis jde okamžitě do IndexedDB a do outboxu, obrazovka se aktualizuje hned.
-4. Jakmile appka získá signál, outbox se na pozadí odešle do Supabase.
+1. Appka funguje stejně online i offline – nic nečeká na síť (UC001–UC005 beze změny).
+2. Každý zápis jde okamžitě do IndexedDB, obrazovka se aktualizuje hned.
+3. Když chci data zálohovat nebo přenést na jiné zařízení, ve „Víc" udělám
+   export do JSON; na druhém zařízení ho naimportuju.
 
 **Alternativní a chybové toky:**
-- Stejný recept se upraví na dvou zařízeních offline současně → řeší se
-  podle strategie v SPEC 7.7 (mimo rozsah tohoto use casu, jen odkaz).
-- Synchronizace selže (výpadek při odesílání) → záznam zůstává v outboxu a
-  zkusí se znovu, uživatel o tom neví a nemusí nic dělat.
+- Vymažu data prohlížeče / přeinstaluju bez zálohy → recepty jsou pryč; export
+  je jediná pojistka (žádný server data nedrží).
+- Import ze zálohy narazí na už existující záznam → sloučí se podle id (upsert),
+  nezaloží duplicitu.
 
 **Akceptační kritéria:**
-- Given appka je offline, When cokoliv uložím, Then se UI aktualizuje
-  okamžitě, bez čekání na síť (pravidlo 11).
-- Given appka byla offline a získá signál, Then se čekající změny odešlou
-  na pozadí bez zásahu uživatele.
+- Given appka je bez sítě, When cokoliv uložím, Then se to uloží okamžitě a UI
+  se aktualizuje bez čekání (pravidlo 11).
+- Given udělám export do JSON, Then soubor obsahuje recepty, potraviny i historii
+  a jde jím obnovit stav na jiném zařízení.
+- Given nikde není server, Then appka nikdy neposílá data ven ani nečeká na síť.
 
 ---
 
@@ -225,9 +235,8 @@ Vazba: pravidlo 7, E-08, `/kos`
    kdykoliv obnovit ručně.
 
 **Alternativní a chybové toky:**
-- Recept smažu na jednom zařízení offline → soft-delete (`deleted_at`) se
-  synchronizuje jako běžná změna; tvrdé mazání se nepoužívá nikde, právě
-  proto, aby se smazaný záznam neobjevil znovu z druhého zařízení (pravidlo 7).
+- Mazání je vždy soft-delete (`deleted_at`), nikdy natvrdo – schéma to drží
+  kvůli budoucí synchronizaci (pravidlo 7), i když dnes appka běží jen lokálně.
 - Smažu potravinu, která je někde napojená na surovinu → napojení zůstává
   (`food_id` ukazuje na smazaný, ale stále existující řádek), jen se potravina
   dál nenabízí při novém napojování (E-08).
@@ -248,7 +257,7 @@ Vazba: R-16, R-21 (rozšíření UC003)
 **Hlavní tok:**
 1. V seznamu receptů označím recept jako oblíbený (hvězdička).
 2. Přepnu řazení seznamu — naposledy upravené / abecedně / oblíbené první.
-3. Ke štítkům a autorovi (UC003) přidám i filtr „jen oblíbené".
+3. Ke štítkům a řazení (UC003) přidám i filtr „jen oblíbené".
 
 **Alternativní a chybové toky:**
 - Žádný recept není oblíbený → filtr „jen oblíbené" ukáže prázdný stav,
@@ -269,22 +278,25 @@ Vazba: R-16, R-21 (rozšíření UC003)
 Vazba: Fáze 4 roadmapy (`docs/SPEC.md` §9), `/nakup`
 
 **Hlavní tok:**
-1. Vyberu jeden nebo víc receptů (např. na týden dopředu).
-2. Appka sesbírá jejich suroviny jako volný text do nákupního seznamu,
-   stejně pojmenované položky sloučí.
-3. V obchodě odškrtávám položky, jak je dávám do košíku.
-4. Nákupní seznam žije nezávisle na receptech — úprava receptu ho zpětně
-   nemění.
+1. V detailu receptu klepnu „🛒 Do nákupního seznamu" – jeho suroviny
+   (naškálované podle zvoleného počtu porcí) se přidají do seznamu, označené
+   názvem receptu.
+2. Zopakuju u dalších receptů (třeba na týden); položky se přidávají za sebe.
+   Množství se záměrně nesčítají (volný text spolehlivě sečíst nejde) – radši
+   vypsané, ať vím, z čeho co je.
+3. Ručně si přidám i položku mimo recepty (např. „toaletní papír").
+4. V obchodě odškrtávám; odškrtnuté klesnou dolů. Seznam žije nezávisle na
+   receptech – úprava receptu ho zpětně nemění.
 
 **Alternativní a chybové toky:**
-- Dvě suroviny mají mírně jiný text („mrkev" vs. „mrkve") → sloučení je jen
-  na přesnou shodu textu, appka nehádá skloňování (aby nesloučila omylem
-  něco jiného); jinak zůstanou jako dvě položky.
-- Přidám si do seznamu i položku ručně, mimo recepty (např. „toaletní papír").
+- Suroviny se nesjednocují ani nededuplikují – každý řádek receptu je vlastní
+  položka (volný text jako „2 vejce" + „3 vejce" spolehlivě sečíst nejde).
+- Úklid: „Smazat nakoupené" smaže odškrtnuté, „Vymazat vše" celý seznam;
+  obojí jde vzít zpět (Vrátit zpět).
 
 **Akceptační kritéria:**
-- Given vyberu dva recepty se stejnou surovinou „vejce", Then se v nákupním
-  seznamu objeví jen jednou.
+- Given pošlu do nákupu dva recepty, každý se surovinou „vejce", Then jsou
+  v seznamu obě položky (nesjednocuje se) a u každé je vidět, z jakého receptu je.
 - Given odškrtnu položku, Then zůstane odškrtnutá i po zavření appky, dokud
   ji ručně nesmažu nebo nevyčistím celý seznam.
 - Given appka je offline, When si udělám nákupní seznam, Then to funguje
