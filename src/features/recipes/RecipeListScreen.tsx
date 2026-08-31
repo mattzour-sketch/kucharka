@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import RecipeCard from './RecipeCard';
 import ScreenHeader from '../../components/ui/ScreenHeader';
+import Logo from '../../components/ui/Logo';
 import Button from '../../components/ui/Button';
 import FilterChip from '../../components/ui/FilterChip';
 import EmptyState from '../../components/ui/EmptyState';
@@ -76,7 +77,12 @@ export default function RecipeListScreen() {
     <div>
       <ScreenHeader
         width="wide"
-        title="Recepty"
+        title={
+          <span className="flex items-center gap-2">
+            <Logo className="h-6 w-6 text-brand" />
+            Kuchařka
+          </span>
+        }
         actions={
           <>
             <Button role="secondary" to="/vlozit">
