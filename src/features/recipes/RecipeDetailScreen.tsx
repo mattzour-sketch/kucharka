@@ -14,6 +14,12 @@ import { setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
 import { restoreRecipe } from '../trash/trashRepo';
 import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
+import {
+  addRecipeNote,
+  deleteRecipeNote,
+  getRecipeNotes,
+  restoreRecipeNote,
+} from './recipeNotesRepo';
 import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
 import ScreenHeader from '../../components/ui/ScreenHeader';
@@ -35,6 +41,7 @@ export default function RecipeDetailScreen() {
   const [shareMsg, setShareMsg] = useState('');
   // Historie: kalorie na porci, nebo za celou uvařenou dávku.
   const [histMode, setHistMode] = useState<'porce' | 'cely'>('porce');
+  const [noteDraft, setNoteDraft] = useState('');
   const { showUndo } = useUndo();
 
   // Detail se mezi recepty neremountuje – při změně id vynuluj cíl porcí.
@@ -57,6 +64,7 @@ export default function RecipeDetailScreen() {
 
   const photos = useLiveQuery(() => (id ? getRecipePhotos(id) : Promise.resolve([])), [id]) ?? [];
   const cookLogs = useLiveQuery(() => (id ? getCookLogs(id) : Promise.resolve([])), [id]) ?? [];
+  const notes = useLiveQuery(() => (id ? getRecipeNotes(id) : Promise.resolve([])), [id]) ?? [];
 
   if (data === undefined) {
     return (
@@ -112,6 +120,19 @@ export default function RecipeDetailScreen() {
     const log = cookLogs.find((item) => item.id === logId);
     await deleteCookLog(logId);
     if (log) showUndo({ message: 'Záznam smazán', undo: () => restoreCookLog(log) });
+  }
+
+  function handleAddNote() {
+    const text = noteDraft.trim();
+    if (!id || !text) return;
+    void addRecipeNote(id, text);
+    setNoteDraft('');
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    const note = notes.find((item) => item.id === noteId);
+    await deleteRecipeNote(noteId);
+    if (note) showUndo({ message: 'Poznámka smazána', undo: () => restoreRecipeNote(note) });
   }
 
   const nutrition = nutritionFromData(id, {
@@ -290,6 +311,43 @@ export default function RecipeDetailScreen() {
         {!hasIngredients && !hasSteps && !legacyText ? (
           <p className="mt-5 text-stone-400">Zatím bez obsahu. Klepni na „Upravit" nebo přidej fotku.</p>
         ) : null}
+
+        <section className="mt-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Poznámky</h2>
+          <div className="mt-2 flex gap-2">
+            <input
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleAddNote();
+              }}
+              placeholder={'poznámka k receptu (např. „příště míň soli")'}
+              className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <Button role="primary" onClick={handleAddNote}>
+              Přidat
+            </Button>
+          </div>
+          {notes.length > 0 ? (
+            <ul className="mt-2 flex flex-col gap-2">
+              {[...notes].reverse().map((note) => (
+                <li key={note.id} className={cardClass({ padding: 'panel' })}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 whitespace-pre-wrap text-sm">{note.body}</p>
+                    <IconButton
+                      size="sm"
+                      onClick={() => void handleDeleteNote(note.id)}
+                      aria-label="Smazat poznámku"
+                    >
+                      ×
+                    </IconButton>
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">{formatCzechDate(note.notedOn)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
 
         {cookLogs.length > 0 ? (
           <section className="mt-6">

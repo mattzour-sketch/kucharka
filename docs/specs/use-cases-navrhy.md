@@ -68,7 +68,7 @@ Z receptu udělám kopii jako základ pro variantu („guláš, ale ostrý").
   surovinami/postupem/štítky, samostatný (úprava kopie nemění originál).
 - Kopie nepřebírá historii vaření ani oblíbenost.
 
-## UC020 — Poznámky k receptu (mimo vaření) 🟢 · model: recipeNotes (existuje)
+## UC020 — Poznámky k receptu (mimo vaření) ✅ HOTOVO 🟢 · model: recipeNotes (existuje)
 
 K receptu si kdykoliv připíšu volnou poznámku („příště míň soli", „od Aničky").
 
