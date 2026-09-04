@@ -32,7 +32,7 @@ přepisovat do každého receptu; a kalorie mají téct skrz.
 - `raw_text` se nemění (pravidlo 2). Pole `sub_recipe_id` v modelu už existuje,
   jen chybí UI napojení.
 
-## UC017 — Domácí míry → gramy (lžíce, hrnek, plátek) 🟡 · model: FoodPortion (schéma existuje)
+## UC017 — Domácí míry → gramy (lžíce, hrnek, plátek) ✅ HOTOVO 🟡 · model: FoodPortion (schéma existuje)
 
 U potraviny půjde nadefinovat běžné míry („1 lžíce" = 15 g, „1 hrnek" = 250 g)
 a u suroviny pak vybrat míru místo ručního zadávání gramů.

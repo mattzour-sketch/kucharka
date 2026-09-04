@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type CookReplacement } from '../../db';
+import { db, type CookReplacement, type FoodPortion } from '../../db';
 import { formatCzechDate } from '../../lib/date';
-import { formatNumber, parseDecimal } from '../../lib/num';
+import { formatNumber } from '../../lib/num';
 import { matchesQuery } from '../../lib/search';
 import { parseLeadingQuantity, scaleQuantityText } from '../../lib/scale';
+import {
+  deriveInitialAmountValue,
+  resolveAmount,
+  unitOptionsForFood,
+  type AmountUnitOption,
+  type AmountValue,
+} from '../../lib/amount';
+import { matchPortionInText } from '../../lib/portionMatch';
+import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
@@ -30,6 +39,8 @@ import ServingsStepper from './ServingsStepper';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
+import AmountPicker from '../../components/ui/AmountPicker';
+import AddPortionInline from '../../components/ui/AddPortionInline';
 import Tag from '../../components/ui/Tag';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
@@ -82,17 +93,18 @@ export default function CookingModeScreen() {
     [id],
   );
   const data = useLiveQuery(async () => {
-    const empty = { recipe: null, items: [], foods: [], recipes: [], allItems: [] };
+    const empty = { recipe: null, items: [], foods: [], recipes: [], allItems: [], portions: [] };
     if (!id) return empty;
     const recipe = (await db.recipes.get(id)) ?? null;
     if (!recipe) return empty;
-    const [items, foods, recipes, allItems] = await Promise.all([
+    const [items, foods, recipes, allItems, portions] = await Promise.all([
       getRecipeItems(id),
       db.foods.toArray(),
       db.recipes.toArray(),
       db.recipeItems.toArray(),
+      db.foodPortions.toArray(),
     ]);
-    return { recipe, items, foods, recipes, allItems };
+    return { recipe, items, foods, recipes, allItems, portions };
   }, [id]);
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -109,17 +121,17 @@ export default function CookingModeScreen() {
   // Nepovinné napojení nové suroviny na potravinu (kvůli kaloriím). Vlastní picker,
   // ať se neplete s náhradou. Text je zdroj pravdy, napojení je štítek vedle.
   const [newItemFoodId, setNewItemFoodId] = useState<string | null>(null);
-  const [newItemAmount, setNewItemAmount] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState<'g' | 'ks'>('g');
+  const [newItemValue, setNewItemValue] = useState<AmountValue>({ unitId: 'g', raw: '' });
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   // §8 náhrady suroviny (jen tohle vaření). Klíč = id původní suroviny.
   const [replacements, setReplacements] = useState<Record<string, CookReplacement>>({});
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
   const [replText, setReplText] = useState('');
   const [replFoodId, setReplFoodId] = useState<string | null>(null);
-  const [replAmount, setReplAmount] = useState('');
-  const [replUnit, setReplUnit] = useState<'g' | 'ks'>('g');
+  const [replValue, setReplValue] = useState<AmountValue>({ unitId: 'g', raw: '' });
   const [replPickerOpen, setReplPickerOpen] = useState(false);
+  // Inline „+ míra" ve vaření: u které větve je otevřený mini-formulář.
+  const [addMeasureFor, setAddMeasureFor] = useState<'repl' | 'add' | null>(null);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
@@ -135,8 +147,9 @@ export default function CookingModeScreen() {
     setStalePrompt(null);
     setEditingItemId(null);
     setNewItemFoodId(null);
-    setNewItemAmount('');
-    setNewItemUnit('g');
+    setNewItemValue({ unitId: 'g', raw: '' });
+    setReplValue({ unitId: 'g', raw: '' });
+    setAddMeasureFor(null);
     setAddPickerOpen(false);
     if (!id) return;
     let cancelled = false;
@@ -209,8 +222,19 @@ export default function CookingModeScreen() {
       </div>
     );
   }
-  const { recipe, items, foods, recipes: allRecipes, allItems } = data;
+  const { recipe, items, foods, recipes: allRecipes, allItems, portions } = data;
   const foodMap = new Map(foods.map((food) => [food.id, food]));
+  const portionsByFood = new Map<string, FoodPortion[]>();
+  for (const portion of portions) {
+    if (portion.deletedAt) continue;
+    const list = portionsByFood.get(portion.foodId) ?? [];
+    list.push(portion);
+    portionsByFood.set(portion.foodId, list);
+  }
+  function optionsFor(foodId: string | null | undefined): AmountUnitOption[] {
+    const food = foodId ? foodMap.get(foodId) : undefined;
+    return unitOptionsForFood(food, foodId ? (portionsByFood.get(foodId) ?? []) : []);
+  }
   if (!recipe || recipe.deletedAt || !id) {
     return (
       <div className="min-h-dvh bg-white">
@@ -262,28 +286,27 @@ export default function CookingModeScreen() {
     setReplacingItemId(itemId);
     setReplText(existing?.text ?? '');
     setReplFoodId(existing?.foodId ?? null);
-    if (existing?.amountKs != null) {
-      setReplUnit('ks');
-      setReplAmount(String(existing.amountKs));
-    } else {
-      setReplUnit('g');
-      setReplAmount(existing?.amountG != null ? String(existing.amountG) : '');
-    }
+    const options = optionsFor(existing?.foodId ?? null);
+    setReplValue(
+      deriveInitialAmountValue(
+        {
+          amountG: existing?.amountG ?? null,
+          amountKs: existing?.amountKs ?? null,
+          rawText: existing?.text ?? '',
+        },
+        options,
+      ),
+    );
+    setAddMeasureFor(null);
     setEditingItemId(null);
   }
 
-  function toggleReplUnit() {
-    const pieceGrams = replFoodId ? (foodMap.get(replFoodId)?.pieceGrams ?? null) : null;
-    if (!pieceGrams) return;
-    const parsed = parseDecimal(replAmount);
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    if (replUnit === 'g') {
-      setReplUnit('ks');
-      setReplAmount(parsed != null ? String(round2(parsed / pieceGrams)) : '');
-    } else {
-      setReplUnit('g');
-      setReplAmount(parsed != null ? String(round2(parsed * pieceGrams)) : '');
-    }
+  // Inline „+ míra" u náhrady: uloží míru k náhradní potravině a rovnou ji vybere.
+  async function addMeasureForRepl(label: string, grams: number) {
+    if (!replFoodId) return;
+    const added = await addPortion(replFoodId, label, grams);
+    setReplValue({ unitId: added.id, raw: '1' });
+    setAddMeasureFor(null);
   }
 
   function saveReplacement(itemId: string) {
@@ -293,15 +316,7 @@ export default function CookingModeScreen() {
       setReplacingItemId(null);
       return;
     }
-    const parsed = parseDecimal(replAmount);
-    let amountG: number | null = null;
-    let amountKs: number | null = null;
-    if (replUnit === 'ks') {
-      amountKs = parsed;
-      amountG = parsed != null && food?.pieceGrams ? parsed * food.pieceGrams : null;
-    } else {
-      amountG = parsed;
-    }
+    const { amountG, amountKs } = resolveAmount(replValue, optionsFor(replFoodId));
     const nextRepl = {
       ...replacements,
       [itemId]: { text, foodId: replFoodId, amountG, amountKs },
@@ -347,43 +362,34 @@ export default function CookingModeScreen() {
     if (!text) return;
     let link: { foodId: string; amountG: number | null; amountKs: number | null } | undefined;
     if (newItemFoodId) {
-      const parsed = parseDecimal(newItemAmount);
-      const amountKs = newItemUnit === 'ks' ? parsed : null;
-      const amountG =
-        newItemUnit === 'ks'
-          ? parsed != null && food?.pieceGrams
-            ? parsed * food.pieceGrams
-            : null
-          : parsed;
+      const { amountG, amountKs } = resolveAmount(newItemValue, optionsFor(newItemFoodId));
       link = { foodId: newItemFoodId, amountG, amountKs };
     }
     void addRecipeItem(id, text, link);
     setNewItemText('');
     setNewItemFoodId(null);
-    setNewItemAmount('');
-    setNewItemUnit('g');
+    setNewItemValue({ unitId: 'g', raw: '' });
+    setAddMeasureFor(null);
   }
 
   function linkNewItemFood(foodId: string) {
     setNewItemFoodId(foodId);
-    // Nová potravina → vynuluj množství, ať nezůstane po předchozí/odpojené.
-    setNewItemAmount('');
-    // Potravina s hmotností kusu → výchozí jednotka „ks" (§9).
-    setNewItemUnit(foodMap.get(foodId)?.pieceGrams ? 'ks' : 'g');
+    const food = foodMap.get(foodId);
+    // Předvyplnění výběru: míra z textu (OO5), jinak „ks" u potraviny s hmotností kusu.
+    const match = matchPortionInText(newItemText, portionsByFood.get(foodId) ?? []);
+    setNewItemValue(
+      match
+        ? { unitId: match.portionId, raw: String(match.count) }
+        : { unitId: food?.pieceGrams ? 'ks' : 'g', raw: '' },
+    );
   }
 
-  function toggleAddUnit() {
-    const pieceGrams = newItemFoodId ? (foodMap.get(newItemFoodId)?.pieceGrams ?? null) : null;
-    if (!pieceGrams) return;
-    const parsed = parseDecimal(newItemAmount);
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    if (newItemUnit === 'g') {
-      setNewItemUnit('ks');
-      setNewItemAmount(parsed != null ? String(round2(parsed / pieceGrams)) : '');
-    } else {
-      setNewItemUnit('g');
-      setNewItemAmount(parsed != null ? String(round2(parsed * pieceGrams)) : '');
-    }
+  // Inline „+ míra" u přidávané suroviny.
+  async function addMeasureForAdd(label: string, grams: number) {
+    if (!newItemFoodId) return;
+    const added = await addPortion(newItemFoodId, label, grams);
+    setNewItemValue({ unitId: added.id, raw: '1' });
+    setAddMeasureFor(null);
   }
 
   function continueSession() {
@@ -689,36 +695,42 @@ export default function CookingModeScreen() {
                           className="w-full rounded-full border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
                         />
                         {replFoodId ? (
-                          <div className="flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate text-stone-600">
-                              → {foodMap.get(replFoodId)?.name}
-                            </span>
-                            <input
-                              value={replAmount}
-                              onChange={(event) => setReplAmount(event.target.value)}
-                              inputMode="decimal"
-                              placeholder={replUnit}
-                              className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
-                            />
-                            {foodMap.get(replFoodId)?.pieceGrams ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-stone-600">
+                                → {foodMap.get(replFoodId)?.name}
+                              </span>
+                              <AmountPicker
+                                options={optionsFor(replFoodId)}
+                                value={replValue}
+                                onChange={setReplValue}
+                              />
+                              <IconButton
+                                size="sm"
+                                onClick={() => {
+                                  setReplFoodId(null);
+                                  setReplValue({ unitId: 'g', raw: '' });
+                                  if (addMeasureFor === 'repl') setAddMeasureFor(null);
+                                }}
+                                aria-label="Odpojit potravinu"
+                              >
+                                ×
+                              </IconButton>
+                            </div>
+                            {addMeasureFor === 'repl' ? (
+                              <AddPortionInline
+                                onAdd={(label, grams) => void addMeasureForRepl(label, grams)}
+                                onClose={() => setAddMeasureFor(null)}
+                              />
+                            ) : (
                               <button
                                 type="button"
-                                onClick={toggleReplUnit}
-                                className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
-                                aria-label="Přepnout jednotku g/ks"
+                                onClick={() => setAddMeasureFor('repl')}
+                                className="self-end text-xs font-medium text-brand"
                               >
-                                {replUnit}
+                                + míra
                               </button>
-                            ) : (
-                              <span className="w-8 text-center text-xs text-stone-400">g</span>
                             )}
-                            <IconButton
-                              size="sm"
-                              onClick={() => setReplFoodId(null)}
-                              aria-label="Odpojit potravinu"
-                            >
-                              ×
-                            </IconButton>
                           </div>
                         ) : (
                           <div className="self-start">
@@ -786,43 +798,47 @@ export default function CookingModeScreen() {
                       ))}
                     </ul>
                   ) : null}
-                  <div className="flex flex-wrap items-center gap-2 pl-1 text-sm">
-                    {newItemFoodId ? (
-                      <>
-                        <Tag
-                          onRemove={() => setNewItemFoodId(null)}
-                          removeLabel="Odpojit potravinu"
-                        >
-                          → {foodMap.get(newItemFoodId)?.name}
-                        </Tag>
-                        <input
-                          value={newItemAmount}
-                          onChange={(event) => setNewItemAmount(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') handleAddItem();
-                          }}
-                          inputMode="decimal"
-                          placeholder={newItemUnit}
-                          className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
-                        />
-                        {foodMap.get(newItemFoodId)?.pieceGrams ? (
-                          <button
-                            type="button"
-                            onClick={toggleAddUnit}
-                            className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
-                            aria-label="Přepnout jednotku g/ks"
+                  <div className="flex flex-col gap-2 pl-1 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {newItemFoodId ? (
+                        <>
+                          <Tag
+                            onRemove={() => {
+                              setNewItemFoodId(null);
+                              setNewItemValue({ unitId: 'g', raw: '' });
+                              if (addMeasureFor === 'add') setAddMeasureFor(null);
+                            }}
+                            removeLabel="Odpojit potravinu"
                           >
-                            {newItemUnit}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-stone-400">g</span>
-                        )}
-                      </>
-                    ) : (
-                      <Button role="tint" onClick={() => setAddPickerOpen(true)}>
-                        napojit potravinu (kvůli kaloriím)
-                      </Button>
-                    )}
+                            → {foodMap.get(newItemFoodId)?.name}
+                          </Tag>
+                          <AmountPicker
+                            options={optionsFor(newItemFoodId)}
+                            value={newItemValue}
+                            onChange={setNewItemValue}
+                          />
+                          {addMeasureFor === 'add' ? null : (
+                            <button
+                              type="button"
+                              onClick={() => setAddMeasureFor('add')}
+                              className="text-xs font-medium text-brand"
+                            >
+                              + míra
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <Button role="tint" onClick={() => setAddPickerOpen(true)}>
+                          napojit potravinu (kvůli kaloriím)
+                        </Button>
+                      )}
+                    </div>
+                    {newItemFoodId && addMeasureFor === 'add' ? (
+                      <AddPortionInline
+                        onAdd={(label, grams) => void addMeasureForAdd(label, grams)}
+                        onClose={() => setAddMeasureFor(null)}
+                      />
+                    ) : null}
                   </div>
                 </li>
               ) : null}
@@ -927,7 +943,12 @@ export default function CookingModeScreen() {
             setReplFoodId(foodId);
             const food = foodMap.get(foodId);
             if (!replText.trim() && food) setReplText(food.name);
-            if (food?.pieceGrams) setReplUnit('ks');
+            const match = matchPortionInText(replText, portionsByFood.get(foodId) ?? []);
+            setReplValue(
+              match
+                ? { unitId: match.portionId, raw: String(match.count) }
+                : { unitId: food?.pieceGrams ? 'ks' : 'g', raw: '' },
+            );
             setReplPickerOpen(false);
           }}
           onClose={() => setReplPickerOpen(false)}

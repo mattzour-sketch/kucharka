@@ -53,6 +53,8 @@ export interface FoodPortion {
   foodId: string;
   label: string;
   grams: number;
+  /** Soft delete (pravidlo 7). Neindexované pole → nevyžaduje bump `version()`. */
+  deletedAt?: IsoTimestamp | null;
 }
 
 export interface Recipe {
