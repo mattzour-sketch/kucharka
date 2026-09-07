@@ -16,16 +16,8 @@ function makeSource(
   recipes: Record<string, CalcRecipe> = {},
 ): NutritionSource {
   return {
-    food: (id) => {
-      const f = foods[id];
-      if (!f) throw new Error(`Neznámá potravina: ${id}`);
-      return f;
-    },
-    recipe: (id) => {
-      const r = recipes[id];
-      if (!r) throw new Error(`Neznámý recept: ${id}`);
-      return r;
-    },
+    food: (id) => foods[id] ?? null,
+    recipe: (id) => recipes[id] ?? null,
   };
 }
 
@@ -180,6 +172,71 @@ describe('nutrition', () => {
     // přímý cyklus s → s
     const s: CalcRecipe = { id: 's', items: [{ subRecipeId: 's', amountG: 100 }] };
     expect(() => recipeTotals(s, makeSource({}, { s }))).toThrow(/Cyklick/);
+  });
+
+  it('i) neznámý/rozbitý subRecipeId → nespadne, nezapočítá se, sníží úplnost', () => {
+    const r: CalcRecipe = {
+      id: 'parent',
+      items: [
+        { foodId: 'chicken', amountG: 100 }, // 106 kcal
+        { subRecipeId: 'neexistuje', amountG: 200 }, // rozbité napojení
+      ],
+    };
+    const t = recipeTotals(r, makeSource(foods, {}));
+    if (!t.computable) throw new Error('má být computable ze zbytku');
+    near(t.totals.kcal, 106);
+    expect(t.completeness.connected).toBe(1);
+    expect(t.completeness.countable).toBe(2);
+    expect(t.rawWeight).toBe(100);
+  });
+
+  it('ii) prázdný podrecept (bez napojených surovin) → nepřispěje a není napojený', () => {
+    const empty: CalcRecipe = { id: 'empty', items: [{}, {}] };
+    const parent: CalcRecipe = {
+      id: 'parent2',
+      items: [
+        { foodId: 'rice', amountG: 100 }, // 350 kcal
+        { subRecipeId: 'empty', amountG: 200 },
+      ],
+    };
+    const t = recipeTotals(parent, makeSource(foods, { empty }));
+    if (!t.computable) throw new Error('má být computable z rýže');
+    near(t.totals.kcal, 350);
+    expect(t.completeness.connected).toBe(1); // prázdný podrecept se nepočítá jako napojený
+    expect(t.completeness.countable).toBe(2);
+  });
+
+  it('iii) podrecept s nulovou finální hmotností → nezapočítá se (žádné dělení nulou)', () => {
+    const zero: CalcRecipe = {
+      id: 'zero',
+      cookedWeightG: 0, // finální hmotnost 0 → guard
+      items: [{ foodId: 'oil', amountG: 20 }],
+    };
+    const parent: CalcRecipe = {
+      id: 'parent3',
+      items: [{ subRecipeId: 'zero', amountG: 100 }],
+    };
+    const t = recipeTotals(parent, makeSource(foods, { zero }));
+    expect(t.computable).toBe(false); // jediná položka nepřispěla
+    expect(t.completeness.connected).toBe(0);
+  });
+
+  it('iv) částečně napojený podrecept přispěje jen ze svých a nahoru je 1 napojená položka', () => {
+    // podrecept: 1 ze 2 surovin napojená (rice 100 g = 350 kcal, finální hmotnost 100)
+    const half: CalcRecipe = {
+      id: 'half',
+      cookedWeightG: null,
+      items: [{ foodId: 'rice', amountG: 100 }, {}],
+    };
+    const parent: CalcRecipe = {
+      id: 'parent4',
+      items: [{ subRecipeId: 'half', amountG: 50 }],
+    };
+    const t = recipeTotals(parent, makeSource(foods, { half }));
+    if (!t.computable) throw new Error('má být computable');
+    near(t.totals.kcal, 175); // 350/100 × 50
+    expect(t.completeness.connected).toBe(1); // částečnost podreceptu nebublá nahoru
+    expect(t.completeness.countable).toBe(1);
   });
 
   it('h) zápis 340 g rizota do deníku → snapshot 303,91 kcal a display_name', () => {

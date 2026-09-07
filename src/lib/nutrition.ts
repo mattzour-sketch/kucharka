@@ -44,9 +44,21 @@ export type CalcRecipe = {
 
 /** Rozhraní pro dohledání potravin a podreceptů podle id. */
 export type NutritionSource = {
-  food(id: string): FoodValue;
-  recipe(id: string): CalcRecipe;
+  /** `null` = neznámý/nedostupný cíl (rozbité napojení) — položka se nezapočítá, výpočet nespadne. */
+  food(id: string): FoodValue | null;
+  recipe(id: string): CalcRecipe | null;
 };
+
+/**
+ * Vyhozeno JEN při skutečném cyklu receptů (E-03). Odlišuje cyklus od rozbitého
+ * napojení (to se řeší přeskočením položky, ne výjimkou) — viz UC016, rozhodnutí 7.
+ */
+export class RecipeCycleError extends Error {
+  constructor(recipeId: string) {
+    super(`Cyklická reference receptů: ${recipeId}`);
+    this.name = 'RecipeCycleError';
+  }
+}
 
 export type Completeness = {
   /** Napojené položky (mají potravinu/podrecept i gramáž). */
@@ -133,25 +145,35 @@ export function recipeTotals(
   visited: Set<string> = new Set(),
 ): RecipeTotals {
   if (visited.has(recipe.id)) {
-    throw new Error(`Cyklická reference receptů: ${recipe.id}`);
+    throw new RecipeCycleError(recipe.id);
   }
   visited.add(recipe.id);
   try {
     const totals: Nutrients = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     let rawWeight = 0;
-    let connectedCount = 0;
+    // Úplnost dle SKUTEČNÉHO příspěvku: `connected` roste jen když položka reálně
+    // přispěla (potravina se zdrojem; nebo computable podrecept s kladnou finální
+    // hmotností). Rozbité/prázdné napojení tak nezvedá „X z Y" (pravidlo 4) a
+    // neplete se za cyklus (UC016, rozhodnutí 5/7/8).
+    let countable = 0;
+    let connected = 0;
 
     for (const item of recipe.items) {
+      if (isCountable(item)) countable += 1;
       if (!isConnected(item)) continue;
       const amount = item.amountG as number;
 
       let per100: Nutrients;
       if (item.foodId != null) {
-        per100 = source.food(item.foodId);
+        const value = source.food(item.foodId);
+        if (value == null) continue; // rozbité napojení potraviny – nezapočítá se
+        per100 = value;
       } else {
-        const sub = recipeTotals(source.recipe(item.subRecipeId as string), source, visited);
-        // Podrecept bez napojených surovin nemá čím přispět – přeskočíme ho.
-        if (!sub.computable) continue;
+        const subRecipe = source.recipe(item.subRecipeId as string);
+        if (subRecipe == null) continue; // neznámý/smazaný podrecept – nezapočítá se
+        const sub = recipeTotals(subRecipe, source, visited);
+        // Prázdný podrecept ani nulová finální hmotnost nepřispějí (guard dělení nulou).
+        if (!sub.computable || sub.finalWeight <= 0) continue;
         per100 = scale(sub.totals, 100 / sub.finalWeight);
       }
 
@@ -161,11 +183,15 @@ export function recipeTotals(
       totals.carbs += per100.carbs * factor;
       totals.fat += per100.fat * factor;
       rawWeight += amount;
-      connectedCount += 1;
+      connected += 1;
     }
 
-    const comp = completeness(recipe);
-    if (connectedCount === 0) {
+    const comp: Completeness = {
+      connected,
+      countable,
+      ratio: countable === 0 ? 0 : connected / countable,
+    };
+    if (connected === 0) {
       return { computable: false, completeness: comp };
     }
 

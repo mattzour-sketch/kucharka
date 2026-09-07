@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Food, type FoodPortion } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
@@ -13,10 +13,11 @@ import {
   type AmountValue,
 } from '../../lib/amount';
 import { matchPortionInText } from '../../lib/portionMatch';
+import type { Nutrients } from '../../lib/nutrition';
 import { addPortion } from '../foods/foodPortionsRepo';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
-import FoodPicker from '../foods/FoodPicker';
+import LinkPicker from './LinkPicker';
 import { updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
@@ -33,6 +34,9 @@ import { ReadingSkeleton } from '../../components/ui/Loading';
  * nemění a nic se nenapojí samo (pravidlo 1, 2; mimo rozsah je jen tiché
  * automatické napojení bez potvrzení).
  */
+/** Podrecept se zadává jen v gramech (UC016, rozhodnutí 1). */
+const GRAMS_ONLY: AmountUnitOption[] = [{ id: 'g', kind: 'g', label: 'g', gramsPerUnit: 1 }];
+
 function suggestFood(query: string, foods: Food[]): Food | null {
   const trimmed = query.trim();
   if (trimmed.length < 3) return null;
@@ -87,11 +91,13 @@ export default function RecipeNutritionScreen() {
     const initialValues: Record<string, AmountValue> = {};
     for (const item of data.items) {
       if (item.recipeId !== id) continue;
-      const food = item.foodId ? localFoodMap.get(item.foodId) : undefined;
-      const options = unitOptionsForFood(
-        food,
-        item.foodId ? (localPortions.get(item.foodId) ?? []) : [],
-      );
+      let options: AmountUnitOption[];
+      if (item.subRecipeId) {
+        options = GRAMS_ONLY;
+      } else {
+        const food = item.foodId ? localFoodMap.get(item.foodId) : undefined;
+        options = unitOptionsForFood(food, item.foodId ? (localPortions.get(item.foodId) ?? []) : []);
+      }
       initialValues[item.id] = deriveInitialAmountValue(item, options);
     }
     setValues(initialValues);
@@ -132,6 +138,8 @@ export default function RecipeNutritionScreen() {
     );
   }
 
+  // Zúžená (nenull) reference pro použití v closurech (linkSubRecipe apod.).
+  const loadedData = data;
   const items = data.items
     .filter((item) => item.recipeId === id)
     .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -148,6 +156,21 @@ export default function RecipeNutritionScreen() {
     recipes: data.recipes,
     items: data.items,
   });
+
+  // Nesmazané recepty pro název podreceptu (smazaný/neznámý → „recept nedostupný").
+  const recipeMap = new Map(data.recipes.filter((recipe) => !recipe.deletedAt).map((recipe) => [recipe.id, recipe]));
+  // Hodnoty podreceptů na 100 g (jednou za render) pro příspěvek na řádku.
+  const subRecipePer100 = new Map<string, Nutrients | null>();
+  for (const item of items) {
+    if (item.subRecipeId && !subRecipePer100.has(item.subRecipeId)) {
+      const sub = nutritionFromData(item.subRecipeId, {
+        foods: data.foods,
+        recipes: data.recipes,
+        items: data.items,
+      });
+      subRecipePer100.set(item.subRecipeId, sub.per100g);
+    }
+  }
 
   function optionsFor(foodId: string | null | undefined): AmountUnitOption[] {
     const food = foodId ? foodMap.get(foodId) : undefined;
@@ -195,6 +218,19 @@ export default function RecipeNutritionScreen() {
     setAddMeasureItemId(null);
   }
 
+  // Napojení podreceptu (UC016). Předvyplní spočítanou finální hmotnost podreceptu,
+  // ať uživatel nemusí vážit celý hrnec. Repo vynuluje foodId/amountKs (vzájemné vyloučení).
+  function linkSubRecipe(itemId: string, subRecipeId: string) {
+    const sub = nutritionFromData(subRecipeId, {
+      foods: loadedData.foods,
+      recipes: loadedData.recipes,
+      items: loadedData.items,
+    });
+    const amountG = sub.finalWeight != null ? Math.round(sub.finalWeight) : null;
+    void updateRecipeItemLink(itemId, { subRecipeId, isSkipped: false, amountG });
+    setValues((prev) => ({ ...prev, [itemId]: { unitId: 'g', raw: amountG != null ? String(amountG) : '' } }));
+  }
+
   return (
     <div className="min-h-dvh">
       <ScreenHeader
@@ -240,7 +276,7 @@ export default function RecipeNutritionScreen() {
             const food = item.foodId ? foodMap.get(item.foodId) : undefined;
             const contribution =
               food && item.amountG != null ? (food.energyKcal * item.amountG) / 100 : null;
-            const options = optionsFor(item.foodId);
+            const options = item.subRecipeId ? GRAMS_ONLY : optionsFor(item.foodId);
             const value = values[item.id] ?? deriveInitialAmountValue(item, options);
             const currentOption = options.find((option) => option.id === value.unitId);
             const isGramUnit = !currentOption || currentOption.kind === 'g';
@@ -253,6 +289,17 @@ export default function RecipeNutritionScreen() {
               : item.amountG != null
                 ? `${formatNumber(item.amountG)} g`
                 : '';
+            // Podrecept: název + příspěvek (nebo „bez kalorií" u nespočitatelného/nedostupného).
+            const subRecipe = item.subRecipeId ? recipeMap.get(item.subRecipeId) : undefined;
+            const subPer100 = item.subRecipeId ? (subRecipePer100.get(item.subRecipeId) ?? null) : null;
+            const subContribution =
+              subPer100 && item.amountG != null ? (subPer100.kcal * item.amountG) / 100 : null;
+            const subReadout =
+              subPer100 == null
+                ? 'bez kalorií'
+                : subContribution != null
+                  ? `${formatNumber(subContribution)} kcal`
+                  : '';
             const suggestion =
               !food && !item.isSkipped
                 ? suggestFood(parseIngredientLine(item.rawText).foodQuery, data.foods)
@@ -319,6 +366,46 @@ export default function RecipeNutritionScreen() {
                       </div>
                     )}
                   </div>
+                ) : item.subRecipeId ? (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate text-stone-600">
+                        → {subRecipe ? subRecipe.name : 'recept nedostupný'}
+                        <span className="ml-1 text-xs text-stone-400">recept</span>
+                      </span>
+                      <AmountPicker
+                        options={GRAMS_ONLY}
+                        value={value}
+                        onChange={(next) => commitValue(item.id, next, GRAMS_ONLY)}
+                      />
+                      <span className="w-16 text-right text-xs text-stone-400">{subReadout}</span>
+                      <IconButton
+                        size="sm"
+                        onClick={() => {
+                          void updateRecipeItemLink(item.id, {
+                            subRecipeId: null,
+                            amountG: null,
+                            amountKs: null,
+                          });
+                          setValues((prev) => ({ ...prev, [item.id]: { unitId: 'g', raw: '' } }));
+                        }}
+                        aria-label="Odpojit podrecept"
+                      >
+                        ×
+                      </IconButton>
+                    </div>
+                    {subRecipe && subPer100 == null ? (
+                      <p className="mt-1 text-xs text-stone-400">
+                        {subRecipe.name} nemá napojené suroviny —{' '}
+                        <Link
+                          className="font-medium text-brand"
+                          to={`/recept/${item.subRecipeId}/kalorie`}
+                        >
+                          doplnit
+                        </Link>
+                      </p>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {suggestion ? (
@@ -330,7 +417,7 @@ export default function RecipeNutritionScreen() {
                       </Button>
                     ) : null}
                     <Button role="tint" onClick={() => setPickingItemId(item.id)}>
-                      napojit potravinu
+                      napojit
                     </Button>
                     <Button
                       role="ghost"
@@ -361,10 +448,20 @@ export default function RecipeNutritionScreen() {
       </main>
 
       {pickingItemId ? (
-        <FoodPicker
-          onSelect={(foodId) => {
+        <LinkPicker
+          currentRecipeId={id}
+          onSelect={(target) => {
             const pickedItem = items.find((item) => item.id === pickingItemId);
-            linkFood(pickingItemId, foodId, foodMap.get(foodId), pickedItem?.rawText ?? '');
+            if (target.kind === 'food') {
+              linkFood(
+                pickingItemId,
+                target.foodId,
+                foodMap.get(target.foodId),
+                pickedItem?.rawText ?? '',
+              );
+            } else {
+              linkSubRecipe(pickingItemId, target.subRecipeId);
+            }
             setPickingItemId(null);
           }}
           onClose={() => setPickingItemId(null)}

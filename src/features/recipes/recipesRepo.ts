@@ -106,17 +106,28 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
   });
 }
 
-/** Napojení suroviny na potravinu + gramáž, nebo přeskočení (R-12). */
+/** Napojení suroviny na potravinu NEBO podrecept + gramáž, nebo přeskočení (R-12, UC016). */
 export async function updateRecipeItemLink(
   itemId: string,
   patch: {
     foodId?: string | null;
+    subRecipeId?: string | null;
     amountG?: number | null;
     amountKs?: number | null;
     isSkipped?: boolean;
   },
 ): Promise<void> {
-  await db.recipeItems.update(itemId, patch);
+  // Potravina a podrecept se vylučují (zrcadlí SQL `at_most_one_target`): napojení
+  // jednoho vynuluje druhé. Podrecept je jen v gramech (UC016, rozhodnutí 1), tak
+  // s ním padá i `amountKs`. Odpojení (null) projde beze změny.
+  const normalized = { ...patch };
+  if (typeof patch.foodId === 'string') {
+    normalized.subRecipeId = null;
+  } else if (typeof patch.subRecipeId === 'string') {
+    normalized.foodId = null;
+    normalized.amountKs = null;
+  }
+  await db.recipeItems.update(itemId, normalized);
 }
 
 /** Počet porcí a hmotnost po uvaření (R-14, R-15). */

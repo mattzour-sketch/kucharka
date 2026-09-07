@@ -127,4 +127,59 @@ describe('recipeNutrition', () => {
 
     expect(perPortionFromResult(result, 2)).toBeNull();
   });
+
+  it('podrecept protéká: bešamel (180 kcal/100 g) → lasagne', () => {
+    const foodsF = [food('butter', 700, 0, 0, 78), food('milk', 50, 3.4, 5, 1.5), food('cheese', 350, 25, 1, 27)];
+    const recipes = [recipe({ id: 'besamel' }), recipe({ id: 'lasagne' })];
+    const items = [
+      item('b1', 'besamel', 0, { foodId: 'butter', amountG: 100 }),
+      item('b2', 'besamel', 1, { foodId: 'milk', amountG: 400 }),
+      item('l1', 'lasagne', 0, { subRecipeId: 'besamel', amountG: 250 }), // 450 kcal
+      item('l2', 'lasagne', 1, { foodId: 'cheese', amountG: 100 }), // 350 kcal
+    ];
+    const result = nutritionFromData('lasagne', { foods: foodsF, recipes, items });
+    expect(result.computable).toBe(true);
+    expect(result.hasCycle).toBe(false);
+    expect(result.total?.kcal).toBeCloseTo(800, 4);
+    expect(result.completeness.connected).toBe(2);
+  });
+
+  it('neznámý subRecipeId → nespadne, není cyklus, počítá se ze zbytku', () => {
+    const recipes = [recipe({ id: 'r' })];
+    const items = [
+      item('i1', 'r', 0, { foodId: 'rice', amountG: 100 }), // 350 kcal
+      item('i2', 'r', 1, { subRecipeId: 'chybi', amountG: 200 }),
+    ];
+    const result = nutritionFromData('r', { foods, recipes, items });
+    expect(result.hasCycle).toBe(false);
+    expect(result.computable).toBe(true);
+    expect(result.total?.kcal).toBeCloseTo(350, 4);
+    expect(result.completeness.connected).toBe(1);
+    expect(result.completeness.countable).toBe(2);
+  });
+
+  it('soft-smazaný podrecept se bere jako rozbité napojení (nepočítá se, ne cyklus)', () => {
+    const recipes = [recipe({ id: 'sub', deletedAt: 't' }), recipe({ id: 'main' })];
+    const items = [
+      item('s1', 'sub', 0, { foodId: 'rice', amountG: 100 }),
+      item('m1', 'main', 0, { foodId: 'chicken', amountG: 100 }), // 106 kcal
+      item('m2', 'main', 1, { subRecipeId: 'sub', amountG: 200 }),
+    ];
+    const result = nutritionFromData('main', { foods, recipes, items });
+    expect(result.hasCycle).toBe(false);
+    expect(result.total?.kcal).toBeCloseTo(106, 4);
+    expect(result.completeness.connected).toBe(1);
+  });
+
+  it('skutečný cyklus (A → B → A) → hasCycle, žádné číslo', () => {
+    const recipes = [recipe({ id: 'A' }), recipe({ id: 'B' })];
+    const items = [
+      item('a1', 'A', 0, { subRecipeId: 'B', amountG: 100 }),
+      item('b1', 'B', 0, { subRecipeId: 'A', amountG: 100 }),
+    ];
+    const result = nutritionFromData('A', { foods, recipes, items });
+    expect(result.hasCycle).toBe(true);
+    expect(result.computable).toBe(false);
+    expect(result.total).toBeNull();
+  });
 });

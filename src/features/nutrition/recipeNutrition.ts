@@ -4,6 +4,7 @@ import {
   per100g,
   perServing,
   recipeTotals,
+  RecipeCycleError,
   type CalcItem,
   type CalcRecipe,
   type Completeness,
@@ -74,29 +75,32 @@ export function nutritionFromData(
   const source: NutritionSource = {
     food: (id) => {
       const food = foodMap.get(id);
-      if (!food) throw new Error(`Neznámá potravina: ${id}`);
-      return foodToValue(food);
+      return food ? foodToValue(food) : null;
     },
-    recipe: (id) => toCalc(id),
+    // Neznámý i soft-smazaný podrecept = rozbité napojení (null), ne cyklus (UC016, rozhodnutí 7).
+    recipe: (id) => {
+      const recipe = recipeMap.get(id);
+      return !recipe || recipe.deletedAt ? null : toCalc(id);
+    },
   };
 
   const calc = toCalc(recipeId);
-  const comp = completeness(calc);
-  const notComputable: RecipeNutritionResult = {
-    completeness: comp,
-    computable: false,
-    hasCycle: false,
-    total: null,
-    per100g: null,
-    perServing: null,
-    finalWeight: null,
-  };
 
   try {
     const result = recipeTotals(calc, source);
-    if (!result.computable) return notComputable;
+    if (!result.computable) {
+      return {
+        completeness: result.completeness,
+        computable: false,
+        hasCycle: false,
+        total: null,
+        per100g: null,
+        perServing: null,
+        finalWeight: null,
+      };
+    }
     return {
-      completeness: comp,
+      completeness: result.completeness,
       computable: true,
       hasCycle: false,
       total: result.totals,
@@ -104,9 +108,17 @@ export function nutritionFromData(
       perServing: perServing(result.totals, calc.servings),
       finalWeight: result.finalWeight,
     };
-  } catch {
-    // cyklická reference podreceptů (E-03)
-    return { ...notComputable, hasCycle: true };
+  } catch (error) {
+    // Cyklus je jediná očekávaná výjimka; rozbité napojení se řeší přeskočením (null), ne chybou.
+    return {
+      completeness: completeness(calc),
+      computable: false,
+      hasCycle: error instanceof RecipeCycleError,
+      total: null,
+      per100g: null,
+      perServing: null,
+      finalWeight: null,
+    };
   }
 }
 

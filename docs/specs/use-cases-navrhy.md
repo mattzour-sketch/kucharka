@@ -46,7 +46,12 @@ nespočítají — tohle je největší tření počítání kalorií u běžný
 - Míry jsou nepovinné; bez nich zůstává dnešní zadání g/ks.
 - Tabulka `food_portions` v Dexie/migraci už je, jen se nepoužívá.
 
-## UC018 — Hledat podle suroviny („co udělám z cukety") 🟢 · model: bez migrace
+## UC018 — Hledat podle suroviny („co udělám z cukety") ✅ POKRYTO (stávající hledání) 🟢 · model: bez migrace
+
+> Pozn. 2026-09-06: `SearchScreen` už hledá přes `recipeHaystack`, kam patří i
+> `rawCapture` (suroviny + postup). Napsáním „cuketa" se recepty se surovinou najdou.
+> Samostatná funkce není potřeba; případné vylepšení = jen přesnější filtr „jen suroviny".
+
 
 Ve vyhledávání/receptech jde najít recepty **obsahující danou surovinu**.
 
@@ -143,6 +148,23 @@ stránky (OCR)**, nebo **diktování hlasem**.
 **Pozor:** OCR (Tesseract) i hlas (Web Speech) = **nová závislost** a nižší
 spolehlivost; fetch z webu naráží na lokální/CSP omezení. Spíš samostatné, velké,
 napřed se zeptat. Zapsáno jen jako parkoviště, ne jako brzký kandidát.
+
+## UC027 — Našeptávač potravin už při psaní receptu 🟡 · model: bez migrace
+
+Při psaní/vkládání receptu (ne až na Kaloriích) decentně nabídnout napojení řádku
+suroviny na založenou potravinu.
+
+**Proč:** ušetří druhý průchod – napojím rovnou při psaní. (Nápad 2026-09-06.)
+
+**Pozor (hlavní úloha appky):** zachycení musí zůstat rychlé (do 60 s, i diktované)
+a bez nutriční hlavy (pravidlo 1, CLAUDE.md). Takže **nenásilně** – psaní zůstává čistý
+text, nic neblokuje; nabídka napojení je opt-in náznak, ne agresivní dropdown. Zda to
+pomáhá vs. otravuje má posoudit **Zákazník** (user-advocate).
+
+**Hrubá AK:**
+- Given píšu řádek suroviny, When appka pozná odpovídající potravinu, Then nabídne
+  napojení nenásilně (nezdržuje psaní, jde ignorovat), `raw_text` se nemění (pravidlo 2).
+- Kalorie se nepředstírají (pravidlo 4); napojení zůstává nepovinné.
 
 ---
 
