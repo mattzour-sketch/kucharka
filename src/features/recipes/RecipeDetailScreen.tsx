@@ -5,6 +5,7 @@ import { db, type CookLog } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { formatNumber } from '../../lib/num';
 import { scaleQuantityText } from '../../lib/scale';
+import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
@@ -115,7 +116,9 @@ export default function RecipeDetailScreen() {
 
   async function handleAddToShopping() {
     if (!recipe) return;
-    const lines = items.map((item) => scaleQuantityText(item.rawText, scaleFactor));
+    const lines = items
+      .filter((item) => !isIngredientHeading(item.rawText))
+      .map((item) => scaleQuantityText(item.rawText, scaleFactor));
     const ids = await addLinesToShopping(lines, recipe.name || null);
     if (ids.length > 0) {
       showUndo({ message: `Přidáno do nákupu (${ids.length})`, undo: () => removeShoppingItems(ids) });
@@ -281,12 +284,21 @@ export default function RecipeDetailScreen() {
               />
             </div>
             <ul className="mt-2 space-y-1">
-              {items.map((item) => (
-                <li key={item.id} className="flex gap-2 leading-relaxed">
-                  <span className="mt-0.5 text-brand">•</span>
-                  <span>{scaleQuantityText(item.rawText, scaleFactor)}</span>
-                </li>
-              ))}
+              {items.map((item) =>
+                isIngredientHeading(item.rawText) ? (
+                  <li
+                    key={item.id}
+                    className="pt-3 text-xs font-semibold uppercase tracking-wide text-stone-400 first:pt-0"
+                  >
+                    {ingredientHeadingLabel(item.rawText)}
+                  </li>
+                ) : (
+                  <li key={item.id} className="flex gap-2 leading-relaxed">
+                    <span className="mt-0.5 text-brand">•</span>
+                    <span>{scaleQuantityText(item.rawText, scaleFactor)}</span>
+                  </li>
+                ),
+              )}
             </ul>
             {!recipe.servings ? (
               <p className="mt-1.5 text-xs text-stone-400">

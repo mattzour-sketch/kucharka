@@ -28,6 +28,8 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 - **UC019 — Duplikovat recept** ✅ akce „Duplikovat recept" na detailu → kopie k úpravě.
 - **UC024 — Škálování na cílové kalorie** ✅ na obrazovce Kalorie: cíl kcal/porci → počet porcí + g/porce.
 - **UC022 — Co dnes uvařit** ✅ tlačítko „🎲 Co dnes?" na seznamu (náhodně z aktuálně zobrazených).
+- **UC025 — Tmavý režim** ✅ přepínač Systém/Světlý/Tmavý ve „Víc", bez FOUC.
+- **UC023 — Sekce surovin** ✅ nadpis sekce = řádek „# Na těsto" (bez změny modelu).
 
 ---
 
@@ -58,46 +60,6 @@ opt-in náznak, ne agresivní dropdown.
 - [ ] Given diktované rychlé psaní, Then nabídka nikdy nepřebije/neukradne fokus psaní.
 
 **Velikost:** 🟡 střední · **Priorita:** střední · **Návrh architekta:** ne (staví na hotových kusech; **Zákazník povinně**)
-
----
-
-## UC023 — Sekce surovin (na těsto / na náplň)
-
-**Jako** uživatel se složitějšími recepty,
-**chci** rozdělit suroviny do pojmenovaných skupin,
-**abych** je četl po částech a neztrácel se v jednom dlouhém seznamu.
-
-Poznámky ke stavu: musí respektovat „volný text" (pravidlo 1) — skupiny nesmí zablokovat prosté
-zachycení. Otevřené: jak skupinu reprezentovat (nadpis jako speciální řádek vs. pole na položce).
-Dotčené: model položek / konvence `raw_text`, editor + `RecipeDetailScreen` + `CookingModeScreen`.
-
-**Hotovo, když:**
-- [ ] Given recept, When přidám nadpis skupiny, Then se pod něj řadí suroviny až do dalšího
-  nadpisu (na detailu i ve vaření).
-- [ ] Volný text zůstává zdroj pravdy; recept jde dál uložit jen s názvem (pravidla 1, 3).
-- [ ] Bez skupin se seznam chová jako dnes (žádná regrese).
-
-**Velikost:** 🟡 střední · **Priorita:** střední · **Návrh architekta:** ANO (reprezentace skupin v modelu / parsování)
-
----
-
-## UC025 — Tmavý režim
-
-**Jako** uživatel, co večer vaří u sporáku,
-**chci** přepnout na tmavý motiv,
-**abych** mě appka neoslňovala do očí.
-
-Poznámky ke stavu: průřezová změna motivu (CSS proměnné / Tailwind `dark`). Pozor: pravidlo 6
-zakazuje `localStorage` pro **data appky** — předvolba vzhledu je per-zařízení UI, ne data, ale
-kde ji držet je potřeba rozhodnout (architekt). Výchozí = respektovat systémovou předvolbu.
-
-**Hotovo, když:**
-- [ ] Given zapnu tmavý režim, Then se drží i po znovuotevření a jako výchozí respektuje
-  systémovou předvolbu.
-- [ ] Motiv je konzistentní přes všechny obrazovky (sdílené komponenty `ui/`), včetně varovných
-  a „bez kalorií" stavů.
-
-**Velikost:** 🟡 střední · **Priorita:** nižší · **Návrh architekta:** ANO (kam s předvolbou + průřezový motiv)
 
 ---
 
@@ -141,7 +103,7 @@ Zapsáno jako parkoviště, ne brzký kandidát.
 
 ## Jak dál
 
-Jede se shora dolů podle priority, story po story přes `/feature`. Rychlé výhry bez architekta
-jsou hotové (UC019/UC024/UC022). Zbývá: **UC027 Našeptávač při psaní** (architekt netřeba, ale
-Zákazník povinně), pak architekt-flagované **UC023 Sekce surovin**, **UC025 Tmavý režim**,
-**UC021 Týdenní plán** a parkoviště **UC026 Chytřejší přenos**.
+Jede se shora dolů podle priority, story po story přes `/feature`. Hotovo je vše kromě dvou:
+zbývá už jen velký **UC021 Týdenní plán** (nová tabulka + migrace + nákup z plánu) a parkoviště
+**UC026 Chytřejší přenos** (OCR/hlas/URL — nová závislost, napřed se zeptat). UC027 je
+zaparkovaný (koliduje s architekturou zachycení).

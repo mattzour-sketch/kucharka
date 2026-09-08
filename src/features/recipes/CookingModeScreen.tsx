@@ -14,6 +14,7 @@ import {
   type AmountValue,
 } from '../../lib/amount';
 import { matchPortionInText } from '../../lib/portionMatch';
+import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
@@ -421,7 +422,9 @@ export default function CookingModeScreen() {
   const scaleFactor = targetPortions / baseServings;
 
   // Průběh vaření: odškrtané suroviny (mimo vypnuté a nahrazené) + hotové kroky.
-  const ingredientUnits = items.filter((item) => !(off[item.id] ?? false) && !replacements[item.id]);
+  const ingredientUnits = items.filter(
+    (item) => !isIngredientHeading(item.rawText) && !(off[item.id] ?? false) && !replacements[item.id],
+  );
   const checkedCount = ingredientUnits.filter((item) => checked[item.id]).length;
   const doneStepCount = steps.filter((_, index) => doneSteps.has(index)).length;
   const totalUnits = ingredientUnits.length + steps.length;
@@ -590,6 +593,16 @@ export default function CookingModeScreen() {
                     </li>
                   );
                 }
+                if (isIngredientHeading(item.rawText)) {
+                  return (
+                    <li
+                      key={item.id}
+                      className="pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-stone-400 first:pt-0"
+                    >
+                      {ingredientHeadingLabel(item.rawText)}
+                    </li>
+                  );
+                }
                 const isOff = off[item.id] ?? false;
                 const replacement = replacements[item.id];
                 const isReplaced = Boolean(replacement);
@@ -628,7 +641,7 @@ export default function CookingModeScreen() {
                         <button
                           type="button"
                           onClick={() => toggleCheck(item.id)}
-                          className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100 dark:bg-stone-800"
+                          className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100 dark:active:bg-stone-800"
                         >
                           <span
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm ${

@@ -188,7 +188,9 @@ export default function RecipeEditScreen() {
           value={ingredients}
           onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
-          placeholder={'jedna surovina na řádek…\n\n4 velký brambory\n2 vejce\nhrst hladký mouky'}
+          placeholder={
+            'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n4 velký brambory\n2 vejce\nhrst hladký mouky'
+          }
           className="mt-1 min-h-[20dvh] resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 

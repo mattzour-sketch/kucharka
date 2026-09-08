@@ -1,4 +1,5 @@
 import { db, type CookReplacement, type Food, type Recipe, type RecipeItem } from '../../db';
+import { isIngredientHeading } from '../../lib/ingredientSection';
 import {
   completeness,
   per100g,
@@ -38,7 +39,8 @@ function itemToCalc(item: RecipeItem, skip: Set<string>): CalcItem {
     foodId: item.foodId,
     subRecipeId: item.subRecipeId,
     amountG: item.amountG,
-    isSkipped: item.isSkipped || skip.has(item.id),
+    // Nadpis sekce („# Na těsto", UC023) není surovina → nepočítá se ani do úplnosti.
+    isSkipped: item.isSkipped || skip.has(item.id) || isIngredientHeading(item.rawText),
   };
 }
 
