@@ -10,7 +10,7 @@ import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos, restoreRecipePhoto } from '../photos/photosRepo';
-import { setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
+import { duplicateRecipe, setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
 import { restoreRecipe } from '../trash/trashRepo';
 import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
@@ -85,6 +85,12 @@ export default function RecipeDetailScreen() {
     await softDeleteRecipe(recipeId);
     showUndo({ message: 'Recept smazán', undo: () => restoreRecipe(recipeId) });
     navigate('/', { replace: true });
+  }
+
+  async function handleDuplicate() {
+    if (!id) return;
+    const copyId = await duplicateRecipe(id);
+    if (copyId) navigate(`/recept/${copyId}/upravit`);
   }
 
   async function handleAddPhotos(files: FileList) {
@@ -432,6 +438,12 @@ export default function RecipeDetailScreen() {
           </Button>
         </div>
         {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark">{shareMsg}</p> : null}
+
+        <div className="mt-3">
+          <Button role="secondary" fullWidth onClick={() => void handleDuplicate()}>
+            Duplikovat recept
+          </Button>
+        </div>
 
         <div className="mt-3">
           <Button role="destructive" fullWidth onClick={() => void handleDelete()}>

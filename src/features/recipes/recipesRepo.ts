@@ -61,6 +61,48 @@ export async function createRecipeWithContent(content: RecipeContent): Promise<s
   return id;
 }
 
+/**
+ * Čistá kopie receptu i jeho položek (UC019). Nová id, `isFavorite=false`, název „… (kopie)",
+ * `capturedOn` = den kopie. Napojení surovin (food/subrecept/gramáž/míra) i `raw_text` se
+ * přenášejí beze změny (pravidlo 2). Historie/poznámky/fotky (jiné tabulky) se NEkopírují.
+ */
+export function buildRecipeCopy(
+  recipe: Recipe,
+  items: RecipeItem[],
+  now: string,
+  genId: () => string,
+): { recipe: Recipe; items: RecipeItem[] } {
+  const newRecipeId = genId();
+  const copiedRecipe: Recipe = {
+    ...recipe,
+    id: newRecipeId,
+    name: recipe.name ? `${recipe.name} (kopie)` : '(kopie)',
+    isFavorite: false,
+    capturedOn: now.slice(0, 10),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  const copiedItems: RecipeItem[] = items
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((item, index) => ({ ...item, id: genId(), recipeId: newRecipeId, sortOrder: index }));
+  return { recipe: copiedRecipe, items: copiedItems };
+}
+
+/** Vytvoří samostatnou kopii receptu i položek (UC019). Vrací id kopie, nebo null. */
+export async function duplicateRecipe(id: string): Promise<string | null> {
+  const recipe = await db.recipes.get(id);
+  if (!recipe) return null;
+  const items = await db.recipeItems.where('recipeId').equals(id).sortBy('sortOrder');
+  const copy = buildRecipeCopy(recipe, items, new Date().toISOString(), newId);
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    await db.recipes.add(copy.recipe);
+    if (copy.items.length > 0) await db.recipeItems.bulkAdd(copy.items);
+  });
+  return copy.recipe.id;
+}
+
 export async function updateRecipeContent(id: string, content: RecipeContent): Promise<void> {
   const now = new Date().toISOString();
   await db.transaction('rw', db.recipes, db.recipeItems, async () => {
