@@ -45,7 +45,7 @@ export default function SearchScreen() {
         width="wide"
         title="Hledat"
         below={
-          <div className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 focus-within:border-brand">
+          <div className="flex items-center gap-2 rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 focus-within:border-brand">
             <span className="text-stone-400" aria-hidden>
               🔍
             </span>
@@ -60,7 +60,7 @@ export default function SearchScreen() {
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="text-stone-400 hover:text-stone-600"
+                className="text-stone-400 hover:text-stone-600 dark:text-stone-300"
                 aria-label="Vymazat hledání"
               >
                 ×

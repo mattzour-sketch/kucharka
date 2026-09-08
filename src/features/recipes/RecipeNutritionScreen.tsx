@@ -57,7 +57,7 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
   const parsed = parseDecimal(target);
   const result = parsed != null ? portionsForTargetKcal(totalKcal, finalWeight, parsed) : null;
   return (
-    <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-3 text-sm">
+    <div className="mt-4 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-3 text-sm">
       <label className="flex flex-wrap items-center gap-2">
         <span className="text-stone-500">Cíl na porci</span>
         <input
@@ -65,12 +65,12 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
           onChange={(event) => setTarget(event.target.value)}
           inputMode="decimal"
           placeholder="kcal"
-          className="w-20 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+          className="w-20 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right outline-none focus:border-brand"
         />
         <span className="text-stone-500">kcal</span>
       </label>
       {result ? (
-        <p className="mt-2 text-stone-600">
+        <p className="mt-2 text-stone-600 dark:text-stone-300">
           ≈ <span className="font-medium">{formatNumber(result.portions, 1)}</span> porcí · ≈{' '}
           <span className="font-medium">{formatNumber(result.gramsPerPortion)}</span> g/porce
           <span className="ml-1 text-xs text-stone-400">(orientačně)</span>
@@ -290,7 +290,7 @@ export default function RecipeNutritionScreen() {
               }}
               inputMode="decimal"
               placeholder="—"
-              className="w-16 rounded-xl border border-stone-200 bg-white px-3 py-1.5 outline-none focus:border-brand"
+              className="w-16 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand"
             />
           </label>
           <label className="flex items-center gap-2">
@@ -303,7 +303,7 @@ export default function RecipeNutritionScreen() {
               }}
               inputMode="decimal"
               placeholder="—"
-              className="w-24 rounded-xl border border-stone-200 bg-white px-3 py-1.5 outline-none focus:border-brand"
+              className="w-24 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand"
             />
           </label>
         </div>
@@ -359,7 +359,7 @@ export default function RecipeNutritionScreen() {
                 ) : food ? (
                   <div className="mt-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate text-stone-600">→ {food.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-stone-600 dark:text-stone-300">→ {food.name}</span>
                       <AmountPicker
                         options={options}
                         value={value}
@@ -406,7 +406,7 @@ export default function RecipeNutritionScreen() {
                 ) : item.subRecipeId ? (
                   <div className="mt-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate text-stone-600">
+                      <span className="min-w-0 flex-1 truncate text-stone-600 dark:text-stone-300">
                         → {subRecipe ? subRecipe.name : 'recept nedostupný'}
                         <span className="ml-1 text-xs text-stone-400">recept</span>
                       </span>

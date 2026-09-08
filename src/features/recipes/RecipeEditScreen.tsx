@@ -168,7 +168,7 @@ export default function RecipeEditScreen() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Název receptu"
-          className="w-full border-b border-stone-200 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+          className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
         />
         <div className="mt-2 flex items-center gap-2 text-sm text-stone-500">
           <label htmlFor="capturedOn">Datum</label>
@@ -189,7 +189,7 @@ export default function RecipeEditScreen() {
           onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
           placeholder={'jedna surovina na řádek…\n\n4 velký brambory\n2 vejce\nhrst hladký mouky'}
-          className="mt-1 min-h-[20dvh] resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[20dvh] resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
@@ -199,7 +199,7 @@ export default function RecipeEditScreen() {
           value={instructions}
           onChange={(event) => setInstructions(event.target.value)}
           placeholder={'jak to uvařit…\n\nNastrouhat najemno, osmažit na sádle na prudkém ohni.'}
-          className="mt-1 min-h-[22dvh] flex-1 resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[22dvh] flex-1 resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">

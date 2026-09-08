@@ -33,7 +33,7 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-stone-200 bg-white p-2 focus-within:border-brand">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-2 focus-within:border-brand">
         {value.map((tag) => (
           <Tag
             key={tag}
@@ -59,7 +59,7 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
               key={tag}
               type="button"
               onClick={() => commit(tag)}
-              className="rounded-full border border-stone-200 px-2 py-0.5 text-xs text-stone-500 transition hover:border-stone-300 hover:text-stone-700"
+              className="rounded-full border border-stone-200 dark:border-stone-700 px-2 py-0.5 text-xs text-stone-500 transition hover:border-stone-300 dark:border-stone-600 hover:text-stone-700 dark:text-stone-200"
             >
               + {tag}
             </button>

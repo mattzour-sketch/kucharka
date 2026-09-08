@@ -45,7 +45,7 @@ export default function CookingTimers() {
               <li
                 key={timer.id}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${
-                  done ? 'animate-pulse border-brand bg-brand/10' : 'border-stone-200 bg-white'
+                  done ? 'animate-pulse border-brand bg-brand/10' : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900'
                 }`}
               >
                 <div className="min-w-0">
@@ -74,7 +74,7 @@ export default function CookingTimers() {
           }}
           inputMode="decimal"
           placeholder="min"
-          className="w-20 rounded-full border border-stone-200 px-3 py-1.5 text-sm outline-none focus:border-brand"
+          className="w-20 rounded-full border border-stone-200 dark:border-stone-700 px-3 py-1.5 text-sm outline-none focus:border-brand"
         />
         <Button role="secondary" onClick={addAdhoc}>
           + Časovač

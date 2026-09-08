@@ -27,7 +27,8 @@ interface ScreenHeaderProps {
   backLabel?: string;
 }
 
-const CHROME = 'sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur';
+const CHROME =
+  'sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90';
 
 export default function ScreenHeader({
   variant = 'tab',
@@ -42,7 +43,7 @@ export default function ScreenHeader({
 }: ScreenHeaderProps) {
   const isStack = variant === 'stack';
   const titleClass = isStack
-    ? 'min-w-0 truncate text-sm font-medium text-stone-600'
+    ? 'min-w-0 truncate text-sm font-medium text-stone-600 dark:text-stone-400'
     : 'text-xl font-semibold tracking-tight';
   const label = backLabel ?? (closeIcon ? 'Zavřít' : 'Zpět');
 

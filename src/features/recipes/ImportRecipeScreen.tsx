@@ -84,7 +84,7 @@ export default function ImportRecipeScreen() {
           onChange={(event) => setPasteText(event.target.value)}
           autoFocus
           placeholder="Sem vlož zkopírovaný recept…"
-          className="min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 bg-white p-4 text-sm leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 text-sm leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
         <div className="mt-2 flex flex-wrap gap-2">
           <Button role="secondary" onClick={() => void handlePasteFromClipboard()}>
@@ -101,7 +101,7 @@ export default function ImportRecipeScreen() {
         {message ? <p className="mt-2 text-sm text-stone-500">{message}</p> : null}
 
         {parsed ? (
-          <div className="mt-5 border-t border-stone-200 pt-4">
+          <div className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
               Náhled – uprav, co parser netrefil
             </p>
@@ -109,7 +109,7 @@ export default function ImportRecipeScreen() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Název receptu"
-              className="mt-3 w-full border-b border-stone-200 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+              className="mt-3 w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
             />
             <div className="mt-2 flex items-center gap-2 text-sm text-stone-500">
               <label htmlFor="servings">Porcí</label>
@@ -119,7 +119,7 @@ export default function ImportRecipeScreen() {
                 onChange={(event) => setServings(event.target.value)}
                 inputMode="decimal"
                 placeholder="—"
-                className="w-16 rounded-xl border border-stone-200 bg-white px-3 py-1.5 outline-none focus:border-brand"
+                className="w-16 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand"
               />
             </div>
 
@@ -129,7 +129,7 @@ export default function ImportRecipeScreen() {
             <textarea
               value={ingredients}
               onChange={(event) => setIngredients(event.target.value)}
-              className="mt-1 min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none focus:border-brand"
+              className="mt-1 min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none focus:border-brand"
             />
 
             <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-stone-400">
@@ -138,7 +138,7 @@ export default function ImportRecipeScreen() {
             <textarea
               value={instructions}
               onChange={(event) => setInstructions(event.target.value)}
-              className="mt-1 min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 bg-white p-4 leading-relaxed outline-none focus:border-brand"
+              className="mt-1 min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none focus:border-brand"
             />
           </div>
         ) : null}

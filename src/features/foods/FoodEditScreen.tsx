@@ -127,7 +127,7 @@ export default function FoodEditScreen() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Název (Rýže dlouhozrnná)"
-          className="w-full border-b border-stone-200 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+          className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
         />
         <input
           value={brand}
@@ -195,7 +195,7 @@ export default function FoodEditScreen() {
                         onChange={(event) => setPortionRow(index, { label: event.target.value })}
                         list={PORTION_DATALIST_ID}
                         placeholder="míra (lžíce)"
-                        className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2 py-1.5 text-sm outline-none focus:border-brand"
+                        className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1.5 text-sm outline-none focus:border-brand"
                       />
                       <input
                         value={row.grams}
@@ -203,7 +203,7 @@ export default function FoodEditScreen() {
                         inputMode="decimal"
                         placeholder="g"
                         aria-label="Gramů na 1 míru"
-                        className="w-16 rounded-lg border border-stone-200 px-2 py-1.5 text-right text-sm outline-none focus:border-brand"
+                        className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1.5 text-right text-sm outline-none focus:border-brand"
                       />
                       <span className="text-xs text-stone-400">g</span>
                       <IconButton
@@ -257,7 +257,7 @@ function NumberField({
         onChange={(event) => onChange(event.target.value)}
         inputMode="decimal"
         placeholder="0"
-        className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 outline-none focus:border-brand"
+        className="mt-1 w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
       />
     </label>
   );

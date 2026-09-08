@@ -16,15 +16,15 @@ export default function FoodPicker({
 }) {
   const [query, setQuery] = useState('');
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-white">
-      <header className="border-b border-stone-200 p-3">
+    <div className="fixed inset-0 z-30 flex flex-col bg-white dark:bg-stone-900">
+      <header className="border-b border-stone-200 dark:border-stone-700 p-3">
         <div className="flex items-center gap-2">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             autoFocus
             placeholder="hledat potravinu…"
-            className="min-w-0 flex-1 rounded-full border border-stone-200 px-4 py-2 text-sm outline-none focus:border-brand"
+            className="min-w-0 flex-1 rounded-full border border-stone-200 dark:border-stone-700 px-4 py-2 text-sm outline-none focus:border-brand"
           />
           <Button role="ghost" onClick={onClose}>
             Zavřít

@@ -28,10 +28,12 @@ interface IconButtonProps {
 
 function toneClass(tone: IconTone, active: boolean): string {
   if (tone === 'favorite') {
-    return active ? 'text-amber-500' : 'text-stone-300 hover:text-stone-500';
+    return active
+      ? 'text-amber-500'
+      : 'text-stone-300 hover:text-stone-500 dark:text-stone-600 dark:hover:text-stone-400';
   }
-  if (tone === 'danger') return 'text-red-500 hover:bg-red-50';
-  return 'text-stone-500 hover:bg-stone-200/60';
+  if (tone === 'danger') return 'text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40';
+  return 'text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60';
 }
 
 export default function IconButton({

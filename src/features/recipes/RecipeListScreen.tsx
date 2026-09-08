@@ -117,7 +117,7 @@ export default function RecipeListScreen() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortKey)}
-                className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 outline-none focus:border-brand"
+                className="rounded-full border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-3 py-1.5 text-sm font-medium text-stone-700 dark:text-stone-200 outline-none focus:border-brand"
                 aria-label="Řazení"
               >
                 {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (

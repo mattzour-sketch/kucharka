@@ -47,7 +47,7 @@ export default function AddPortionInline({
           }}
           list={PORTION_DATALIST_ID}
           placeholder="míra (lžíce)"
-          className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2 py-1 text-sm outline-none focus:border-brand"
+          className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-sm outline-none focus:border-brand"
         />
         <input
           value={grams}
@@ -57,7 +57,7 @@ export default function AddPortionInline({
           }}
           inputMode="decimal"
           placeholder="g"
-          className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right text-sm outline-none focus:border-brand"
+          className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right text-sm outline-none focus:border-brand"
           aria-label="Gramů na 1 míru"
         />
         <Button role="tint" onClick={submit} disabled={!valid}>
@@ -68,7 +68,7 @@ export default function AddPortionInline({
         </Button>
       </div>
       {absurd ? (
-        <p className="text-xs text-amber-600">{parsedGrams} g na jednu míru, fakt?</p>
+        <p className="text-xs text-amber-600 dark:text-amber-400">{parsedGrams} g na jednu míru, fakt?</p>
       ) : null}
       <PortionNameDatalist />
     </div>

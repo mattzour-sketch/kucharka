@@ -31,7 +31,13 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 
 ---
 
-## UC027 — Našeptávač potravin už při psaní receptu
+## UC027 — Našeptávač potravin už při psaní receptu ⏸ PARKOVIŠTĚ
+
+> Pozn. 2026-09-08: Po přečtení `RecipeEditScreen` zaparkováno. Obrazovka psaní jsou dvě prostá
+> `<textarea>` (volný text, diktování) a **položky receptu vznikají až při uložení** — při psaní
+> není k čemu `food_id` připnout. Napojování při psaní by vynutilo rozbití textarey na řádkové
+> widgety = zabití rychlého zachycení (pravidlo 1). Napojení už dnes dává smysl na Kaloriích
+> (`suggestFood` „→ Máslo?"). Neřešit, dokud nevznikne pádnější důvod.
 
 **Jako** uživatel, který zrovna píše/vkládá recept,
 **chci** decentní nabídku napojení řádku suroviny na založenou potravinu už tady,

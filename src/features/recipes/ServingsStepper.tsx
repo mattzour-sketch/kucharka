@@ -9,7 +9,7 @@ export default function ServingsStepper({
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs font-medium uppercase tracking-wide text-stone-400">Porce</span>
-      <div className="flex items-center rounded-full border border-stone-200 bg-white">
+      <div className="flex items-center rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
         <button
           type="button"
           onClick={() => onStep(-1)}

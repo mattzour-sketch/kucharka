@@ -52,7 +52,7 @@ export default function QuickFoodForm({
         onChange={(event) => setName(event.target.value)}
         autoFocus={initialName.trim() === ''}
         placeholder="Název"
-        className="w-full border-b border-stone-200 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+        className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
       />
 
       <div className="flex items-end gap-3">
@@ -67,7 +67,7 @@ export default function QuickFoodForm({
             autoFocus={initialName.trim() !== ''}
             inputMode="decimal"
             placeholder="0"
-            className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 outline-none focus:border-brand"
+            className="mt-1 w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
           />
         </label>
         <div className="pb-1">

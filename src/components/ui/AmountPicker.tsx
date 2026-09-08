@@ -33,7 +33,7 @@ export default function AmountPicker({
       onChange={(event) => onChange({ ...value, raw: event.target.value })}
       inputMode="decimal"
       placeholder={current?.label ?? 'g'}
-      className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+      className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right outline-none focus:border-brand"
       aria-label="Množství"
     />
   );
@@ -45,7 +45,7 @@ export default function AmountPicker({
         <select
           value={currentId}
           onChange={(event) => onChange(convertAmountUnit(value, options, event.target.value))}
-          className="max-w-[6.5rem] shrink-0 rounded-lg border border-stone-200 bg-white py-1 pl-1.5 pr-1 text-xs font-medium text-stone-600 outline-none focus:border-brand"
+          className="max-w-[6.5rem] shrink-0 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 py-1 pl-1.5 pr-1 text-xs font-medium text-stone-600 dark:text-stone-300 outline-none focus:border-brand"
           aria-label="Jednotka"
         >
           {options.map((option) => (
@@ -67,7 +67,7 @@ export default function AmountPicker({
         <button
           type="button"
           onClick={() => onChange(convertAmountUnit(value, options, toId))}
-          className="w-8 shrink-0 rounded-lg border border-stone-200 py-1 text-xs font-medium text-stone-600"
+          className="w-8 shrink-0 rounded-lg border border-stone-200 dark:border-stone-700 py-1 text-xs font-medium text-stone-600 dark:text-stone-300"
           aria-label="Přepnout jednotku g/ks"
         >
           {current?.label ?? 'g'}

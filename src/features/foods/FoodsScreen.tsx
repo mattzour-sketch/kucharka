@@ -46,7 +46,7 @@ export default function FoodsScreen() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="hledat potravinu…"
-            className="w-full rounded-full border border-stone-200 bg-white px-4 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-brand"
+            className="w-full rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-4 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-brand"
           />
         }
       />
@@ -97,7 +97,7 @@ export default function FoodsScreen() {
             <button
               type="button"
               onClick={() => void handleSeed()}
-              className="mx-auto mt-4 block text-sm font-medium text-stone-500 hover:text-stone-700"
+              className="mx-auto mt-4 block text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-200"
             >
               + Doplnit základní potraviny
             </button>

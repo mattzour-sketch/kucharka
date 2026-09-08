@@ -10,10 +10,11 @@ const BASE =
 
 const ROLE: Record<ButtonRole, string> = {
   primary: 'bg-brand text-white shadow-sm hover:bg-brand-dark px-4 py-2 text-sm',
-  secondary: 'border border-stone-300 text-stone-700 hover:bg-stone-100 px-4 py-2 text-sm',
-  ghost: 'text-stone-600 hover:bg-stone-100 px-4 py-2 text-sm',
-  destructive: 'text-red-600 hover:bg-red-50 px-4 py-2 text-sm',
-  tint: 'bg-brand/10 text-brand-dark hover:bg-brand/20 px-3 py-1.5 text-sm',
+  secondary:
+    'border border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-800 px-4 py-2 text-sm',
+  ghost: 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 px-4 py-2 text-sm',
+  destructive: 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 px-4 py-2 text-sm',
+  tint: 'bg-brand/10 text-brand-dark hover:bg-brand/20 dark:bg-brand/20 dark:text-amber-300 dark:hover:bg-brand/30 px-3 py-1.5 text-sm',
 };
 
 interface ButtonProps {

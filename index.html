@@ -12,6 +12,25 @@
     />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <title>Osobní kuchařka</title>
+    <!-- Motiv (UC025): aplikuj synchronně před vykreslením, ať nebliká bílá (FOUC).
+         Zrcadlí logiku src/lib/theme.ts (klíč kucharka-theme). -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('kucharka-theme');
+          var dark =
+            pref === 'dark' ||
+            ((pref === null || pref === 'system') &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#1c1917' : '#b45309');
+        } catch (e) {
+          /* soukromý režim / blokované úložiště – zůstane světlý */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

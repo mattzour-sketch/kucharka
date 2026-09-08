@@ -74,7 +74,7 @@ export default function ShoppingListScreen() {
               if (event.key === 'Enter') submitDraft();
             }}
             placeholder="přidat položku…"
-            className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 outline-none focus:border-brand"
+            className="min-w-0 flex-1 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
           />
           <Button role="primary" onClick={submitDraft}>
             Přidat
@@ -110,7 +110,7 @@ export default function ShoppingListScreen() {
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
                         item.checked
                           ? 'border-brand bg-brand text-white'
-                          : 'border-stone-300 text-transparent'
+                          : 'border-stone-300 dark:border-stone-600 text-transparent'
                       }`}
                     >
                       ✓

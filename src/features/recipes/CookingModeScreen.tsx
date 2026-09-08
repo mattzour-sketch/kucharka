@@ -208,7 +208,7 @@ export default function CookingModeScreen() {
 
   if (data === undefined) {
     return (
-      <div className="min-h-dvh bg-white">
+      <div className="min-h-dvh bg-white dark:bg-stone-900">
         <ScreenHeader
           variant="stack"
           width="narrow"
@@ -237,7 +237,7 @@ export default function CookingModeScreen() {
   }
   if (!recipe || recipe.deletedAt || !id) {
     return (
-      <div className="min-h-dvh bg-white">
+      <div className="min-h-dvh bg-white dark:bg-stone-900">
         <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" />
         <main className="mx-auto max-w-2xl px-4">
           <EmptyState
@@ -489,7 +489,7 @@ export default function CookingModeScreen() {
   }
 
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh bg-white dark:bg-stone-900">
       <ScreenHeader
         variant="stack"
         width="narrow"
@@ -500,7 +500,7 @@ export default function CookingModeScreen() {
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         {lastLog ? (
-          <div className="mb-4 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+          <div className="mb-4 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-3 text-sm text-stone-600 dark:text-stone-300">
             Naposledy uvařeno {formatCzechDate(lastLog.cookedOn)}
             {lastLog.note ? ` · ${lastLog.note}` : ''}
           </div>
@@ -577,7 +577,7 @@ export default function CookingModeScreen() {
                             void updateRecipeItemText(item.id, event.target.value);
                           }
                         }}
-                        className="min-w-0 flex-1 rounded-lg border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
+                        className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-3 py-1.5 outline-none focus:border-brand"
                       />
                       <IconButton
                         size="sm"
@@ -605,7 +605,7 @@ export default function CookingModeScreen() {
                 const isChecked = !isOff && !isReplaced && (checked[item.id] ?? false);
                 const editing = editingItemId === item.id;
                 return (
-                  <li key={item.id} className="border-b border-stone-100 last:border-0">
+                  <li key={item.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
                     <div className="flex items-center gap-1">
                       {isReplaced ? (
                         <div className="flex flex-1 items-center gap-2 py-3 text-lg">
@@ -628,13 +628,13 @@ export default function CookingModeScreen() {
                         <button
                           type="button"
                           onClick={() => toggleCheck(item.id)}
-                          className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100"
+                          className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100 dark:bg-stone-800"
                         >
                           <span
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
                               isChecked
                                 ? 'border-brand bg-brand text-white'
-                                : 'border-stone-300 text-transparent'
+                                : 'border-stone-300 dark:border-stone-600 text-transparent'
                             }`}
                           >
                             ✓
@@ -668,7 +668,7 @@ export default function CookingModeScreen() {
                                 if (event.key === 'Enter') saveOverride(item.id);
                               }}
                               placeholder="jiné množství pro dnešek"
-                              className="min-w-0 flex-1 rounded-full border border-stone-200 px-3 py-1 outline-none focus:border-brand"
+                              className="min-w-0 flex-1 rounded-full border border-stone-200 dark:border-stone-700 px-3 py-1 outline-none focus:border-brand"
                             />
                             <Button role="primary" onClick={() => saveOverride(item.id)}>
                               Uložit
@@ -692,12 +692,12 @@ export default function CookingModeScreen() {
                           value={replText}
                           onChange={(event) => setReplText(event.target.value)}
                           placeholder="čím nahradit (např. tvaroh)"
-                          className="w-full rounded-full border border-stone-200 px-3 py-1.5 outline-none focus:border-brand"
+                          className="w-full rounded-full border border-stone-200 dark:border-stone-700 px-3 py-1.5 outline-none focus:border-brand"
                         />
                         {replFoodId ? (
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="min-w-0 flex-1 truncate text-stone-600">
+                              <span className="min-w-0 flex-1 truncate text-stone-600 dark:text-stone-300">
                                 → {foodMap.get(replFoodId)?.name}
                               </span>
                               <AmountPicker
@@ -767,7 +767,7 @@ export default function CookingModeScreen() {
                         if (event.key === 'Enter') handleAddItem();
                       }}
                       placeholder="přidat surovinu…"
-                      className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 outline-none focus:border-brand"
+                      className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 dark:border-stone-600 px-3 py-1.5 outline-none focus:border-brand"
                     />
                     <div className="shrink-0">
                       <Button role="tint" onClick={handleAddItem}>
@@ -863,7 +863,7 @@ export default function CookingModeScreen() {
                         ? 'border-brand bg-brand text-white'
                         : isCurrent
                           ? 'border-brand text-brand'
-                          : 'border-stone-300 text-stone-400'
+                          : 'border-stone-300 dark:border-stone-600 text-stone-400'
                     }`}
                     aria-label={
                       stepDone ? `Krok ${index + 1} hotový` : `Označit krok ${index + 1} za hotový`
@@ -912,7 +912,7 @@ export default function CookingModeScreen() {
                 value={finishNote}
                 onChange={(event) => setFinishNote(event.target.value)}
                 placeholder="Poznámka (nepovinné) – např. „příště míň soli“"
-                className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 p-3 text-sm outline-none focus:border-brand"
+                className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 dark:border-stone-700 p-3 text-sm outline-none focus:border-brand"
               />
               <div className="mt-2 flex gap-2">
                 <Button role="primary" onClick={handleFinish}>

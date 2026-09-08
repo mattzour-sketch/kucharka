@@ -8,7 +8,9 @@ import { estimateStorage, isStoragePersisted } from '../../lib/storage';
 import { exportBackupJson, importBackupJson } from '../backup/dbBackup';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
+import Segmented from '../../components/ui/Segmented';
 import { cardClass } from '../../components/ui/cardClass';
+import { readThemePref, setThemePref, type ThemePref } from '../../lib/theme';
 
 function formatMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -19,7 +21,13 @@ export default function SettingsScreen() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
   const [message, setMessage] = useState('');
+  const [theme, setTheme] = useState<ThemePref>(() => readThemePref());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function changeTheme(next: ThemePref) {
+    setTheme(next);
+    setThemePref(next);
+  }
 
   useEffect(() => {
     void isStoragePersisted().then(setPersisted);
@@ -48,6 +56,23 @@ export default function SettingsScreen() {
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         <section className={cardClass()}>
+          <h2 className="font-medium">Vzhled</h2>
+          <p className="mt-1 text-sm text-stone-500">Motiv aplikace. „Systém" se řídí telefonem.</p>
+          <div className="mt-2">
+            <Segmented
+              value={theme}
+              onChange={changeTheme}
+              ariaLabel="Motiv"
+              options={[
+                { value: 'system', label: 'Systém' },
+                { value: 'light', label: 'Světlý' },
+                { value: 'dark', label: 'Tmavý' },
+              ]}
+            />
+          </div>
+        </section>
+
+        <section className={cardClass({ className: 'mt-3' })}>
           <h2 className="font-medium">Záloha dat</h2>
           <p className="mt-1 text-sm text-stone-500">
             Data jsou uložená jen v tomhle prohlížeči. Export je tvoje záloha i způsob, jak recepty
@@ -101,7 +126,7 @@ export default function SettingsScreen() {
 
         <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
           <h2 className="font-medium">Úložiště</h2>
-          <dl className="mt-2 space-y-1 text-stone-600">
+          <dl className="mt-2 space-y-1 text-stone-600 dark:text-stone-300">
             <div className="flex justify-between">
               <dt>Receptů</dt>
               <dd>{recipeCount ?? '…'}</dd>

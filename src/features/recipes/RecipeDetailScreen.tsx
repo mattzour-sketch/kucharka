@@ -232,7 +232,7 @@ export default function RecipeDetailScreen() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 text-stone-400 transition hover:border-brand hover:text-brand"
+            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand"
           >
             <span className="text-2xl leading-none">📷</span>
             <span className="text-xs">Fotka</span>
@@ -328,7 +328,7 @@ export default function RecipeDetailScreen() {
                 if (event.key === 'Enter') handleAddNote();
               }}
               placeholder={'poznámka k receptu (např. „příště míň soli")'}
-              className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+              className="min-w-0 flex-1 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm outline-none focus:border-brand"
             />
             <Button role="primary" onClick={handleAddNote}>
               Přidat
@@ -410,7 +410,7 @@ export default function RecipeDetailScreen() {
                             ? 'text-stone-400 line-through'
                             : ingredient.replacedWith || ingredient.changed
                               ? 'text-brand-dark'
-                              : 'text-stone-600'
+                              : 'text-stone-600 dark:text-stone-300'
                         }
                       >
                         {ingredient.text}
@@ -485,7 +485,7 @@ function PhotoThumb({ blob, onClick }: { blob: Blob; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
+      className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800"
     >
       {url ? <img src={url} alt="Fotka receptu" className="h-full w-full object-cover" /> : null}
     </button>

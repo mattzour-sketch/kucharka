@@ -17,11 +17,11 @@ interface CardClassOptions {
 export function cardClass(options: CardClassOptions = {}): string {
   const { padding = 'panel', interactive = false, className } = options;
   return cx(
-    'rounded-2xl border border-stone-200 bg-white',
+    'rounded-2xl border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900',
     padding === 'panel' && 'p-4',
     padding === 'row' && 'p-3',
     interactive &&
-      'transition hover:border-stone-300 hover:shadow-sm active:scale-[0.99] motion-reduce:active:scale-100 motion-reduce:transition-none',
+      'transition hover:border-stone-300 hover:shadow-sm dark:hover:border-stone-700 active:scale-[0.99] motion-reduce:active:scale-100 motion-reduce:transition-none',
     className,
   );
 }

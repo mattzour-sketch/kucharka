@@ -26,11 +26,11 @@ export default function EmptyState({
       )}
     >
       {icon != null ? (
-        <div className="mb-1 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-3xl">
+        <div className="mb-1 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-3xl dark:bg-brand/20">
           {icon}
         </div>
       ) : null}
-      <h2 className="text-base font-medium text-stone-700">{title}</h2>
+      <h2 className="text-base font-medium text-stone-700 dark:text-stone-200">{title}</h2>
       {description != null ? <p className="text-sm text-stone-400">{description}</p> : null}
       {action != null ? <div className="mt-2">{action}</div> : null}
     </div>

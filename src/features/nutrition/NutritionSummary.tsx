@@ -14,7 +14,7 @@ function macros(n: Nutrients): string {
 export default function NutritionSummary({ result }: { result: RecipeNutritionResult }) {
   if (result.hasCycle) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
         Recept obsahuje sám sebe – hodnoty nelze spočítat.
       </div>
     );
@@ -27,12 +27,12 @@ export default function NutritionSummary({ result }: { result: RecipeNutritionRe
   return (
     <div className={cardClass({ padding: 'none', className: 'overflow-hidden' })}>
       {partial ? (
-        <p className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700">
+        <p className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
           <span aria-hidden>⚠</span>
           <span>Orientační – spočítáno z {comp.connected} z {comp.countable} surovin</span>
         </p>
       ) : null}
-      <div className="divide-y divide-stone-100">
+      <div className="divide-y divide-stone-100 dark:divide-stone-800">
         {perServing ? (
           <Row label="Na porci" kcal={perServing.kcal} detail={macros(perServing)} primary />
         ) : null}
