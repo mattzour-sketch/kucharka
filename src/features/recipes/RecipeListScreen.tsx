@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import RecipeCard from './RecipeCard';
@@ -21,6 +22,7 @@ export default function RecipeListScreen() {
   const [sort, setSort] = useState<SortKey>('updated');
   const [favOnly, setFavOnly] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const data = useLiveQuery(async () => {
     const [all, logs, photos] = await Promise.all([
@@ -132,6 +134,17 @@ export default function RecipeListScreen() {
               >
                 ★ Oblíbené
               </FilterChip>
+              <Button
+                role="secondary"
+                disabled={visible.length === 0}
+                onClick={() => {
+                  // Náhodně z aktuálně zobrazených (respektuje filtr štítku i oblíbené).
+                  const pick = visible[Math.floor(Math.random() * visible.length)];
+                  if (pick) navigate(`/recept/${pick.id}`);
+                }}
+              >
+                🎲 Co dnes?
+              </Button>
             </div>
 
             {tags.length > 0 ? (
