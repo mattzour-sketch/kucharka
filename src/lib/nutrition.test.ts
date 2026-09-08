@@ -4,6 +4,7 @@ import {
   logEntryFromRecipe,
   per100g,
   perServing,
+  portionsForTargetKcal,
   recipeTotals,
   type CalcRecipe,
   type FoodValue,
@@ -237,6 +238,18 @@ describe('nutrition', () => {
     near(t.totals.kcal, 175); // 350/100 × 50
     expect(t.completeness.connected).toBe(1); // částečnost podreceptu nebublá nahoru
     expect(t.completeness.countable).toBe(1);
+  });
+
+  it('UC024) škálování na cílové kcal/porci', () => {
+    // 1200 kcal celkem, 1000 g finální hmotnost, cíl 500 kcal/porci → 2,4 porce, ~417 g/porce
+    const r = portionsForTargetKcal(1200, 1000, 500);
+    expect(r).not.toBeNull();
+    expect(r!.portions).toBeCloseTo(2.4, 6);
+    near(r!.gramsPerPortion, 416.67, 0.01);
+    // nesmyslné/nulové vstupy → null (pravidlo 4, žádné falešné číslo)
+    expect(portionsForTargetKcal(0, 1000, 500)).toBeNull();
+    expect(portionsForTargetKcal(1200, 0, 500)).toBeNull();
+    expect(portionsForTargetKcal(1200, 1000, 0)).toBeNull();
   });
 
   it('h) zápis 340 g rizota do deníku → snapshot 303,91 kcal a display_name', () => {

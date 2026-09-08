@@ -219,6 +219,21 @@ export function perServing(totals: Nutrients, servings: number | null | undefine
 }
 
 /**
+ * Škálování na cílové kcal/porci (UC024): kolik porcí a gramů/porci vyjde, aby porce
+ * měla ~cílovou energii. Jen orientačně (pravidlo 4 — nepředstírá, počítá z reálného součtu).
+ * `null` když chybí smysluplný vstup (nulová/záporná energie, hmotnost nebo cíl).
+ */
+export function portionsForTargetKcal(
+  totalKcal: number,
+  finalWeight: number,
+  targetKcalPerPortion: number,
+): { portions: number; gramsPerPortion: number } | null {
+  if (totalKcal <= 0 || finalWeight <= 0 || targetKcalPerPortion <= 0) return null;
+  const portions = totalKcal / targetKcalPerPortion;
+  return { portions, gramsPerPortion: finalWeight / portions };
+}
+
+/**
  * Zápis receptu do deníku (SPEC 7.5). Uloží se VÝSLEDEK, ne odkaz na recept,
  * aby pozdější úprava receptu nezměnila historii (E-01).
  * Recept bez napojených surovin do deníku zapsat nelze.

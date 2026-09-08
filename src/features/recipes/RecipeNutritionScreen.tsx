@@ -13,7 +13,7 @@ import {
   type AmountValue,
 } from '../../lib/amount';
 import { matchPortionInText } from '../../lib/portionMatch';
-import type { Nutrients } from '../../lib/nutrition';
+import { portionsForTargetKcal, type Nutrients } from '../../lib/nutrition';
 import { addPortion } from '../foods/foodPortionsRepo';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
@@ -44,6 +44,43 @@ function suggestFood(query: string, foods: Food[]): Food | null {
     foods.find(
       (food) => !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, trimmed),
     ) ?? null
+  );
+}
+
+/**
+ * Škálování na cílové kcal/porci (UC024). Orientační pomůcka: z celkových kalorií
+ * a finální hmotnosti dopočítá, na kolik porcí (a gramů/porci) recept vyjde, aby
+ * porce měla ~cíl. Nepředstírá (pravidlo 4) — bez smysluplného cíle nic neukáže.
+ */
+function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWeight: number }) {
+  const [target, setTarget] = useState('');
+  const parsed = parseDecimal(target);
+  const result = parsed != null ? portionsForTargetKcal(totalKcal, finalWeight, parsed) : null;
+  return (
+    <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-3 text-sm">
+      <label className="flex flex-wrap items-center gap-2">
+        <span className="text-stone-500">Cíl na porci</span>
+        <input
+          value={target}
+          onChange={(event) => setTarget(event.target.value)}
+          inputMode="decimal"
+          placeholder="kcal"
+          className="w-20 rounded-lg border border-stone-200 px-2 py-1 text-right outline-none focus:border-brand"
+        />
+        <span className="text-stone-500">kcal</span>
+      </label>
+      {result ? (
+        <p className="mt-2 text-stone-600">
+          ≈ <span className="font-medium">{formatNumber(result.portions, 1)}</span> porcí · ≈{' '}
+          <span className="font-medium">{formatNumber(result.gramsPerPortion)}</span> g/porce
+          <span className="ml-1 text-xs text-stone-400">(orientačně)</span>
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-stone-400">
+          Zadej cílové kcal na porci — spočítám počet porcí i gramáž.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -445,6 +482,10 @@ export default function RecipeNutritionScreen() {
             </p>
           )}
         </div>
+
+        {nutrition.computable && nutrition.total && nutrition.finalWeight ? (
+          <TargetKcalHint totalKcal={nutrition.total.kcal} finalWeight={nutrition.finalWeight} />
+        ) : null}
       </main>
 
       {pickingItemId ? (
