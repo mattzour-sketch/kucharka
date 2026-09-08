@@ -1,176 +1,141 @@
-# Návrhy nových use casů (backlog UC016+)
+# Backlog nových funkcí (UC016+)
 
-Kandidáti k **postupnému plnění** — věci, které appka zatím nemá. Navazuje na
-`docs/specs/use-cases.md` (UC001–UC015 = hotové). Sepsáno jako podklad k
-prioritizaci; každý UC dostane plnou spec (Given/When/Then) až se do něj půjde.
+Prioritizovaný seznam stories ve stylu, který se osvědčil v portfolio-trackeru: hlas
+**Jako / chci / abych**, akceptační kritéria **Hotovo, když** (Given/When/Then) a u každé
+story štítky **Velikost · Priorita · Návrh architekta**. Z tohohle dokumentu se jede
+`/feature` story po story (BA už má hrubá AK, architekt se volá jen tam, kde je flag ANO).
 
-Poznámka ke vzniku: BA i user-advocate agenti při zadání narazili na rate limit,
-tak je backlog syntéza z obou úhlů (produktová úplnost + reálná uživatelská přání
-z dřívějších rozhovorů). Klidně to necháme agenty rozšířit, až limit padne.
+Navazuje na `docs/specs/use-cases.md` (UC001–UC015 = hotové).
 
-**Omezení (platí pro všechny):** lokální bez serveru (přenos jen JSON), surovina =
-volný text (pravidlo 1), kalorie se nepředstírají (pravidlo 4), lean UI. **Mimo
-rozsah:** plný deník/Fáze 3 (uživatel nechce).
+**Omezení (platí pro všechny):** lokální bez serveru (přenos jen JSON), surovina = volný
+text (pravidlo 1), `raw_text` se nepřepisuje (pravidlo 2), kalorie se nepředstírají
+(pravidlo 4), interně gramy a plná přesnost (pravidlo 9), lean české UI. **Mimo rozsah:**
+plný deník / Fáze 3 (uživatel nechce).
 
-Legenda velikosti: 🟢 malé · 🟡 střední · 🔴 velké. „Model" = sahá do datového modelu.
+**Legenda.** Velikost: 🟢 malá · 🟡 střední · 🔴 velká. Priorita: nejvyšší / vysoká /
+střední / nízká. „Návrh architekta: ANO" = story sahá do modelu / více vrstev / přidává
+závislost, tak před psaním jede `architect`; „ne" = přímočaré, developer rovnou.
 
 ---
 
-## UC016 — Podrecepty (recept jako surovina) 🟡 · model: bez migrace
+## Hotovo
 
-Surovinu receptu jde napojit na **jiný recept** (např. „domácí bešamel", „těsto"),
-ne jen na potravinu. Kalorie podreceptu protečou do nadřazeného.
+- **UC016 — Podrecepty** ✅ napojení suroviny na jiný recept, kalorie protečou (obrazovka Kalorie).
+- **UC017 — Domácí míry → gramy** ✅ „1 lžíce = 15 g", výběr míry u suroviny.
+- **UC020 — Poznámky k receptu** ✅ trvalá poznámka na detailu receptu.
+- **UC018 — Hledat podle suroviny** ✅ pokryto stávajícím hledáním (`SearchScreen` hledá
+  přes `recipeHaystack` = i suroviny z `rawCapture`). Samostatná funkce není potřeba.
+- **UC019 — Duplikovat recept** ✅ akce „Duplikovat recept" na detailu → kopie k úpravě.
+- **UC024 — Škálování na cílové kalorie** ✅ na obrazovce Kalorie: cíl kcal/porci → počet porcí + g/porce.
+- **UC022 — Co dnes uvařit** ✅ tlačítko „🎲 Co dnes?" na seznamu (náhodně z aktuálně zobrazených).
 
-**Proč:** stavební kameny, co vařím dokola (bešamel, vývar, těsto), nechci
-přepisovat do každého receptu; a kalorie mají téct skrz.
+---
 
-**Hrubá AK:**
-- Given surovina, When ji napojím na jiný recept místo potraviny, Then se do
-  kalorií započítá podle jeho hodnot na 100 g / porci.
-- Given podrecept odkazuje sám na sebe (cyklus), Then se to bezpečně ošetří
-  (výpočet už cyklus umí — E-03), nespadne.
-- `raw_text` se nemění (pravidlo 2). Pole `sub_recipe_id` v modelu už existuje,
-  jen chybí UI napojení.
+## UC027 — Našeptávač potravin už při psaní receptu
 
-## UC017 — Domácí míry → gramy (lžíce, hrnek, plátek) ✅ HOTOVO 🟡 · model: FoodPortion (schéma existuje)
+**Jako** uživatel, který zrovna píše/vkládá recept,
+**chci** decentní nabídku napojení řádku suroviny na založenou potravinu už tady,
+**abych** nemusel dělat druhý průchod na obrazovce Kalorie.
 
-U potraviny půjde nadefinovat běžné míry („1 lžíce" = 15 g, „1 hrnek" = 250 g)
-a u suroviny pak vybrat míru místo ručního zadávání gramů.
+Poznámky ke stavu: staví na `searchTermFromText` + `matchesQuery` + vzoru `suggestFood`
+(už existují). Dotčené: capture obrazovky (`/novy`, `/vlozit`). **Zákazník (user-advocate)
+je tu klíčový** — musí posoudit, že to neotravuje.
 
-**Proč:** dnes „2 lžíce oleje" musím ručně přepsat na gramy, jinak se kalorie
-nespočítají — tohle je největší tření počítání kalorií u běžných receptů.
+**Pozor (hlavní úloha appky):** zachycení musí zůstat rychlé (do 60 s, i diktované) a bez
+nutriční hlavy (pravidlo 1). Nenásilně: psaní zůstává čistý text, nic neblokuje, nabídka je
+opt-in náznak, ne agresivní dropdown.
 
-**Hrubá AK:**
-- Given potravina má míru „lžíce = 15 g", When u suroviny zvolím „2 lžíce",
-  Then se gramáž (30 g) a kcal dopočítají.
-- Míry jsou nepovinné; bez nich zůstává dnešní zadání g/ks.
-- Tabulka `food_portions` v Dexie/migraci už je, jen se nepoužívá.
+**Hotovo, když:**
+- [ ] Given píšu řádek suroviny, When appka pozná odpovídající potravinu, Then nabídne napojení
+  nenásilně (nezdržuje psaní, jde ignorovat), `raw_text` se nemění (pravidlo 2).
+- [ ] Napojení zůstává nepovinné; kalorie se nepředstírají (pravidlo 4).
+- [ ] Given diktované rychlé psaní, Then nabídka nikdy nepřebije/neukradne fokus psaní.
 
-## UC018 — Hledat podle suroviny („co udělám z cukety") ✅ POKRYTO (stávající hledání) 🟢 · model: bez migrace
+**Velikost:** 🟡 střední · **Priorita:** střední · **Návrh architekta:** ne (staví na hotových kusech; **Zákazník povinně**)
 
-> Pozn. 2026-09-06: `SearchScreen` už hledá přes `recipeHaystack`, kam patří i
-> `rawCapture` (suroviny + postup). Napsáním „cuketa" se recepty se surovinou najdou.
-> Samostatná funkce není potřeba; případné vylepšení = jen přesnější filtr „jen suroviny".
+---
 
+## UC023 — Sekce surovin (na těsto / na náplň)
 
-Ve vyhledávání/receptech jde najít recepty **obsahující danou surovinu**.
+**Jako** uživatel se složitějšími recepty,
+**chci** rozdělit suroviny do pojmenovaných skupin,
+**abych** je četl po částech a neztrácel se v jednom dlouhém seznamu.
 
-**Proč:** mám půl cukety a chci vědět, co z ní udělám — dnes hledám v hlavě.
+Poznámky ke stavu: musí respektovat „volný text" (pravidlo 1) — skupiny nesmí zablokovat prosté
+zachycení. Otevřené: jak skupinu reprezentovat (nadpis jako speciální řádek vs. pole na položce).
+Dotčené: model položek / konvence `raw_text`, editor + `RecipeDetailScreen` + `CookingModeScreen`.
 
-**Hrubá AK:**
-- Given zadám surovinu „cuketa", Then vidím recepty, jejichž `raw_text` ji
-  obsahuje (bez diakritiky, se stemem jako dnešní hledání).
-- Kombinuje se se stávajícími filtry (štítek, oblíbené).
+**Hotovo, když:**
+- [ ] Given recept, When přidám nadpis skupiny, Then se pod něj řadí suroviny až do dalšího
+  nadpisu (na detailu i ve vaření).
+- [ ] Volný text zůstává zdroj pravdy; recept jde dál uložit jen s názvem (pravidla 1, 3).
+- [ ] Bez skupin se seznam chová jako dnes (žádná regrese).
 
-## UC019 — Duplikovat recept 🟢 · model: bez migrace
+**Velikost:** 🟡 střední · **Priorita:** střední · **Návrh architekta:** ANO (reprezentace skupin v modelu / parsování)
 
-Z receptu udělám kopii jako základ pro variantu („guláš, ale ostrý").
+---
 
-**Proč:** nechci od nuly, chci vyjít z hotového a jen upravit.
+## UC025 — Tmavý režim
 
-**Hrubá AK:**
-- Given recept, When dám „Duplikovat", Then vznikne nový recept se stejnými
-  surovinami/postupem/štítky, samostatný (úprava kopie nemění originál).
-- Kopie nepřebírá historii vaření ani oblíbenost.
+**Jako** uživatel, co večer vaří u sporáku,
+**chci** přepnout na tmavý motiv,
+**abych** mě appka neoslňovala do očí.
 
-## UC020 — Poznámky k receptu (mimo vaření) ✅ HOTOVO 🟢 · model: recipeNotes (existuje)
+Poznámky ke stavu: průřezová změna motivu (CSS proměnné / Tailwind `dark`). Pozor: pravidlo 6
+zakazuje `localStorage` pro **data appky** — předvolba vzhledu je per-zařízení UI, ne data, ale
+kde ji držet je potřeba rozhodnout (architekt). Výchozí = respektovat systémovou předvolbu.
 
-K receptu si kdykoliv připíšu volnou poznámku („příště míň soli", „od Aničky").
+**Hotovo, když:**
+- [ ] Given zapnu tmavý režim, Then se drží i po znovuotevření a jako výchozí respektuje
+  systémovou předvolbu.
+- [ ] Motiv je konzistentní přes všechny obrazovky (sdílené komponenty `ui/`), včetně varovných
+  a „bez kalorií" stavů.
 
-**Proč:** poznámky z vaření jdou dnes jen do historie u konkrétního uvaření;
-chci i trvalou poznámku k receptu samotnému.
+**Velikost:** 🟡 střední · **Priorita:** nižší · **Návrh architekta:** ANO (kam s předvolbou + průřezový motiv)
 
-**Hrubá AK:**
-- Given recept, When přidám poznámku, Then se zobrazuje na detailu a přežije.
-- Tabulka `recipe_notes` už v modelu existuje.
+---
 
-## UC021 — Týdenní plán jídel (+ nákup z plánu) 🔴 · model: nová tabulka
+## UC021 — Týdenní plán jídel (+ nákup z plánu)
 
-Recepty přiřadím na dny v týdnu; z plánu jde jedním klikem naplnit nákupní seznam.
+**Jako** uživatel, co plánuje dopředu,
+**chci** přiřadit recepty na dny v týdnu a jedním klikem z plánu naplnit nákupní seznam,
+**abych** neposílal do nákupu recept po receptu ručně.
 
-**Proč:** plánuju dopředu; dnes musím do nákupu posílat recept po receptu ručně.
+Poznámky ke stavu: nová lokální tabulka (např. `meal_plan`) → Dexie `version()` bump; napojení na
+existující „do nákupu" (naškálování podle porcí). Dotčené: `src/db/index.ts`, nová obrazovka plánu,
+nákupní repo.
 
-**Hrubá AK:**
-- Given plán na týden, When přidám recept na „středu", Then je vidět v plánu.
-- Given hotový plán, When dám „Do nákupu", Then se přidají suroviny všech
-  receptů plánu (naškálované podle porcí), jako u dnešního nákupu z receptu.
-- Nová lokální tabulka (např. `meal_plan`).
+**Hotovo, když:**
+- [ ] Given plán na týden, When přidám recept na „středu", Then je vidět v plánu (přežije restart).
+- [ ] Given hotový plán, When dám „Do nákupu", Then se přidají suroviny všech receptů plánu
+  (naškálované podle porcí), jako u dnešního nákupu z receptu.
+- [ ] Smazání položky plánu je soft (pravidlo 7); plán nemění recepty ani historii.
 
-## UC022 — „Co dnes uvařit" (náhodný návrh) 🟢 · model: bez migrace
+**Velikost:** 🔴 velká · **Priorita:** nízká · **Návrh architekta:** ANO (nová tabulka + migrace + napojení na nákup)
 
-Tlačítko vylosuje recept — klidně jen z rychlých, podle štítku, nebo z dlouho
-nevařených.
+---
 
-**Proč:** věčná otázka „co dnes"; občas chci, ať to za mě appka píchne.
+## UC026 — Chytřejší přenos receptu do appky (parkoviště)
 
-**Hrubá AK:**
-- Given kliknu „Co dnes uvařit", Then dostanu jeden náhodný recept (volitelně
-  filtr štítkem / „dlouho nevařené" z historie).
+**Jako** uživatel s recepty roztroušenými po webu, v knize nebo slyšenými,
+**chci** je dostat do appky i jinak než ručním vložením textu (odkaz / fotka-OCR / diktování),
+**abych** je nepřepisoval.
 
-## UC023 — Sekce surovin (na těsto / na náplň) 🟡 · model: drobná změna
+**Pozor:** OCR (Tesseract) i hlas (Web Speech) = **nová závislost** → dle konvence CLAUDE.md
+**napřed se zeptat**; fetch webu naráží na lokální/CSP omezení. Velké, samostatné, spíš později.
+Zapsáno jako parkoviště, ne brzký kandidát.
 
-Suroviny receptu jde rozdělit do pojmenovaných skupin.
+**Hotovo, když:** (upřesní se, až se do toho půjde — nejdřív rozhodnout, kterou cestou začít)
+- [ ] Given zdroj (odkaz / fotka / hlas), When ho předám appce, Then se předvyplní návrh receptu
+  k potvrzení; `raw_capture` zůstává zdroj pravdy (pravidlo 2).
 
-**Proč:** složitější recepty čtu po částech; jeden dlouhý seznam je nepřehledný.
-
-**Hrubá AK:**
-- Given recept, When přidám nadpis skupiny, Then se pod něj řadí suroviny až do
-  dalšího nadpisu.
-- Volný text zůstává zdroj pravdy; skupiny nesmí zablokovat prosté zachycení.
-
-## UC024 — Škálování na cílové kalorie / porci 🟢 · model: bez migrace
-
-Zadám cílové kcal na porci a appka poradí počet porcí / gramáž.
-
-**Proč:** hlídám si porci na X kcal; dnes to počítám z hlavy.
-
-**Hrubá AK:**
-- Given recept s napojenými surovinami a cíl „500 kcal/porce", Then appka ukáže,
-  na kolik porcí to vyjde (jen orientačně, pravidlo 4 — nepředstírá).
-
-## UC025 — Tmavý režim 🟡 · model: jen předvolba
-
-Přepínač světlý/tmavý motiv (večerní vaření, šetření očí).
-
-**Proč:** večer u sporáku svítí bílá appka do očí.
-
-**Hrubá AK:**
-- Given zapnu tmavý režim, Then se drží i po znovuotevření a respektuje
-  systémovou předvolbu jako výchozí. (Předvolba vzhledu, ne data appky.)
-
-## UC026 — Chytřejší přenos receptu do appky 🔴 · velké / nová závislost
-
-Nad rámec dnešního „vložit text": import z **odkazu** (web recept), z **fotky
-stránky (OCR)**, nebo **diktování hlasem**.
-
-**Proč:** recepty mám roztroušené po webu, v knize, nebo je slyším.
-
-**Pozor:** OCR (Tesseract) i hlas (Web Speech) = **nová závislost** a nižší
-spolehlivost; fetch z webu naráží na lokální/CSP omezení. Spíš samostatné, velké,
-napřed se zeptat. Zapsáno jen jako parkoviště, ne jako brzký kandidát.
-
-## UC027 — Našeptávač potravin už při psaní receptu 🟡 · model: bez migrace
-
-Při psaní/vkládání receptu (ne až na Kaloriích) decentně nabídnout napojení řádku
-suroviny na založenou potravinu.
-
-**Proč:** ušetří druhý průchod – napojím rovnou při psaní. (Nápad 2026-09-06.)
-
-**Pozor (hlavní úloha appky):** zachycení musí zůstat rychlé (do 60 s, i diktované)
-a bez nutriční hlavy (pravidlo 1, CLAUDE.md). Takže **nenásilně** – psaní zůstává čistý
-text, nic neblokuje; nabídka napojení je opt-in náznak, ne agresivní dropdown. Zda to
-pomáhá vs. otravuje má posoudit **Zákazník** (user-advocate).
-
-**Hrubá AK:**
-- Given píšu řádek suroviny, When appka pozná odpovídající potravinu, Then nabídne
-  napojení nenásilně (nezdržuje psaní, jde ignorovat), `raw_text` se nemění (pravidlo 2).
-- Kalorie se nepředstírají (pravidlo 4); napojení zůstává nepovinné.
+**Velikost:** 🔴 velká · **Priorita:** nízká (parkoviště) · **Návrh architekta:** ANO + **nová závislost (zeptat se)**
 
 ---
 
 ## Jak dál
 
-Vyber, které UC chceš rozjet první (klidně víc), a pojedeme je jeden po druhém —
-každý přes svou spec + implementaci + ověření. Můj tip na start (užitek/cena):
-**UC017 domácí míry** (odblokuje kalorie u běžných receptů), **UC018 hledat podle
-suroviny** a **UC016 podrecepty** (model to už umí).
+Jede se shora dolů podle priority, story po story přes `/feature`. Rychlé výhry bez architekta
+jsou hotové (UC019/UC024/UC022). Zbývá: **UC027 Našeptávač při psaní** (architekt netřeba, ale
+Zákazník povinně), pak architekt-flagované **UC023 Sekce surovin**, **UC025 Tmavý režim**,
+**UC021 Týdenní plán** a parkoviště **UC026 Chytřejší přenos**.
