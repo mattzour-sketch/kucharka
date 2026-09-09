@@ -97,7 +97,7 @@ export default function SettingsScreen() {
               }}
             />
           </div>
-          {message ? <p className="mt-3 text-sm text-brand-dark">{message}</p> : null}
+          {message ? <p className="mt-3 text-sm text-brand-dark dark:text-amber-400">{message}</p> : null}
         </section>
 
         <Link

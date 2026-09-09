@@ -22,7 +22,7 @@ export default function TabLayout() {
               end
               className={({ isActive }) =>
                 `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium transition ${
-                  isActive ? 'text-brand' : 'text-stone-500'
+                  isActive ? 'text-brand dark:text-amber-400' : 'text-stone-500'
                 }`
               }
             >

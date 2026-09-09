@@ -1,6 +1,6 @@
 /**
  * Značka appky – hrnec s párou (navazuje na motiv 🍲). Kreslí se `currentColor`,
- * takže barvu určí rodič (typicky `text-brand`). Čistý tvar, čitelný i malý.
+ * takže barvu určí rodič (typicky `text-brand dark:text-amber-400`). Čistý tvar, čitelný i malý.
  */
 export default function Logo({ className }: { className?: string }) {
   return (

@@ -84,7 +84,7 @@ export default function RecipeListScreen() {
         width="wide"
         title={
           <span className="flex items-center gap-2">
-            <Logo className="h-6 w-6 text-brand" />
+            <Logo className="h-6 w-6 text-brand dark:text-amber-400" />
             Kuchařka
           </span>
         }

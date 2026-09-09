@@ -239,7 +239,7 @@ export default function RecipeDetailScreen() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand"
+            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
           >
             <span className="text-2xl leading-none">📷</span>
             <span className="text-xs">Fotka</span>
@@ -267,7 +267,7 @@ export default function RecipeDetailScreen() {
             ) : null}
             <Link
               to={`/recept/${recipe.id}/kalorie`}
-              className="inline-block text-sm font-medium text-brand"
+              className="inline-block text-sm font-medium text-brand dark:text-amber-400"
             >
               {nutrition.computable ? 'Upravit kalorie' : 'Spočítat kalorie →'}
             </Link>
@@ -298,7 +298,7 @@ export default function RecipeDetailScreen() {
                   </li>
                 ) : (
                   <li key={item.id} className="flex gap-2 leading-relaxed">
-                    <span className="mt-0.5 text-brand">•</span>
+                    <span className="mt-0.5 text-brand dark:text-amber-400">•</span>
                     <span>{scaleQuantityText(item.rawText, scaleFactor)}</span>
                   </li>
                 ),
@@ -406,7 +406,7 @@ export default function RecipeDetailScreen() {
                   </div>
                   {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
                   {log.perPortion ? (
-                    <p className="mt-1 text-sm font-medium text-brand-dark">
+                    <p className="mt-1 text-sm font-medium text-brand-dark dark:text-amber-400">
                       ≈{' '}
                       {formatNumber(
                         histMode === 'cely' ? log.perPortion.kcal * log.portions : log.perPortion.kcal,
@@ -425,7 +425,7 @@ export default function RecipeDetailScreen() {
                           ingredient.off
                             ? 'text-stone-400 line-through'
                             : ingredient.replacedWith || ingredient.changed
-                              ? 'text-brand-dark'
+                              ? 'text-brand-dark dark:text-amber-400'
                               : 'text-stone-600 dark:text-stone-300'
                         }
                       >
@@ -438,7 +438,7 @@ export default function RecipeDetailScreen() {
                   <button
                     type="button"
                     onClick={() => void handleReplay(log)}
-                    className="mt-3 text-sm font-medium text-brand"
+                    className="mt-3 text-sm font-medium text-brand dark:text-amber-400"
                   >
                     Uvařit znovu takhle →
                   </button>
@@ -453,7 +453,7 @@ export default function RecipeDetailScreen() {
             Sdílet jako text
           </Button>
         </div>
-        {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark">{shareMsg}</p> : null}
+        {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark dark:text-amber-400">{shareMsg}</p> : null}
 
         <div className="mt-3">
           <Button role="secondary" fullWidth onClick={() => void handleDuplicate()}>

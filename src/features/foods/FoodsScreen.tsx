@@ -52,7 +52,7 @@ export default function FoodsScreen() {
       />
 
       <main className="mx-auto max-w-5xl px-4 py-4">
-        {message ? <p className="mb-3 text-sm text-brand-dark">{message}</p> : null}
+        {message ? <p className="mb-3 text-sm text-brand-dark dark:text-amber-400">{message}</p> : null}
 
         {loading ? (
           <RowsSkeleton />

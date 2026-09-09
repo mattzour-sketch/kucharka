@@ -351,7 +351,7 @@ export default function RecipeNutritionScreen() {
                     <button
                       type="button"
                       onClick={() => void updateRecipeItemLink(item.id, { isSkipped: false })}
-                      className="font-medium text-brand"
+                      className="font-medium text-brand dark:text-amber-400"
                     >
                       vrátit
                     </button>
@@ -396,7 +396,7 @@ export default function RecipeNutritionScreen() {
                         <button
                           type="button"
                           onClick={() => setAddMeasureItemId(item.id)}
-                          className="text-xs font-medium text-brand"
+                          className="text-xs font-medium text-brand dark:text-amber-400"
                         >
                           + míra
                         </button>
@@ -435,7 +435,7 @@ export default function RecipeNutritionScreen() {
                       <p className="mt-1 text-xs text-stone-400">
                         {subRecipe.name} nemá napojené suroviny —{' '}
                         <Link
-                          className="font-medium text-brand"
+                          className="font-medium text-brand dark:text-amber-400"
                           to={`/recept/${item.subRecipeId}/kalorie`}
                         >
                           doplnit

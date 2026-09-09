@@ -65,7 +65,7 @@ export default function StatisticsScreen() {
                           naposledy {formatCzechDate(item.lastCookedOn)}
                         </p>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold text-brand-dark">
+                      <span className="shrink-0 text-sm font-semibold text-brand-dark dark:text-amber-400">
                         {item.count}×
                       </span>
                     </div>

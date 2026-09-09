@@ -530,7 +530,7 @@ export default function CookingModeScreen() {
         {totalUnits > 0 && !editMode && !stalePrompt ? (
           <div className="mb-4">
             <div className="mb-1 flex items-center justify-between text-xs font-medium text-stone-500">
-              <span className={allDone ? 'text-brand-dark' : ''}>
+              <span className={allDone ? 'text-brand-dark dark:text-amber-400' : ''}>
                 {allDone ? 'Hotovo 🎉' : `Hotovo ${progressPct} %`}
               </span>
               <span>{progressParts.join(' · ')}</span>
@@ -625,7 +625,7 @@ export default function CookingModeScreen() {
                           <span className="h-7 w-7 shrink-0" aria-hidden />
                           <span className="min-w-0">
                             <span className="text-stone-400 line-through">{baseText}</span>
-                            <span className="font-medium text-brand-dark"> → {replacement.text}</span>
+                            <span className="font-medium text-brand-dark dark:text-amber-400"> → {replacement.text}</span>
                             {replAmountLabel ? (
                               <span className="ml-1 text-sm text-stone-400">{replAmountLabel}</span>
                             ) : null}
@@ -739,7 +739,7 @@ export default function CookingModeScreen() {
                               <button
                                 type="button"
                                 onClick={() => setAddMeasureFor('repl')}
-                                className="self-end text-xs font-medium text-brand"
+                                className="self-end text-xs font-medium text-brand dark:text-amber-400"
                               >
                                 + míra
                               </button>
@@ -834,7 +834,7 @@ export default function CookingModeScreen() {
                             <button
                               type="button"
                               onClick={() => setAddMeasureFor('add')}
-                              className="text-xs font-medium text-brand"
+                              className="text-xs font-medium text-brand dark:text-amber-400"
                             >
                               + míra
                             </button>
@@ -875,7 +875,7 @@ export default function CookingModeScreen() {
                       stepDone
                         ? 'border-brand bg-brand text-white'
                         : isCurrent
-                          ? 'border-brand text-brand'
+                          ? 'border-brand text-brand dark:text-amber-400'
                           : 'border-stone-300 dark:border-stone-600 text-stone-400'
                     }`}
                     aria-label={
@@ -899,7 +899,7 @@ export default function CookingModeScreen() {
                             primeAlarm();
                             void addTimer(`Krok ${index + 1}`, seconds);
                           }}
-                          className="rounded bg-brand/10 px-1 font-medium text-brand-dark underline decoration-dotted underline-offset-2"
+                          className="rounded bg-brand/10 px-1 font-medium text-brand-dark dark:text-amber-400 underline decoration-dotted underline-offset-2"
                         >
                           {segment.text}
                         </button>

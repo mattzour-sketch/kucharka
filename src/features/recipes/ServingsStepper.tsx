@@ -13,7 +13,7 @@ export default function ServingsStepper({
         <button
           type="button"
           onClick={() => onStep(-1)}
-          className="px-3 py-1 text-lg leading-none text-stone-500 transition hover:text-brand"
+          className="px-3 py-1 text-lg leading-none text-stone-500 transition hover:text-brand dark:text-amber-400"
           aria-label="Míň porcí"
         >
           −
@@ -22,7 +22,7 @@ export default function ServingsStepper({
         <button
           type="button"
           onClick={() => onStep(1)}
-          className="px-3 py-1 text-lg leading-none text-stone-500 transition hover:text-brand"
+          className="px-3 py-1 text-lg leading-none text-stone-500 transition hover:text-brand dark:text-amber-400"
           aria-label="Víc porcí"
         >
           +

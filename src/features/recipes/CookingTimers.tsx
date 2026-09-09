@@ -51,7 +51,7 @@ export default function CookingTimers() {
                 <div className="min-w-0">
                   <p className="truncate text-sm text-stone-500">{timer.label}</p>
                   <p
-                    className={`text-2xl font-semibold tabular-nums ${done ? 'text-brand-dark' : ''}`}
+                    className={`text-2xl font-semibold tabular-nums ${done ? 'text-brand-dark dark:text-amber-400' : ''}`}
                   >
                     {done ? 'Hotovo!' : formatCountdown(remaining)}
                   </p>
