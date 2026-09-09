@@ -6,6 +6,7 @@ import { formatCzechDate } from '../../lib/date';
 import { formatNumber } from '../../lib/num';
 import { scaleQuantityText } from '../../lib/scale';
 import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
+import { formatPrepTime } from '../../lib/prepTime';
 import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
@@ -214,7 +215,10 @@ export default function RecipeDetailScreen() {
 
       <main className="mx-auto max-w-2xl px-4 py-4">
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
-        <p className="mt-1 text-sm text-stone-500">{formatCzechDate(recipe.capturedOn)}</p>
+        <p className="mt-1 text-sm text-stone-500">
+          {formatCzechDate(recipe.capturedOn)}
+          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}
+        </p>
 
         {recipe.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">

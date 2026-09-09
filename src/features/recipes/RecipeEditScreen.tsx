@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { todayIso } from '../../lib/date';
+import { parseDecimal } from '../../lib/num';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import TagInput from './TagInput';
 import {
@@ -20,8 +21,9 @@ function snapshotOf(
   ingredients: string,
   instructions: string,
   tags: string[],
+  prepMinutes: string,
 ): string {
-  return JSON.stringify([name, capturedOn, ingredients, instructions, tags]);
+  return JSON.stringify([name, capturedOn, ingredients, instructions, tags, prepMinutes]);
 }
 
 /**
@@ -56,6 +58,7 @@ export default function RecipeEditScreen() {
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [prepMinutes, setPrepMinutes] = useState('');
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
@@ -75,12 +78,14 @@ export default function RecipeEditScreen() {
       ingText = recipe.rawCapture; // legacy recept z jednoho pole
     }
 
+    const prepText = recipe.prepMinutes != null ? String(recipe.prepMinutes) : '';
     setName(recipe.name);
     setCapturedOn(recipe.capturedOn);
     setIngredients(ingText);
     setInstructions(stepText);
     setTags(recipe.tags);
-    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText, recipe.tags);
+    setPrepMinutes(prepText);
+    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText, recipe.tags, prepText);
   }, [routeId, loaded]);
 
   function buildContent(finalName: string): RecipeContent {
@@ -91,6 +96,7 @@ export default function RecipeEditScreen() {
       instructions: instructions.trim() || null,
       rawCapture: combineRawCapture(ingredients, instructions),
       tags,
+      prepMinutes: parseDecimal(prepMinutes),
     };
   }
 
@@ -107,7 +113,7 @@ export default function RecipeEditScreen() {
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
     if (!loadedRef.current) return;
-    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags);
+    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes);
     if (snapshot === lastSaved.current) return;
 
     const hasContent =
@@ -122,7 +128,7 @@ export default function RecipeEditScreen() {
     return () => clearTimeout(timer);
     // persist čte aktuální stav ze closure; závislosti jsou samotná pole.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, capturedOn, ingredients, instructions, tags]);
+  }, [name, capturedOn, ingredients, instructions, tags, prepMinutes]);
 
   function deriveName(): string {
     const base = splitIngredientLines(ingredients)[0] ?? splitIngredientLines(instructions)[0] ?? '';
@@ -133,7 +139,7 @@ export default function RecipeEditScreen() {
     const finalName = name.trim() || deriveName() || 'Bez názvu';
     if (finalName !== name) setName(finalName);
     const id = await persist(finalName);
-    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags);
+    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags, prepMinutes);
     navigate(`/recept/${id}`, { replace: true });
   }
 
@@ -170,15 +176,29 @@ export default function RecipeEditScreen() {
           placeholder="Název receptu"
           className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
         />
-        <div className="mt-2 flex items-center gap-2 text-sm text-stone-500">
-          <label htmlFor="capturedOn">Datum</label>
-          <input
-            id="capturedOn"
-            type="date"
-            value={capturedOn}
-            onChange={(event) => setCapturedOn(event.target.value)}
-            className="bg-transparent py-1.5 outline-none"
-          />
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-500">
+          <span className="flex items-center gap-2">
+            <label htmlFor="capturedOn">Datum</label>
+            <input
+              id="capturedOn"
+              type="date"
+              value={capturedOn}
+              onChange={(event) => setCapturedOn(event.target.value)}
+              className="bg-transparent py-1.5 outline-none"
+            />
+          </span>
+          <span className="flex items-center gap-2">
+            <label htmlFor="prep">Doba</label>
+            <input
+              id="prep"
+              value={prepMinutes}
+              onChange={(event) => setPrepMinutes(event.target.value)}
+              inputMode="numeric"
+              placeholder="—"
+              className="w-14 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
+            />
+            <span>min</span>
+          </span>
         </div>
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">

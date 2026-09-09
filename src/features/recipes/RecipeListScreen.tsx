@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button';
 import FilterChip from '../../components/ui/FilterChip';
 import EmptyState from '../../components/ui/EmptyState';
 import { RecipeGridSkeleton } from '../../components/ui/Loading';
+import { isQuick } from '../../lib/prepTime';
 
 type SortKey = 'updated' | 'cooked' | 'name';
 
@@ -21,6 +22,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 export default function RecipeListScreen() {
   const [sort, setSort] = useState<SortKey>('updated');
   const [favOnly, setFavOnly] = useState(false);
+  const [quickOnly, setQuickOnly] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -63,6 +65,7 @@ export default function RecipeListScreen() {
 
   const visible = recipes
     .filter((recipe) => (favOnly ? recipe.isFavorite : true))
+    .filter((recipe) => (quickOnly ? isQuick(recipe.prepMinutes) : true))
     .filter((recipe) => (tagFilter ? recipe.tags.includes(tagFilter) : true))
     .sort((a, b) => {
       if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'cs');
@@ -133,6 +136,13 @@ export default function RecipeListScreen() {
                 aria-pressed={favOnly}
               >
                 ★ Oblíbené
+              </FilterChip>
+              <FilterChip
+                active={quickOnly}
+                onClick={() => setQuickOnly((value) => !value)}
+                aria-pressed={quickOnly}
+              >
+                ⚡ Rychlé
               </FilterChip>
               <Button
                 role="secondary"

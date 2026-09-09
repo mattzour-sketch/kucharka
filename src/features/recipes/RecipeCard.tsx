@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Recipe } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { formatPrepTime } from '../../lib/prepTime';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { cardClass } from '../../components/ui/cardClass';
 import Tag from '../../components/ui/Tag';
@@ -50,11 +51,18 @@ export default function RecipeCard({ recipe, cover }: { recipe: Recipe; cover?: 
       to={`/recept/${recipe.id}`}
       className={cardClass({ padding: 'none', interactive: true, className: 'block overflow-hidden' })}
     >
-      {coverUrl ? (
-        <img src={coverUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
-      ) : (
-        <CoverPlaceholder name={recipe.name || '?'} />
-      )}
+      <div className="relative">
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
+        ) : (
+          <CoverPlaceholder name={recipe.name || '?'} />
+        )}
+        {recipe.prepMinutes ? (
+          <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white backdrop-blur">
+            ⏱ {formatPrepTime(recipe.prepMinutes)}
+          </span>
+        ) : null}
+      </div>
       <div className="p-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="truncate font-medium">

@@ -55,6 +55,7 @@ export default function ImportRecipeScreen() {
       instructions: instructions.trim() || null,
       rawCapture: combineRawCapture(ingredients, instructions),
       tags: [],
+      prepMinutes: null,
     });
     const servingsValue = parseDecimal(servings);
     if (servingsValue != null && servingsValue > 0) {

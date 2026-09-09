@@ -30,6 +30,8 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 - **UC022 — Co dnes uvařit** ✅ tlačítko „🎲 Co dnes?" na seznamu (náhodně z aktuálně zobrazených).
 - **UC025 — Tmavý režim** ✅ přepínač Systém/Světlý/Tmavý ve „Víc", bez FOUC.
 - **UC023 — Sekce surovin** ✅ nadpis sekce = řádek „# Na těsto" (bez změny modelu).
+- **Doba přípravy + „⚡ Rychlé"** ✅ nepovinný čas u receptu (odznak na kartě, filtr rychlých ≤ 30 min).
+- **UC021 — Týdenní plán** ❌ ZAHOZENO — do osobní kuchařky nesedí (plánování jídel je jiná aplikace).
 
 ---
 
@@ -60,26 +62,6 @@ opt-in náznak, ne agresivní dropdown.
 - [ ] Given diktované rychlé psaní, Then nabídka nikdy nepřebije/neukradne fokus psaní.
 
 **Velikost:** 🟡 střední · **Priorita:** střední · **Návrh architekta:** ne (staví na hotových kusech; **Zákazník povinně**)
-
----
-
-## UC021 — Týdenní plán jídel (+ nákup z plánu)
-
-**Jako** uživatel, co plánuje dopředu,
-**chci** přiřadit recepty na dny v týdnu a jedním klikem z plánu naplnit nákupní seznam,
-**abych** neposílal do nákupu recept po receptu ručně.
-
-Poznámky ke stavu: nová lokální tabulka (např. `meal_plan`) → Dexie `version()` bump; napojení na
-existující „do nákupu" (naškálování podle porcí). Dotčené: `src/db/index.ts`, nová obrazovka plánu,
-nákupní repo.
-
-**Hotovo, když:**
-- [ ] Given plán na týden, When přidám recept na „středu", Then je vidět v plánu (přežije restart).
-- [ ] Given hotový plán, When dám „Do nákupu", Then se přidají suroviny všech receptů plánu
-  (naškálované podle porcí), jako u dnešního nákupu z receptu.
-- [ ] Smazání položky plánu je soft (pravidlo 7); plán nemění recepty ani historii.
-
-**Velikost:** 🔴 velká · **Priorita:** nízká · **Návrh architekta:** ANO (nová tabulka + migrace + napojení na nákup)
 
 ---
 

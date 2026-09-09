@@ -68,6 +68,8 @@ export interface Recipe {
   instructions?: string | null;
   /** Nepovinné. Ne default 1, ne not null. */
   servings?: number | null;
+  /** Doba přípravy v minutách (UC „rychlé"). Nepovinné, neindexované – bez migrace. */
+  prepMinutes?: number | null;
   /** Zvážená hmotnost po uvaření; null = použij součet surovin (E-02). */
   cookedWeightG?: number | null;
   photoUrl?: string | null;

@@ -20,6 +20,8 @@ export interface RecipeContent {
   instructions: string | null;
   rawCapture: string | null;
   tags: string[];
+  /** Doba přípravy v minutách (nepovinné). */
+  prepMinutes: number | null;
 }
 
 function buildItems(recipeId: string, lines: string[]): RecipeItem[] {
@@ -47,6 +49,7 @@ export async function createRecipeWithContent(content: RecipeContent): Promise<s
       capturedOn: content.capturedOn || todayIso(),
       rawCapture: content.rawCapture,
       instructions: content.instructions,
+      prepMinutes: content.prepMinutes,
       tags: content.tags,
       isFavorite: false,
       createdAt: now,
@@ -111,6 +114,7 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
       capturedOn: content.capturedOn,
       rawCapture: content.rawCapture,
       instructions: content.instructions,
+      prepMinutes: content.prepMinutes,
       tags: content.tags,
       updatedAt: now,
     });
