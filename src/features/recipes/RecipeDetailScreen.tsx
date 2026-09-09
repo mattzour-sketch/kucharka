@@ -448,20 +448,17 @@ export default function RecipeDetailScreen() {
           </section>
         ) : null}
 
-        <div className="mt-8">
+        <div className="mt-8 flex gap-2">
           <Button role="secondary" fullWidth onClick={() => void handleShare()}>
-            Sdílet jako text
+            Sdílet
+          </Button>
+          <Button role="secondary" fullWidth onClick={() => void handleDuplicate()}>
+            Duplikovat
           </Button>
         </div>
         {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark dark:text-amber-400">{shareMsg}</p> : null}
 
-        <div className="mt-3">
-          <Button role="secondary" fullWidth onClick={() => void handleDuplicate()}>
-            Duplikovat recept
-          </Button>
-        </div>
-
-        <div className="mt-3">
+        <div className="mt-6">
           <Button role="destructive" fullWidth onClick={() => void handleDelete()}>
             Smazat recept
           </Button>
