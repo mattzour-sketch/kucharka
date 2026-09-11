@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type Recipe } from '../../db';
 import RecipeCard from './RecipeCard';
+import { setRecipeFavorite } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Logo from '../../components/ui/Logo';
 import Button from '../../components/ui/Button';
@@ -10,6 +11,7 @@ import FilterChip from '../../components/ui/FilterChip';
 import EmptyState from '../../components/ui/EmptyState';
 import { RecipeGridSkeleton } from '../../components/ui/Loading';
 import { isQuick } from '../../lib/prepTime';
+import { matchesQuery, recipeHaystack } from '../../lib/search';
 
 type SortKey = 'updated' | 'cooked' | 'name';
 
@@ -24,7 +26,23 @@ export default function RecipeListScreen() {
   const [favOnly, setFavOnly] = useState(false);
   const [quickOnly, setQuickOnly] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  // Recepty odznačené PŘI zapnutém filtru „Oblíbené" nezmizí hned (mis-tap) – zůstanou
+  // matně vidět, dokud filtr nepřepnu, ať je stihnu vrátit dalším klikem.
+  const [keepVisibleIds, setKeepVisibleIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+
+  function toggleFavOnly() {
+    setFavOnly((value) => !value);
+    setKeepVisibleIds(new Set());
+  }
+
+  function handleToggleFavorite(recipe: Recipe) {
+    if (favOnly && recipe.isFavorite) {
+      setKeepVisibleIds((prev) => new Set(prev).add(recipe.id));
+    }
+    void setRecipeFavorite(recipe.id, !recipe.isFavorite);
+  }
 
   const data = useLiveQuery(async () => {
     const [all, logs, photos] = await Promise.all([
@@ -64,9 +82,10 @@ export default function RecipeListScreen() {
   const tagFilter = activeTag && tags.includes(activeTag) ? activeTag : null;
 
   const visible = recipes
-    .filter((recipe) => (favOnly ? recipe.isFavorite : true))
+    .filter((recipe) => (favOnly ? recipe.isFavorite || keepVisibleIds.has(recipe.id) : true))
     .filter((recipe) => (quickOnly ? isQuick(recipe.prepMinutes) : true))
     .filter((recipe) => (tagFilter ? recipe.tags.includes(tagFilter) : true))
+    .filter((recipe) => matchesQuery(recipeHaystack(recipe), query))
     .sort((a, b) => {
       if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'cs');
       if (sort === 'cooked') {
@@ -97,6 +116,31 @@ export default function RecipeListScreen() {
               + Nový recept
             </Button>
           </>
+        }
+        below={
+          recipes.length > 0 ? (
+            <div className="flex items-center gap-2 rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 focus-within:border-brand">
+              <span className="text-stone-400" aria-hidden>
+                🔍
+              </span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="hledat recept, surovinu, postup…"
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+                  aria-label="Vymazat hledání"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          ) : undefined
         }
       />
 
@@ -132,7 +176,7 @@ export default function RecipeListScreen() {
               <FilterChip
                 active={favOnly}
                 activeTone="amber"
-                onClick={() => setFavOnly((value) => !value)}
+                onClick={toggleFavOnly}
                 aria-pressed={favOnly}
               >
                 ★ Oblíbené
@@ -172,12 +216,17 @@ export default function RecipeListScreen() {
             ) : null}
 
             {visible.length === 0 ? (
-              <EmptyState title="Nic neodpovídá filtru" />
+              <EmptyState title={query.trim() ? 'Nic nenalezeno' : 'Nic neodpovídá filtru'} />
             ) : (
               <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((recipe) => (
                   <li key={recipe.id}>
-                    <RecipeCard recipe={recipe} cover={coverByRecipe.get(recipe.id) ?? null} />
+                    <RecipeCard
+                      recipe={recipe}
+                      cover={coverByRecipe.get(recipe.id) ?? null}
+                      onToggleFavorite={handleToggleFavorite}
+                      dimmed={favOnly && !recipe.isFavorite}
+                    />
                   </li>
                 ))}
               </ul>

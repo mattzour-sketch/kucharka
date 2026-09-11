@@ -10,7 +10,6 @@ import RecipeDetailScreen from './features/recipes/RecipeDetailScreen';
 import RecipeNutritionScreen from './features/recipes/RecipeNutritionScreen';
 import CookingModeScreen from './features/recipes/CookingModeScreen';
 import StatisticsScreen from './features/recipes/StatisticsScreen';
-import SearchScreen from './features/search/SearchScreen';
 import FoodsScreen from './features/foods/FoodsScreen';
 import ShoppingListScreen from './features/shopping/ShoppingListScreen';
 import FoodEditScreen from './features/foods/FoodEditScreen';
@@ -33,7 +32,6 @@ export default function App() {
         {/* Obrazovky se spodní lištou. */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<RecipeListScreen />} />
-          <Route path="/hledat" element={<SearchScreen />} />
           <Route path="/nakup" element={<ShoppingListScreen />} />
           <Route path="/potraviny" element={<FoodsScreen />} />
           <Route path="/vic" element={<SettingsScreen />} />
