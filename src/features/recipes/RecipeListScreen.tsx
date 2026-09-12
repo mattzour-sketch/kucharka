@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe } from '../../db';
 import RecipeCard from './RecipeCard';
+import CollapsibleTags from './CollapsibleTags';
 import { setRecipeFavorite } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Logo from '../../components/ui/Logo';
@@ -16,9 +17,9 @@ import { matchesQuery, recipeHaystack } from '../../lib/search';
 type SortKey = 'updated' | 'cooked' | 'name';
 
 const SORT_LABELS: Record<SortKey, string> = {
-  updated: 'Naposledy upravené',
-  cooked: 'Naposledy uvařené',
-  name: 'Podle názvu',
+  updated: 'Upravené',
+  cooked: 'Uvařené',
+  name: 'Název',
 };
 
 export default function RecipeListScreen() {
@@ -34,6 +35,16 @@ export default function RecipeListScreen() {
 
   function toggleFavOnly() {
     setFavOnly((value) => !value);
+    setKeepVisibleIds(new Set());
+  }
+
+  // Jedním ťuknutím zpět na plný seznam – vynuluje všechny filtry i hledání.
+  // keepVisibleIds čistíme konzistentně s toggleFavOnly (interakce s UC028).
+  function clearFilters() {
+    setFavOnly(false);
+    setQuickOnly(false);
+    setActiveTag(null);
+    setQuery('');
     setKeepVisibleIds(new Set());
   }
 
@@ -76,10 +87,19 @@ export default function RecipeListScreen() {
   const coverByRecipe = data?.coverByRecipe ?? new Map<string, Blob>();
 
   const tagSet = new Set<string>();
-  for (const recipe of recipes) for (const tag of recipe.tags) tagSet.add(tag);
+  // Počet receptů na štítek (tag → count) pro řazení štítků podle použití.
+  const tagCounts: Record<string, number> = {};
+  for (const recipe of recipes)
+    for (const tag of recipe.tags) {
+      tagSet.add(tag);
+      tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+    }
   const tags = [...tagSet].sort((a, b) => a.localeCompare(b, 'cs'));
   // Aktivní štítek, který mezitím zmizel (smazaný recept), filtr neblokuje.
   const tagFilter = activeTag && tags.includes(activeTag) ? activeTag : null;
+
+  // Běží nějaký filtr nebo hledání? (whitespace-only dotaz nefiltruje – viz matchesQuery)
+  const hasActiveFilter = favOnly || quickOnly || tagFilter !== null || query.trim().length > 0;
 
   const visible = recipes
     .filter((recipe) => (favOnly ? recipe.isFavorite || keepVisibleIds.has(recipe.id) : true))
@@ -164,7 +184,7 @@ export default function RecipeListScreen() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortKey)}
-                className="rounded-full border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-3 py-1.5 text-sm font-medium text-stone-700 dark:text-stone-200 outline-none focus:border-brand"
+                className="rounded-full border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-2.5 py-1.5 text-sm font-medium text-stone-700 dark:text-stone-200 outline-none focus:border-brand"
                 aria-label="Řazení"
               >
                 {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
@@ -188,6 +208,11 @@ export default function RecipeListScreen() {
               >
                 ⚡ Rychlé
               </FilterChip>
+              {hasActiveFilter ? (
+                <Button role="ghost" onClick={clearFilters}>
+                  ✕ Zrušit filtry
+                </Button>
+              ) : null}
               <Button
                 role="secondary"
                 disabled={visible.length === 0}
@@ -196,24 +221,20 @@ export default function RecipeListScreen() {
                   const pick = visible[Math.floor(Math.random() * visible.length)];
                   if (pick) navigate(`/recept/${pick.id}`);
                 }}
+                aria-label="Co dnes? (náhodný recept)"
+                title="Co dnes? (náhodný recept)"
               >
-                🎲 Co dnes?
+                <span aria-hidden>🎲</span>
+                <span className="hidden sm:inline">Co dnes?</span>
               </Button>
             </div>
 
-            {tags.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                  <FilterChip
-                    key={tag}
-                    active={tagFilter === tag}
-                    onClick={() => setActiveTag(tagFilter === tag ? null : tag)}
-                  >
-                    {tag}
-                  </FilterChip>
-                ))}
-              </div>
-            ) : null}
+            <CollapsibleTags
+              tags={tags}
+              activeTag={tagFilter}
+              counts={tagCounts}
+              onToggleTag={(tag) => setActiveTag(tagFilter === tag ? null : tag)}
+            />
 
             {visible.length === 0 ? (
               <EmptyState title={query.trim() ? 'Nic nenalezeno' : 'Nic neodpovídá filtru'} />
