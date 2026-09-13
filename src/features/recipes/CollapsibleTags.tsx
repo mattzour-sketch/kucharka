@@ -57,8 +57,11 @@ export default function CollapsibleTags({ tags, activeTag, counts, onToggleTag }
   const hasDesktopToggle = ordered.length > DESKTOP_CAP;
 
   return (
-    <div id={listId} className="mt-2 flex flex-wrap gap-1.5">
-      {ordered.map((tag, index) => {
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {/* aria-controls přepínačů míří jen na tento region se štítky, ne na přepínače samotné.
+          `contents` = wrapper nemá vlastní box, chipy dál wrapují společně s přepínači. */}
+      <div id={listId} className="contents">
+        {ordered.map((tag, index) => {
         const active = tag === activeTag;
         // Sbaleno: prvních MOBILE_CAP vidět všude, další do DESKTOP_CAP jen na desktopu,
         // zbytek skrytý. Rozbaleno → vše vidět.
@@ -76,7 +79,8 @@ export default function CollapsibleTags({ tags, activeTag, counts, onToggleTag }
             </FilterChip>
           </span>
         );
-      })}
+        })}
+      </div>
 
       {hasMobileToggle ? (
         <button

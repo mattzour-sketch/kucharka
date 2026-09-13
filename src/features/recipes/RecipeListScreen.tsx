@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe } from '../../db';
@@ -82,19 +82,20 @@ export default function RecipeListScreen() {
   }, []);
 
   const loading = data === undefined;
-  const recipes = data?.recipes ?? [];
+  // Stabilní ref (i prázdný fallback), ať navazující useMemo nepřepočítává při každém renderu.
+  const recipes = useMemo(() => data?.recipes ?? [], [data]);
   const lastCooked = data?.lastCooked ?? new Map<string, string>();
   const coverByRecipe = data?.coverByRecipe ?? new Map<string, Blob>();
 
-  const tagSet = new Set<string>();
-  // Počet receptů na štítek (tag → count) pro řazení štítků podle použití.
-  const tagCounts: Record<string, number> = {};
-  for (const recipe of recipes)
-    for (const tag of recipe.tags) {
-      tagSet.add(tag);
-      tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
-    }
-  const tags = [...tagSet].sort((a, b) => a.localeCompare(b, 'cs'));
+  // Štítky a jejich četnost (tag → count, pro řazení podle použití) počítáme jen při změně
+  // receptů – jinak by se pole i mapa tvořily při každém renderu a memoizace v CollapsibleTags
+  // by se nikdy netrefila.
+  const { tags, tagCounts } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const recipe of recipes) for (const tag of recipe.tags) counts[tag] = (counts[tag] ?? 0) + 1;
+    const sorted = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'cs'));
+    return { tags: sorted, tagCounts: counts };
+  }, [recipes]);
   // Aktivní štítek, který mezitím zmizel (smazaný recept), filtr neblokuje.
   const tagFilter = activeTag && tags.includes(activeTag) ? activeTag : null;
 
