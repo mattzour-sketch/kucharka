@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { todayIso } from '../../lib/date';
-import { downloadTextFile } from '../../lib/download';
 import { estimateStorage, isStoragePersisted } from '../../lib/storage';
-import { exportBackupJson, importBackupJson } from '../backup/dbBackup';
+import BackupSection from '../backup/BackupSection';
 import ScreenHeader from '../../components/ui/ScreenHeader';
-import Button from '../../components/ui/Button';
 import Segmented from '../../components/ui/Segmented';
 import { cardClass } from '../../components/ui/cardClass';
 import { readThemePref, setThemePref, type ThemePref } from '../../lib/theme';
@@ -20,9 +17,7 @@ export default function SettingsScreen() {
   const recipeCount = useLiveQuery(() => db.recipes.filter((recipe) => !recipe.deletedAt).count(), []);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
-  const [message, setMessage] = useState('');
   const [theme, setTheme] = useState<ThemePref>(() => readThemePref());
-  const fileRef = useRef<HTMLInputElement>(null);
 
   function changeTheme(next: ThemePref) {
     setTheme(next);
@@ -33,22 +28,6 @@ export default function SettingsScreen() {
     void isStoragePersisted().then(setPersisted);
     void estimateStorage().then(setUsage);
   }, []);
-
-  async function handleExport() {
-    const json = await exportBackupJson();
-    downloadTextFile(`kucharka-${todayIso()}.json`, json);
-    setMessage('Záloha stažena.');
-  }
-
-  async function handleImportFile(file: File) {
-    try {
-      const text = await file.text();
-      const { recipes } = await importBackupJson(text);
-      setMessage(`Import hotový: ${recipes} receptů.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Import se nepovedl.');
-    }
-  }
 
   return (
     <div>
@@ -72,33 +51,7 @@ export default function SettingsScreen() {
           </div>
         </section>
 
-        <section className={cardClass({ className: 'mt-3' })}>
-          <h2 className="font-medium">Záloha dat</h2>
-          <p className="mt-1 text-sm text-stone-500">
-            Data jsou uložená jen v tomhle prohlížeči. Export je tvoje záloha i způsob, jak recepty
-            přenést na jiné zařízení.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button role="primary" onClick={() => void handleExport()}>
-              Exportovat do souboru
-            </Button>
-            <Button role="secondary" onClick={() => fileRef.current?.click()}>
-              Obnovit ze zálohy
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void handleImportFile(file);
-                event.target.value = '';
-              }}
-            />
-          </div>
-          {message ? <p className="mt-3 text-sm text-brand-dark dark:text-amber-400">{message}</p> : null}
-        </section>
+        <BackupSection />
 
         <Link
           to="/statistiky"

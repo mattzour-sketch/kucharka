@@ -23,3 +23,43 @@ export function formatCzechDate(iso: string): string {
   if (!year || !month || !day) return iso;
   return `${day}. ${month}. ${year}`;
 }
+
+/** ISO timestamp → „13. 9. 2026 14:30" v lokálním čase (datum zálohy ve shrnutí, UC030). */
+export function formatCzechDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()} ${time}`;
+}
+
+/** Práh, po kterém se záloha bere jako stará a jemně se připomene (UC030). */
+export const STALE_BACKUP_DAYS = 30;
+
+/** Počet celých dní mezi `iso` a `now` (kladné = v minulosti). Čistá funkce. */
+export function daysSince(iso: string, now: Date = new Date()): number {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return 0;
+  return Math.floor((now.getTime() - then.getTime()) / 86_400_000);
+}
+
+/**
+ * Relativní čas zálohy: „dnes / včera / před 3 dny / před 2 týdny / před 2 měsíci /
+ * před rokem". Čeština: instrumentál plurálu je pro >1 stejný (dny/týdny/měsíci/lety),
+ * takže se větví jen jednotné číslo. Čistá funkce.
+ */
+export function formatRelativeDays(iso: string, now: Date = new Date()): string {
+  const days = daysSince(iso, now);
+  if (days <= 0) return 'dnes';
+  if (days === 1) return 'včera';
+  if (days < 7) return `před ${days} dny`;
+  if (days < 28) {
+    const weeks = Math.round(days / 7);
+    return weeks === 1 ? 'před týdnem' : `před ${weeks} týdny`;
+  }
+  if (days < 365) {
+    const months = Math.round(days / 30);
+    return months === 1 ? 'před měsícem' : `před ${months} měsíci`;
+  }
+  const years = Math.round(days / 365);
+  return years === 1 ? 'před rokem' : `před ${years} lety`;
+}
