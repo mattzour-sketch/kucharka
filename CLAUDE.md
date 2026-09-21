@@ -17,6 +17,37 @@ Supabase (Postgres + Auth) · TanStack Query · React Router · vite-plugin-pwa 
 
 Změnu kteréhokoliv bodu nejdřív navrhni a zdůvodni, neprováděj ji sám.
 
+## Architektura
+
+Kód je ve třech vrstvách kvůli testovatelnosti — logika se dá ověřit bez prohlížeče:
+
+- **Čistá logika — `src/lib/`.** Výpočty bez Dexie i bez Reactu; sem patří testy a píší
+  se dřív než UI: `nutrition.ts` (úplnost, hodnoty na 100 g / porci, rekurze podreceptů
+  + detekce cyklů), `scale.ts`, `search.ts` (fulltext bez diakritiky + kmen skloňování),
+  `backup.ts` (serializace zálohy + `computeRestoreImpact`), `ingredientParse.ts`,
+  `date.ts`, `theme.ts`, `backupStatus.ts`.
+- **Data — Dexie/IndexedDB.** `src/db/index.ts` je schéma (verzované `stores()`, camelCase
+  zrcadlo SPEC 7.4). K datům se sahá přes „repo" moduly (`features/*/…Repo.ts`) a v
+  komponentách přes `useLiveQuery` — zápis se hned promítne. Klient dnes běží bez serveru;
+  SQL v `supabase/migrations/` i Supabase/TanStack Query ze stacku jsou zatím NEČINNÉ,
+  připravené na pozdější dolepení serveru.
+- **UI — `src/features/<oblast>/`** (recipes, foods, shopping, settings, backup, trash) nad
+  sdílenými prvky ve `src/components/ui/` (`Button` s uzavřenou sadou rolí, `cardClass`,
+  `ScreenHeader`, `FilterChip`, `Segmented`, `ConfirmDialog`, `cx`). Routing v `src/App.tsx`;
+  obrazovky se spodní lištou jsou pod `TabLayout`, ostatní jsou samostatné routy.
+
+Věci rozprostřené přes víc souborů, kde se snadno šlápne vedle:
+
+- **Tmavý režim** (`darkMode: 'class'`): inline skript v `index.html` + `lib/theme.ts` nastaví
+  třídu `dark` na `<html>` z localStorage synchronně PŘED Reactem (proti bliknutí). Barvy jsou
+  aditivní `dark:` varianty, ne CSS proměnné.
+- **Záloha je jediný most mezi zařízeními** — žádný server ani sync. JSON export/import
+  (`features/backup/`) je pojistka i přenos; obnova je merge (upsert podle id, nemaže).
+- **Výjimka z pravidla 6:** localStorage je JEN v `theme.ts` a `backupStatus.ts` (předvolby
+  zařízení, ne data aplikace). Nikam jinam.
+- **Dokumentace:** `docs/SPEC.md` (plná spec, fáze v sekci 9), `docs/specs/` + `docs/design/`
+  (spec a návrh po jednotlivých UC, např. `uc030-…`), `docs/specs/use-cases-navrhy.md` (backlog).
+
 ## Neporušitelná pravidla
 
 Tohle jsou invarianty, ne preference. Když si nejsi jistý, ptej se.
@@ -79,9 +110,16 @@ Tohle jsou invarianty, ne preference. Když si nejsi jistý, ptej se.
 ```
 npm run dev      # vývojový server
 npm run build    # produkční build
-npm run test     # Vitest
+npm run test     # Vitest (celá sada)
 npm run lint     # ESLint + tsc --noEmit
 ```
+
+Jeden soubor / filtr názvem: `npx vitest run src/lib/nutrition.test.ts`,
+`npx vitest run -t "úplnost"`. Watch režim: `npx vitest`.
+
+Testy běží v `environment: 'node'` a berou jen `src/**/*.test.ts` (ne `.tsx`) — testuje se
+čistá logika, ne komponenty. Projekt NEMÁ `@testing-library/react`; komponentu jde v nouzi
+ověřit přes `react-dom/server` (`renderToStaticMarkup`) v `.test.ts`.
 
 ## Postup práce
 
