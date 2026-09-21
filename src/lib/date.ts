@@ -29,7 +29,7 @@ export function formatCzechDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()} ${time}`;
+  return `${formatCzechDate(toLocalIsoDate(d))} ${time}`;
 }
 
 /** Práh, po kterém se záloha bere jako stará a jemně se připomene (UC030). */

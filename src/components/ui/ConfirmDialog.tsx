@@ -37,9 +37,12 @@ export default function ConfirmDialog({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  // onCancel drž v refu, ať efekt závisí jen na `open` (jinak by se fokus vracel při každém renderu).
+  // onCancel/busy drž v refu, ať efekt závisí jen na `open` (jinak by se fokus vracel při každém
+  // renderu) a keydown listener přitom viděl aktuální `busy`.
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +53,8 @@ export default function ConfirmDialog({
 
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onCancelRef.current();
+        // Během běžícího zápisu Esc neruší (stejně jako klik do pozadí).
+        if (!busyRef.current) onCancelRef.current();
         return;
       }
       // Tab drží fokus uvnitř dialogu (jednoduchý trap).

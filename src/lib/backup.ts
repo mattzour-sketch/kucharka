@@ -132,40 +132,6 @@ export function parseBackup(json: string): ParsedBackup {
 }
 
 /**
- * Shrnutí obsahu zálohy (počty + obálka). Čistá funkce nad výsledkem `parseBackup`.
- * `hasCookLogs`/`hasShoppingItems` = zda soubor tabulku vůbec obsahoval (v1 ji nemá) –
- * ať shrnutí umí napsat „neobsahuje" místo „0" (bod 14).
- */
-export interface BackupSummary {
-  recipes: number;
-  recipeItems: number;
-  foods: number;
-  photos: number;
-  cookLogs: number;
-  shoppingItems: number;
-  hasCookLogs: boolean;
-  hasShoppingItems: boolean;
-  exportedAt: string | null;
-  version: number;
-}
-
-export function summarizeBackup(parsed: ParsedBackup): BackupSummary {
-  const { data } = parsed;
-  return {
-    recipes: data.recipes.length,
-    recipeItems: data.recipeItems.length,
-    foods: data.foods.length,
-    photos: data.photos.length,
-    cookLogs: data.cookLogs.length,
-    shoppingItems: data.shoppingItems.length,
-    hasCookLogs: parsed.present.cookLogs,
-    hasShoppingItems: parsed.present.shoppingItems,
-    exportedAt: parsed.exportedAt,
-    version: parsed.version,
-  };
-}
-
-/**
  * Plný dopad obnovy (bod 10): porovná zálohu s aktuální DB podle `id`.
  * - recepty: kolik přibude nových, kolik přepíše existující a z toho kolik má
  *   uživatel novější než záloha (`updatedAt`).
@@ -181,8 +147,8 @@ export interface RestoreImpact {
 
 export interface RestoreCurrent {
   recipes: Pick<Recipe, 'id' | 'updatedAt'>[];
-  cookLogs: Pick<CookLog, 'id'>[];
-  shoppingItems: Pick<ShoppingItem, 'id'>[];
+  cookLogIds: string[];
+  shoppingItemIds: string[];
 }
 
 /** Kolik položek ze zálohy v DB (podle `id`) není → tolik se merge obnovou „vrátí". */
@@ -209,10 +175,12 @@ export function computeRestoreImpact(backup: BackupData, current: RestoreCurrent
   }
   return {
     recipes: { added, overwritten, newerInDb },
-    cookLogsRevived: countRevived(backup.cookLogs, new Set(current.cookLogs.map((log) => log.id))),
-    shoppingItemsRevived: countRevived(
-      backup.shoppingItems,
-      new Set(current.shoppingItems.map((item) => item.id)),
-    ),
+    cookLogsRevived: countRevived(backup.cookLogs, new Set(current.cookLogIds)),
+    shoppingItemsRevived: countRevived(backup.shoppingItems, new Set(current.shoppingItemIds)),
   };
+}
+
+/** Kolik položek vaření + nákupu obnova přidá (jsou v záloze, ale v DB nejsou). */
+export function restoreItemsAdded(impact: RestoreImpact): number {
+  return impact.cookLogsRevived + impact.shoppingItemsRevived;
 }

@@ -6,7 +6,6 @@ import {
   computeRestoreImpact,
   parseBackup,
   serializeBackup,
-  summarizeBackup,
   type BackupData,
 } from './backup';
 
@@ -113,21 +112,6 @@ describe('backup – kompatibilita v1 → v2', () => {
   });
 });
 
-describe('summarizeBackup', () => {
-  it('spočítá počty a odliší „neobsahuje" od nuly', () => {
-    const data = emptyData();
-    data.recipes.push(makeRecipe('r1', '2026-08-02T18:00:00.000Z'));
-    const summary = summarizeBackup(parseBackup(serializeBackup(data)));
-    expect(summary.recipes).toBe(1);
-    expect(summary.cookLogs).toBe(0);
-    expect(summary.hasCookLogs).toBe(true); // v2 tabulku obsahuje (byť prázdnou)
-
-    const v1 = JSON.stringify({ format: BACKUP_FORMAT, version: 1, data: { recipes: [] } });
-    const v1Summary = summarizeBackup(parseBackup(v1));
-    expect(v1Summary.hasCookLogs).toBe(false); // v1 tabulku vůbec nemá → „neobsahuje"
-  });
-});
-
 describe('computeRestoreImpact', () => {
   it('rozliší nové, přepsané a novější-v-DB recepty', () => {
     const backup = emptyData();
@@ -136,8 +120,8 @@ describe('computeRestoreImpact', () => {
 
     const impact = computeRestoreImpact(backup, {
       recipes: [{ id: 'r1', updatedAt: '2026-08-10T00:00:00.000Z' }], // r1 mám novější
-      cookLogs: [],
-      shoppingItems: [],
+      cookLogIds: [],
+      shoppingItemIds: [],
     });
 
     expect(impact.recipes).toEqual({ added: 1, overwritten: 1, newerInDb: 1 });
@@ -150,8 +134,8 @@ describe('computeRestoreImpact', () => {
 
     const impact = computeRestoreImpact(backup, {
       recipes: [],
-      cookLogs: [{ id: 'c1' }], // c2 v DB není → vrátí se
-      shoppingItems: [], // s1 v DB není → vrátí se
+      cookLogIds: ['c1'], // c2 v DB není → přibude
+      shoppingItemIds: [], // s1 v DB není → přibude
     });
 
     expect(impact.cookLogsRevived).toBe(1);

@@ -3,9 +3,7 @@ import {
   computeRestoreImpact,
   parseBackup,
   serializeBackup,
-  summarizeBackup,
   type BackupData,
-  type BackupSummary,
   type ParsedBackup,
   type PhotoBackup,
   type RestoreImpact,
@@ -75,18 +73,19 @@ async function collectBackupData(): Promise<BackupData> {
   };
 }
 
-/** Vyexportuje zálohu do JSON a zapíše „naposledy zálohováno" = teď. */
-export async function exportBackupJson(): Promise<string> {
+/**
+ * Vyexportuje zálohu do JSON. „Naposledy zálohováno" NEzapisuje – to udělá volající
+ * až po úspěšném stažení souboru (jinak by status tvrdil zálohu, kterou uživatel nedostal).
+ */
+export async function exportBackupJson(): Promise<{ json: string; exportedAt: string }> {
   const now = new Date();
   const json = serializeBackup(await collectBackupData(), now);
-  writeLastBackupAt(now.toISOString());
-  return json;
+  return { json, exportedAt: now.toISOString() };
 }
 
 /** Náhled obnovy: obsah zálohy + dopad na aktuální data. Žádný zápis. */
 export interface RestorePreview {
   parsed: ParsedBackup;
-  summary: BackupSummary;
   impact: RestoreImpact;
   fileSize: number;
 }
@@ -98,17 +97,15 @@ export interface RestorePreview {
  */
 export async function prepareRestore(json: string, fileSize: number): Promise<RestorePreview> {
   const parsed = parseBackup(json);
-  const [recipes, cookLogs, shoppingItems] = await Promise.all([
+  // U vaření/nákupu potřebujeme jen id → primaryKeys() je vezmou z indexu bez načtení
+  // celých (tučných) řádků. U receptů toArray() musí být (potřebujeme updatedAt).
+  const [recipes, cookLogIds, shoppingItemIds] = await Promise.all([
     db.recipes.toArray(),
-    db.cookLogs.toArray(),
-    db.shoppingItems.toArray(),
+    db.cookLogs.toCollection().primaryKeys(),
+    db.shoppingItems.toCollection().primaryKeys(),
   ]);
-  const impact = computeRestoreImpact(parsed.data, {
-    recipes: recipes.map((recipe) => ({ id: recipe.id, updatedAt: recipe.updatedAt })),
-    cookLogs: cookLogs.map((log) => ({ id: log.id })),
-    shoppingItems: shoppingItems.map((item) => ({ id: item.id })),
-  });
-  return { parsed, summary: summarizeBackup(parsed), impact, fileSize };
+  const impact = computeRestoreImpact(parsed.data, { recipes, cookLogIds, shoppingItemIds });
+  return { parsed, impact, fileSize };
 }
 
 /**
@@ -127,20 +124,9 @@ export async function applyRestore(preview: RestorePreview): Promise<{ recipes: 
     })),
   );
 
-  const tables = [
-    db.foods,
-    db.foodPortions,
-    db.recipes,
-    db.recipeItems,
-    db.recipeNotes,
-    db.logEntries,
-    db.goals,
-    db.weightEntries,
-    db.cookLogs,
-    db.shoppingItems,
-    db.recipePhotos,
-  ];
-  await db.transaction('rw', tables, async () => {
+  // Rozsah transakce = všechny tabulky (jeden zdroj místo ručního seznamu, který by se
+  // mohl rozejít s bulkPut níž). Širší zámek u jednorázové obnovy nevadí.
+  await db.transaction('rw', db.tables, async () => {
     await Promise.all([
       db.foods.bulkPut(data.foods),
       db.foodPortions.bulkPut(data.foodPortions),

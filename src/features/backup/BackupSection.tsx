@@ -10,22 +10,13 @@ import {
   formatRelativeDays,
   todayIso,
 } from '../../lib/date';
-import { readLastBackupAt } from '../../lib/backupStatus';
+import { restoreItemsAdded } from '../../lib/backup';
+import { readLastBackupAt, writeLastBackupAt } from '../../lib/backupStatus';
+import { czechPlural } from '../../lib/plural';
 import { applyRestore, exportBackupJson, prepareRestore, type RestorePreview } from './dbBackup';
 
-/** Český plurál pro počet receptů: 1 recept / 2–4 recepty / 5+ receptů. */
-function pluralRecipes(n: number): string {
-  if (n === 1) return `${n} recept`;
-  if (n >= 2 && n <= 4) return `${n} recepty`;
-  return `${n} receptů`;
-}
-
-/** Český plurál pro „dřív smazané položky". */
-function pluralRevived(n: number): string {
-  if (n === 1) return `${n} dřív smazanou položku`;
-  if (n >= 2 && n <= 4) return `${n} dřív smazané položky`;
-  return `${n} dřív smazaných položek`;
-}
+const pluralRecipes = (n: number) => `${n} ${czechPlural(n, ['recept', 'recepty', 'receptů'])}`;
+const pluralItems = (n: number) => `${n} ${czechPlural(n, ['položku', 'položky', 'položek'])}`;
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -44,8 +35,10 @@ export default function BackupSection() {
 
   async function handleExport() {
     try {
-      const json = await exportBackupJson();
+      const { json, exportedAt } = await exportBackupJson();
       downloadTextFile(`kucharka-${todayIso()}.json`, json);
+      // „Naposledy zálohováno" až TEĎ, po úspěšném stažení (ne uvnitř exportu).
+      writeLastBackupAt(exportedAt);
       setLastBackupAt(readLastBackupAt());
       setNotice({
         tone: 'info',
@@ -71,14 +64,14 @@ export default function BackupSection() {
     setBusy(true);
     try {
       const { added, overwritten } = preview.impact.recipes;
-      const revived = preview.impact.cookLogsRevived + preview.impact.shoppingItemsRevived;
+      const itemsAdded = restoreItemsAdded(preview.impact);
       await applyRestore(preview);
       setLastBackupAt(readLastBackupAt());
       // Shrnutí toho, co obnova reálně udělala (spočítané proti DB, ne holý počet ze zálohy).
       const changes: string[] = [];
       if (added > 0) changes.push(`přidala ${pluralRecipes(added)}`);
       if (overwritten > 0) changes.push(`přepsala ${pluralRecipes(overwritten)}`);
-      if (revived > 0) changes.push(`vrátila ${pluralRevived(revived)}`);
+      if (itemsAdded > 0) changes.push(`přidala ${pluralItems(itemsAdded)} vaření a nákupu`);
       setNotice({
         tone: 'info',
         text: changes.length > 0 ? `Obnova ${changes.join(', ')}.` : 'Obnoveno — v datech se nic nezměnilo.',
@@ -161,14 +154,17 @@ export default function BackupSection() {
 
 /** Náhled dopadu obnovy: co udělá s mými daty (hrdina dialogu) + co záloha obsahuje. */
 function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
-  const { summary, impact } = preview;
+  const { parsed, impact } = preview;
   const { added, overwritten, newerInDb } = impact.recipes;
-  const revived = impact.cookLogsRevived + impact.shoppingItemsRevived;
+  const itemsAdded = restoreItemsAdded(impact);
 
   const effects: string[] = [];
   if (added > 0) effects.push(`Přidá ${pluralRecipes(added)}.`);
   if (overwritten > 0) {
     effects.push(`Přepíše ${pluralRecipes(overwritten)}, ${overwritten === 1 ? 'který' : 'které'} už máš.`);
+  }
+  if (itemsAdded > 0) {
+    effects.push(`Přidá ${pluralItems(itemsAdded)} do historie vaření a nákupu.`);
   }
 
   const cautions: string[] = [];
@@ -177,14 +173,11 @@ function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
       `${pluralRecipes(newerInDb)} máš novější než záloha — obnova ${newerInDb === 1 ? 'ho' : 'je'} přepíše.`,
     );
   }
-  if (revived > 0) {
-    cautions.push(`Vrátí ${pluralRevived(revived)} (historie vaření a nákup).`);
-  }
 
   return (
     <div className="space-y-3">
       <p className="text-stone-500">
-        {summary.exportedAt ? `Záloha z ${formatCzechDateTime(summary.exportedAt)}` : 'Záloha (datum neznámé)'} ·{' '}
+        {parsed.exportedAt ? `Záloha z ${formatCzechDateTime(parsed.exportedAt)}` : 'Záloha (datum neznámé)'} ·{' '}
         {formatFileSize(preview.fileSize)}
       </p>
 
@@ -213,11 +206,14 @@ function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
       ) : null}
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-stone-200 pt-3 text-stone-500 dark:border-stone-700">
-        <Row label="Recepty" value={summary.recipes} />
-        <Row label="Suroviny" value={summary.recipeItems} />
-        <Row label="Fotky" value={summary.photos} />
-        <Row label="Historie vaření" value={summary.hasCookLogs ? summary.cookLogs : 'neobsahuje'} />
-        <Row label="Nákup" value={summary.hasShoppingItems ? summary.shoppingItems : 'neobsahuje'} />
+        <Row label="Recepty" value={parsed.data.recipes.length} />
+        <Row label="Suroviny" value={parsed.data.recipeItems.length} />
+        <Row label="Fotky" value={parsed.data.photos.length} />
+        <Row
+          label="Historie vaření"
+          value={parsed.present.cookLogs ? parsed.data.cookLogs.length : 'neobsahuje'}
+        />
+        <Row label="Nákup" value={parsed.present.shoppingItems ? parsed.data.shoppingItems.length : 'neobsahuje'} />
       </dl>
     </div>
   );

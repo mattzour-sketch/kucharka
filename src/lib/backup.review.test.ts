@@ -5,7 +5,6 @@ import {
   BACKUP_VERSION,
   computeRestoreImpact,
   parseBackup,
-  summarizeBackup,
   type BackupData,
 } from './backup';
 
@@ -69,8 +68,8 @@ describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
 
     const impact = computeRestoreImpact(backup, {
       recipes: [{ id: 'r1', updatedAt: '2026-08-05T00:00:00.000Z' }],
-      cookLogs: [],
-      shoppingItems: [],
+      cookLogIds: [],
+      shoppingItemIds: [],
     });
 
     expect(impact.recipes).toEqual({ added: 0, overwritten: 1, newerInDb: 0 });
@@ -82,15 +81,15 @@ describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
 
     const impact = computeRestoreImpact(backup, {
       recipes: [{ id: 'r1', updatedAt: '2026-08-01T00:00:00.000Z' }],
-      cookLogs: [],
-      shoppingItems: [],
+      cookLogIds: [],
+      shoppingItemIds: [],
     });
 
     expect(impact.recipes).toEqual({ added: 0, overwritten: 1, newerInDb: 0 });
   });
 
   it('prázdná záloha i prázdná DB → samé nuly', () => {
-    const impact = computeRestoreImpact(emptyData(), { recipes: [], cookLogs: [], shoppingItems: [] });
+    const impact = computeRestoreImpact(emptyData(), { recipes: [], cookLogIds: [], shoppingItemIds: [] });
     expect(impact).toEqual({
       recipes: { added: 0, overwritten: 0, newerInDb: 0 },
       cookLogsRevived: 0,
@@ -105,8 +104,8 @@ describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
 
     const impact = computeRestoreImpact(backup, {
       recipes: [],
-      cookLogs: [{ id: 'c1' }],
-      shoppingItems: [{ id: 's1' }],
+      cookLogIds: ['c1'],
+      shoppingItemIds: ['s1'],
     });
 
     expect(impact.cookLogsRevived).toBe(0);
@@ -145,18 +144,18 @@ describe('parseBackup – present flagy jsou nezávislé', () => {
     expect(parsed.data.shoppingItems).toHaveLength(1);
   });
 
-  it('summarizeBackup u smíšených flagů rozliší „neobsahuje" jen u chybějící tabulky', () => {
+  it('present + délky rozliší „neobsahuje" od nuly (UI čte přímo z parsed)', () => {
     const json = JSON.stringify({
       format: BACKUP_FORMAT,
       version: BACKUP_VERSION,
       data: { cookLogs: [makeCookLog('c1')] }, // shoppingItems chybí
     });
 
-    const summary = summarizeBackup(parseBackup(json));
+    const parsed = parseBackup(json);
 
-    expect(summary.cookLogs).toBe(1);
-    expect(summary.hasCookLogs).toBe(true);
-    expect(summary.shoppingItems).toBe(0);
-    expect(summary.hasShoppingItems).toBe(false);
+    expect(parsed.present.cookLogs).toBe(true);
+    expect(parsed.data.cookLogs).toHaveLength(1);
+    expect(parsed.present.shoppingItems).toBe(false); // → UI ukáže „neobsahuje", ne 0
+    expect(parsed.data.shoppingItems).toEqual([]);
   });
 });
