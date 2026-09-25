@@ -15,3 +15,17 @@ export function addTag(tags: string[], raw: string): string[] {
 export function removeTag(tags: string[], tag: string): string[] {
   return tags.filter((existing) => existing !== tag);
 }
+
+/**
+ * Pořadí štítků ve filtru seznamu (UC029, Rozhodnutí 2026-09-12 bod 4): aktivní štítek první
+ * (vždy vidět), zbytek podle počtu receptů sestupně, při shodě abecedně (cs).
+ */
+export function orderFilterTags(tags: string[], activeTag: string | null, counts: Record<string, number>): string[] {
+  const rest = tags
+    .filter((tag) => tag !== activeTag)
+    .sort((a, b) => {
+      const byCount = (counts[b] ?? 0) - (counts[a] ?? 0);
+      return byCount !== 0 ? byCount : a.localeCompare(b, 'cs');
+    });
+  return activeTag && tags.includes(activeTag) ? [activeTag, ...rest] : rest;
+}

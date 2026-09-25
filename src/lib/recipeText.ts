@@ -1,3 +1,5 @@
+import { isIngredientHeading } from './ingredientSection';
+
 /**
  * Práce s textem receptu při rozdělení na suroviny a postup (R-11).
  * Čistá logika, testovatelná bez UI i DB.
@@ -17,4 +19,19 @@ export function splitIngredientLines(text: string): string[] {
  */
 export function combineRawCapture(ingredients: string, instructions: string): string | null {
   return [ingredients.trim(), instructions.trim()].filter(Boolean).join('\n\n') || null;
+}
+
+/**
+ * Úryvek receptu pro kartu v seznamu: bez nadpisů sekcí surovin („# Sauce", UC023),
+ * řádky spojené mezerou, zkrácený na `max` znaků.
+ */
+export function recipeSnippet(rawCapture: string | null | undefined, max = 120): string {
+  if (!rawCapture) return '';
+  const flat = rawCapture
+    .split('\n')
+    .filter((line) => !isIngredientHeading(line))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat;
 }

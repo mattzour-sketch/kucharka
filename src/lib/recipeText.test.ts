@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { combineRawCapture, splitIngredientLines } from './recipeText';
+import { combineRawCapture, recipeSnippet, splitIngredientLines } from './recipeText';
 
 describe('recipeText', () => {
   it('splitIngredientLines vyhodí prázdné řádky a ořeže mezery', () => {
@@ -21,5 +21,23 @@ describe('recipeText', () => {
 
   it('combineRawCapture vrátí null, když není nic', () => {
     expect(combineRawCapture('  ', '')).toBeNull();
+  });
+});
+
+describe('recipeSnippet', () => {
+  it('vynechá nadpisy sekcí a spojí řádky mezerou', () => {
+    expect(recipeSnippet('Rice: 2 bowls\n# Sauce\nGinger: 1 knob\n\n1. Slice the beef.')).toBe(
+      'Rice: 2 bowls Ginger: 1 knob 1. Slice the beef.',
+    );
+  });
+
+  it('„#" uvnitř textu a hashtag bez mezery nejsou nadpis', () => {
+    expect(recipeSnippet('200 g mouky #bezlepku\n#tip')).toBe('200 g mouky #bezlepku #tip');
+  });
+
+  it('zkrátí na max znaků s trojtečkou, prázdný vstup → ""', () => {
+    expect(recipeSnippet('a'.repeat(130))).toBe(`${'a'.repeat(120)}…`);
+    expect(recipeSnippet(null)).toBe('');
+    expect(recipeSnippet('# Jen nadpis')).toBe('');
   });
 });
