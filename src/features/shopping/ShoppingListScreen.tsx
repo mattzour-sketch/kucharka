@@ -11,13 +11,17 @@ import {
   setShoppingChecked,
 } from './shoppingRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
+import { czechPlural } from '../../lib/plural';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import EmptyState from '../../components/ui/EmptyState';
 import { RowsSkeleton } from '../../components/ui/Loading';
 import { cardClass } from '../../components/ui/cardClass';
 
-/** Nákupní seznam (lokální, odškrtávací). Suroviny sem chodí z receptů. */
+/**
+ * Nákupní seznam (lokální, odškrtávací). Suroviny sem chodí z receptů. Otevírá se z „Víc“
+ * (není ve spodní liště – uživatel ho zatím nepoužívá, rozhodnutí 2026-09-25).
+ */
 export default function ShoppingListScreen() {
   const items = useLiveQuery(() => db.shoppingItems.orderBy('sortOrder').toArray(), []);
   const [draft, setDraft] = useState('');
@@ -54,12 +58,15 @@ export default function ShoppingListScreen() {
   return (
     <div>
       <ScreenHeader
+        variant="stack"
         width="narrow"
+        backTo="/vic"
         title="Nákup"
         actions={
           !loading && list.length > 0 ? (
             <span className="text-sm text-stone-400">
-              {list.length} položek{checkedCount > 0 ? ` · ${checkedCount} nakoupeno` : ''}
+              {list.length} {czechPlural(list.length, ['položka', 'položky', 'položek'])}
+              {checkedCount > 0 ? ` · ${checkedCount} nakoupeno` : ''}
             </span>
           ) : undefined
         }

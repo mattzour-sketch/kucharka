@@ -32,7 +32,6 @@ export default function App() {
         {/* Obrazovky se spodní lištou. */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<RecipeListScreen />} />
-          <Route path="/nakup" element={<ShoppingListScreen />} />
           <Route path="/potraviny" element={<FoodsScreen />} />
           <Route path="/vic" element={<SettingsScreen />} />
         </Route>
@@ -43,6 +42,7 @@ export default function App() {
         <Route path="/recept/:id/upravit" element={<RecipeEditScreen />} />
         <Route path="/recept/:id/varit" element={<CookingModeScreen />} />
         <Route path="/recept/:id/kalorie" element={<RecipeNutritionScreen />} />
+        <Route path="/nakup" element={<ShoppingListScreen />} />
         <Route path="/statistiky" element={<StatisticsScreen />} />
         <Route path="/potraviny/nova" element={<FoodEditScreen />} />
         <Route path="/potraviny/:id/upravit" element={<FoodEditScreen />} />

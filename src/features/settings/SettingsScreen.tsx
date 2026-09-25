@@ -15,6 +15,7 @@ function formatMB(bytes: number): string {
 
 export default function SettingsScreen() {
   const recipeCount = useLiveQuery(() => db.recipes.filter((recipe) => !recipe.deletedAt).count(), []);
+  const shoppingLeft = useLiveQuery(() => db.shoppingItems.filter((item) => !item.checked).count(), []);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
   const [theme, setTheme] = useState<ThemePref>(() => readThemePref());
@@ -52,6 +53,20 @@ export default function SettingsScreen() {
         </section>
 
         <BackupSection />
+
+        <Link
+          to="/nakup"
+          className={cardClass({
+            padding: 'panel',
+            interactive: true,
+            className: 'mt-3 flex items-center justify-between',
+          })}
+        >
+          <span className="font-medium">🛒 Nákupní seznam</span>
+          <span className="text-stone-400">
+            {shoppingLeft ? `${shoppingLeft} ›` : '›'}
+          </span>
+        </Link>
 
         <Link
           to="/statistiky"

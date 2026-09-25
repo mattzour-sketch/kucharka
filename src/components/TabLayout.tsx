@@ -2,7 +2,6 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Recepty', icon: '🍲' },
-  { to: '/nakup', label: 'Nákup', icon: '🛒' },
   { to: '/potraviny', label: 'Potraviny', icon: '🥕' },
   { to: '/vic', label: 'Víc', icon: '☰' },
 ];
