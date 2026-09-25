@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Meal } from '../lib/nutrition';
+import type { ImportPreview } from '../lib/importPreview';
 
 /**
  * Lokální databáze (Dexie/IndexedDB) – zdroj pravdy pro UI (SPEC 7.3).
@@ -241,6 +242,22 @@ export interface ShoppingItem {
   sortOrder: number;
 }
 
+/**
+ * Rozdělaný náhled na obrazovce „Vložit recept" (UC031). Stav zařízení jako
+ * `cookSessions`/`timers`: jeden řádek, bez SQL protějšku, mimo zálohu. Po uložení
+ * receptu nebo „Zahodit" se maže (lokální stav, pravidlo 7 se ho netýká).
+ */
+export interface ImportDraft {
+  id: 'current';
+  pasteText: string;
+  /** Text, ze kterého vznikl náhled; při uložení jde do poznámky „Originál". null = nerozebráno. */
+  parsedText: string | null;
+  preview: ImportPreview | null;
+  /** Náhled hned po „Rozebrat" – k detekci ručních úprav. */
+  parsedPreview: ImportPreview | null;
+  updatedAt: IsoTimestamp;
+}
+
 export class KucharkaDB extends Dexie {
   foods!: Table<Food, string>;
   foodPortions!: Table<FoodPortion, string>;
@@ -255,6 +272,7 @@ export class KucharkaDB extends Dexie {
   timers!: Table<Timer, string>;
   cookLogs!: Table<CookLog, string>;
   shoppingItems!: Table<ShoppingItem, string>;
+  importDrafts!: Table<ImportDraft, string>;
 
   constructor() {
     super('kucharka');
@@ -289,6 +307,10 @@ export class KucharkaDB extends Dexie {
     // v6: nákupní seznam (lokální, odškrtávací).
     this.version(6).stores({
       shoppingItems: 'id, checked, sortOrder, createdAt',
+    });
+    // v7: rozdělaný náhled vložení receptu (UC031). Aditivní, bez migrace dat.
+    this.version(7).stores({
+      importDrafts: 'id',
     });
   }
 }

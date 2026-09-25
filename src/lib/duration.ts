@@ -11,15 +11,16 @@ export interface DurationSegment {
 
 function unitToSeconds(unit: string): number {
   const u = unit.toLowerCase();
-  if (u.startsWith('h')) return 3600; // h, hod, hodina/y
-  if (u.startsWith('min') || u === 'm') return 60; // min, minut(a/y), m
-  if (u.startsWith('s')) return 1; // s, sek, sekund(a/y)
+  if (u.startsWith('h')) return 3600; // h, hod, hodina/y, hour(s), hr(s)
+  if (u.startsWith('min') || u === 'm') return 60; // min, minut(a/y), minutes, mins, m
+  if (u.startsWith('s')) return 1; // s, sek, sekund(a/y), seconds, sec(s)
   return 0;
 }
 
-// pořadí v alternaci: delší tvary dřív (minut před min, hodin před h)
+// pořadí v alternaci: delší tvary dřív (minut před min, hodin před h);
+// UC031: i anglické tvary (hours/hrs, mins, seconds/secs).
 const DURATION_RE =
-  /(\d+(?:[.,]\d+)?)\s*(hodin[a-z]*|hod|h|minut[a-z]*|min|m|sekund[a-z]*|sek|s)\b/gi;
+  /(\d+(?:[.,]\d+)?)\s*(hodin[a-z]*|hod|hours?|hrs?|h|minut[a-z]*|mins?|m|sekund[a-z]*|sek|seconds?|secs?|s)\b/gi;
 
 export function splitStepByDurations(step: string): DurationSegment[] {
   const segments: DurationSegment[] = [];

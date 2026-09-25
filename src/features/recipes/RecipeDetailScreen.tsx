@@ -7,6 +7,7 @@ import { formatNumber } from '../../lib/num';
 import { scaleQuantityText } from '../../lib/scale';
 import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { formatPrepTime } from '../../lib/prepTime';
+import { originalNoteText, partitionNotes } from '../../lib/originalNote';
 import { buildRecipeText } from '../../lib/shareText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
@@ -139,11 +140,14 @@ export default function RecipeDetailScreen() {
     setNoteDraft('');
   }
 
-  async function handleDeleteNote(noteId: string) {
+  async function handleDeleteNote(noteId: string, message = 'Poznámka smazána') {
     const note = notes.find((item) => item.id === noteId);
     await deleteRecipeNote(noteId);
-    if (note) showUndo({ message: 'Poznámka smazána', undo: () => restoreRecipeNote(note) });
+    if (note) showUndo({ message, undo: () => restoreRecipeNote(note) });
   }
+
+  // Originál vloženého textu (UC031) se ukazuje zvlášť a sbalený, ne mezi vlastními poznámkami.
+  const { own: ownNotes, originals: originalNotes } = partitionNotes(notes);
 
   const nutrition = nutritionFromData(id, {
     foods: data.foods,
@@ -217,8 +221,7 @@ export default function RecipeDetailScreen() {
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">
           {formatCzechDate(recipe.capturedOn)}
-          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}
-        </p>
+          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}        </p>
 
         {recipe.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -350,9 +353,9 @@ export default function RecipeDetailScreen() {
               Přidat
             </Button>
           </div>
-          {notes.length > 0 ? (
+          {ownNotes.length > 0 ? (
             <ul className="mt-2 flex flex-col gap-2">
-              {[...notes].reverse().map((note) => (
+              {[...ownNotes].reverse().map((note) => (
                 <li key={note.id} className={cardClass({ padding: 'panel' })}>
                   <div className="flex items-start justify-between gap-3">
                     <p className="min-w-0 whitespace-pre-wrap text-sm">{note.body}</p>
@@ -369,6 +372,28 @@ export default function RecipeDetailScreen() {
               ))}
             </ul>
           ) : null}
+          {originalNotes.map((note) => (
+            <details
+              key={note.id}
+              className="mt-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-3 py-2"
+            >
+              <summary className="cursor-pointer text-sm text-stone-500">
+                Originál · {formatCzechDate(note.notedOn)}
+              </summary>
+              <div className="mt-2 flex items-start justify-between gap-3">
+                <p className="min-w-0 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-300">
+                  {originalNoteText(note.body)}
+                </p>
+                <IconButton
+                  size="sm"
+                  onClick={() => void handleDeleteNote(note.id, 'Originál smazán')}
+                  aria-label="Smazat originál"
+                >
+                  ×
+                </IconButton>
+              </div>
+            </details>
+          ))}
         </section>
 
         {cookLogs.length > 0 ? (

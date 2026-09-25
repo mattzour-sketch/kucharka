@@ -22,6 +22,11 @@ export interface RecipeContent {
   tags: string[];
   /** Doba přípravy v minutách (nepovinné). */
   prepMinutes: number | null;
+  /**
+   * Od koho recept je („@autor", UC031). Zapisuje se jen při založení; `updateRecipeContent`
+   * ho nepřepisuje, takže editace (která pole nemá) zdroj nesmaže.
+   */
+  source?: string | null;
 }
 
 function buildItems(recipeId: string, lines: string[]): RecipeItem[] {
@@ -45,7 +50,7 @@ export async function createRecipeWithContent(content: RecipeContent): Promise<s
     const recipe: Recipe = {
       id,
       name: content.name,
-      source: null,
+      source: content.source?.trim() || null,
       capturedOn: content.capturedOn || todayIso(),
       rawCapture: content.rawCapture,
       instructions: content.instructions,
