@@ -1,7 +1,6 @@
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
-import { combineRawCapture } from '../../lib/recipeText';
 
 /**
  * Zápisy do receptů. Recept má dvě části: suroviny (řádky → `recipe_items`,
@@ -27,6 +26,8 @@ export interface RecipeContent {
    * ho nepřepisuje, takže editace (která pole nemá) zdroj nesmaže.
    */
   source?: string | null;
+  /** Počet porcí (nepovinné). Chybí = při úpravě se stávající hodnota nemění. */
+  servings?: number | null;
 }
 
 function buildItems(recipeId: string, lines: string[]): RecipeItem[] {
@@ -55,6 +56,7 @@ export async function createRecipeWithContent(content: RecipeContent): Promise<s
       rawCapture: content.rawCapture,
       instructions: content.instructions,
       prepMinutes: content.prepMinutes,
+      servings: content.servings ?? null,
       tags: content.tags,
       isFavorite: false,
       createdAt: now,
@@ -120,6 +122,7 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
       rawCapture: content.rawCapture,
       instructions: content.instructions,
       prepMinutes: content.prepMinutes,
+      ...(content.servings !== undefined ? { servings: content.servings } : {}),
       tags: content.tags,
       updatedAt: now,
     });
@@ -191,65 +194,6 @@ export async function updateRecipeMeta(
 
 export function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
   return db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
-}
-
-/** Po změně jednotlivých položek srovná plnotextové zrcadlo `raw_capture`. */
-async function syncRawCapture(recipeId: string): Promise<void> {
-  const items = await db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
-  const recipe = await db.recipes.get(recipeId);
-  const ingredients = items.map((item) => item.rawText).join('\n');
-  await db.recipes.update(recipeId, {
-    rawCapture: combineRawCapture(ingredients, recipe?.instructions ?? ''),
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Přidá surovinu do receptu natrvalo (úprava z režimu vaření). `raw_text` je i nadále
- * jediné povinné pole (pravidlo 1, 3); `link` je volitelné napojení na potravinu a gramáž.
- */
-export async function addRecipeItem(
-  recipeId: string,
-  rawText: string,
-  link?: { foodId?: string | null; amountG?: number | null; amountKs?: number | null },
-): Promise<void> {
-  const text = rawText.trim();
-  if (!text) return;
-  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
-    const items = await db.recipeItems.where('recipeId').equals(recipeId).toArray();
-    const nextOrder = items.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1;
-    await db.recipeItems.add({
-      id: newId(),
-      recipeId,
-      rawText: text,
-      foodId: link?.foodId ?? null,
-      subRecipeId: null,
-      amountG: link?.amountG ?? null,
-      amountKs: link?.amountKs ?? null,
-      isSkipped: false,
-      note: null,
-      sortOrder: nextOrder,
-    });
-    await syncRawCapture(recipeId);
-  });
-}
-
-export async function updateRecipeItemText(itemId: string, rawText: string): Promise<void> {
-  const item = await db.recipeItems.get(itemId);
-  if (!item) return;
-  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
-    await db.recipeItems.update(itemId, { rawText: rawText.trim() });
-    await syncRawCapture(item.recipeId);
-  });
-}
-
-export async function deleteRecipeItem(itemId: string): Promise<void> {
-  const item = await db.recipeItems.get(itemId);
-  if (!item) return;
-  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
-    await db.recipeItems.delete(itemId);
-    await syncRawCapture(item.recipeId);
-  });
 }
 
 /** Přepne oblíbenost receptu. Záměrně nemění `updatedAt`, ať se recept

@@ -309,7 +309,7 @@ export default function RecipeDetailScreen() {
             </ul>
             {!recipe.servings ? (
               <p className="mt-1.5 text-xs text-stone-400">
-                Recept nemá počet porcí – počítám od 1. Nastavíš ho ve „Spočítat kalorie".
+                Recept nemá počet porcí – počítám od 1. Nastavíš ho v Upravit.
               </p>
             ) : null}
             <div className="mt-3">

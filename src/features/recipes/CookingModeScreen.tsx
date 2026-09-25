@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookReplacement, type FoodPortion } from '../../db';
 import { formatCzechDate } from '../../lib/date';
-import { formatNumber } from '../../lib/num';
-import { matchesQuery } from '../../lib/search';
-import { parseLeadingQuantity, scaleQuantityText } from '../../lib/scale';
+import { scaleQuantityText } from '../../lib/scale';
 import {
   deriveInitialAmountValue,
   resolveAmount,
@@ -19,12 +17,7 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import {
-  addRecipeItem,
-  deleteRecipeItem,
-  getRecipeItems,
-  updateRecipeItemText,
-} from './recipesRepo';
+import { getRecipeItems } from './recipesRepo';
 import {
   clearCookSession,
   getCookSession,
@@ -35,17 +28,16 @@ import { addTimer } from './timerRepo';
 import { addCookLog, getCookLogs } from './cookLogRepo';
 import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import FoodPicker from '../foods/FoodPicker';
-import CookingTimers from './CookingTimers';
+import CookingTimers, { AdhocTimerForm } from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import AmountPicker from '../../components/ui/AmountPicker';
 import AddPortionInline from '../../components/ui/AddPortionInline';
-import Tag from '../../components/ui/Tag';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
-import { cardClass } from '../../components/ui/cardClass';
+import { cx } from '../../components/ui/cx';
 import { Skeleton, ReadingSkeleton } from '../../components/ui/Loading';
 
 // Do téhle doby se sezení obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
@@ -62,29 +54,14 @@ function buzz(): void {
   }
 }
 
-// Běžné kuchyňské jednotky, které za vedoucím číslem nepatří do názvu (kvůli našeptávači).
-const LEADING_UNIT =
-  /^(kg|dkg|dag|g|mg|ml|dl|cl|l|ks|lžíce|lžíc[ei]|lžička|lžičk[uy]|hrst|hrsti|špetka|špetk[uy]|plátek|plátky|stroužek|stroužky|hrnek|hrnku|šálek|balení|konzerva|konzervy|plechovka|sáček)$/i;
-
-/**
- * Název suroviny pro našeptávač: odřízne vedoucí množství („2", „200 g") a
- * jednotku, ať „2 vejce" najde „Vejce" a „200 g mouky" najde „Mouka".
- */
-function searchTermFromText(text: string): string {
-  const parsed = parseLeadingQuantity(text.trim());
-  let rest = (parsed ? parsed.rest : text).trim();
-  if (parsed && rest) {
-    const space = rest.indexOf(' ');
-    const firstWord = space === -1 ? rest : rest.slice(0, space);
-    if (LEADING_UNIT.test(firstWord)) rest = space === -1 ? '' : rest.slice(space + 1).trim();
-  }
-  return rest;
-}
+type CookTab = 'ingredients' | 'steps';
 
 /**
  * Režim vaření (R-22, §6, §7, §8): velké písmo, displej nezhasíná (wake lock),
- * odškrtávání surovin, časovače, a odchylky (vypnout / změnit množství pro dnešek
- * bez sáhnutí do receptu). Stav sezení přežije odchod z appky.
+ * odškrtávání surovin, časovače, a odchylky (vypnout / změnit množství / nahradit
+ * pro dnešek). Recept se tu NIKDY nemění – trvalé úpravy jsou jen v Upravit
+ * (rozhodnutí uživatele 2026-09-25). Suroviny a postup jsou na dvou záložkách,
+ * ať se k postupu nescrolluje přes všechny suroviny. Stav sezení přežije odchod z appky.
  */
 export default function CookingModeScreen() {
   const { id } = useParams();
@@ -117,13 +94,7 @@ export default function CookingModeScreen() {
   const [overrideDraft, setOverrideDraft] = useState('');
   const [showFinish, setShowFinish] = useState(false);
   const [finishNote, setFinishNote] = useState('');
-  const [editMode, setEditMode] = useState(false);
-  const [newItemText, setNewItemText] = useState('');
-  // Nepovinné napojení nové suroviny na potravinu (kvůli kaloriím). Vlastní picker,
-  // ať se neplete s náhradou. Text je zdroj pravdy, napojení je štítek vedle.
-  const [newItemFoodId, setNewItemFoodId] = useState<string | null>(null);
-  const [newItemValue, setNewItemValue] = useState<AmountValue>({ unitId: 'g', raw: '' });
-  const [addPickerOpen, setAddPickerOpen] = useState(false);
+  const [tab, setTab] = useState<CookTab>('ingredients');
   // §8 náhrady suroviny (jen tohle vaření). Klíč = id původní suroviny.
   const [replacements, setReplacements] = useState<Record<string, CookReplacement>>({});
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
@@ -131,8 +102,8 @@ export default function CookingModeScreen() {
   const [replFoodId, setReplFoodId] = useState<string | null>(null);
   const [replValue, setReplValue] = useState<AmountValue>({ unitId: 'g', raw: '' });
   const [replPickerOpen, setReplPickerOpen] = useState(false);
-  // Inline „+ míra" ve vaření: u které větve je otevřený mini-formulář.
-  const [addMeasureFor, setAddMeasureFor] = useState<'repl' | 'add' | null>(null);
+  // Inline „+ míra" u náhrady: je otevřený mini-formulář?
+  const [addMeasureFor, setAddMeasureFor] = useState<'repl' | null>(null);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   useEffect(() => setTargetServings(null), [id]);
   useWakeLock();
@@ -147,11 +118,9 @@ export default function CookingModeScreen() {
     setDoneSteps(new Set());
     setStalePrompt(null);
     setEditingItemId(null);
-    setNewItemFoodId(null);
-    setNewItemValue({ unitId: 'g', raw: '' });
     setReplValue({ unitId: 'g', raw: '' });
     setAddMeasureFor(null);
-    setAddPickerOpen(false);
+    setTab('ingredients');
     if (!id) return;
     let cancelled = false;
     void getCookSession(id).then((session) => {
@@ -353,46 +322,6 @@ export default function CookingModeScreen() {
     setOverrideDraft(overrides[itemId] ?? '');
   }
 
-  // Přidání suroviny: text zůstává zdrojem pravdy, napojení potraviny je nepovinné
-  // (pravidlo 1). Když je pole prázdné, použije se aspoň název napojené potraviny.
-  // U napojení se uloží i množství (g/ks), ať se kalorie fakt spočítají.
-  function handleAddItem() {
-    if (!id) return;
-    const food = newItemFoodId ? foodMap.get(newItemFoodId) : undefined;
-    const text = newItemText.trim() || food?.name || '';
-    if (!text) return;
-    let link: { foodId: string; amountG: number | null; amountKs: number | null } | undefined;
-    if (newItemFoodId) {
-      const { amountG, amountKs } = resolveAmount(newItemValue, optionsFor(newItemFoodId));
-      link = { foodId: newItemFoodId, amountG, amountKs };
-    }
-    void addRecipeItem(id, text, link);
-    setNewItemText('');
-    setNewItemFoodId(null);
-    setNewItemValue({ unitId: 'g', raw: '' });
-    setAddMeasureFor(null);
-  }
-
-  function linkNewItemFood(foodId: string) {
-    setNewItemFoodId(foodId);
-    const food = foodMap.get(foodId);
-    // Předvyplnění výběru: míra z textu (OO5), jinak „ks" u potraviny s hmotností kusu.
-    const match = matchPortionInText(newItemText, portionsByFood.get(foodId) ?? []);
-    setNewItemValue(
-      match
-        ? { unitId: match.portionId, raw: String(match.count) }
-        : { unitId: food?.pieceGrams ? 'ks' : 'g', raw: '' },
-    );
-  }
-
-  // Inline „+ míra" u přidávané suroviny.
-  async function addMeasureForAdd(label: string, grams: number) {
-    if (!newItemFoodId) return;
-    const added = await addPortion(newItemFoodId, label, grams);
-    setNewItemValue({ unitId: added.id, raw: '1' });
-    setAddMeasureFor(null);
-  }
-
   function continueSession() {
     if (!stalePrompt || !id) return;
     applyState(stalePrompt);
@@ -432,24 +361,10 @@ export default function CookingModeScreen() {
   const progressPct = totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0;
   const allDone = totalUnits > 0 && doneUnits === totalUnits;
   const currentStepIndex = steps.findIndex((_, index) => !doneSteps.has(index));
-  const progressParts = [
-    ingredientUnits.length > 0 ? `Suroviny ${checkedCount}/${ingredientUnits.length}` : null,
-    steps.length > 0 ? `Postup ${doneStepCount}/${steps.length}` : null,
-  ].filter(Boolean);
-
-  // Našeptávač u přidání suroviny: dokud není potravina napojená, nabídni odpovídající
-  // založené potraviny. Hledá podle názvu bez vedoucího množství („2 vejce" → „Vejce").
-  // Ťuknutí NECHÁ napsaný text a jen napojí (pravidlo 2); volný text funguje dál.
-  const addSearchTerm = searchTermFromText(newItemText);
-  const addSuggestions =
-    addSearchTerm && !newItemFoodId
-      ? foods
-          .filter(
-            (food) =>
-              !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, addSearchTerm),
-          )
-          .slice(0, 6)
-      : [];
+  const allIngredientsChecked = ingredientUnits.length > 0 && checkedCount === ingredientUnits.length;
+  // Záložky jen když je co přepínat; jinak se ukáže to, co recept má.
+  const hasTabs = items.length > 0 && steps.length > 0;
+  const shownTab: CookTab = hasTabs ? tab : items.length > 0 ? 'ingredients' : 'steps';
 
   function handleFinish() {
     if (!recipe || !id) return;
@@ -527,14 +442,16 @@ export default function CookingModeScreen() {
           </div>
         ) : null}
 
-        {totalUnits > 0 && !editMode && !stalePrompt ? (
+        {totalUnits > 0 && !stalePrompt ? (
           <div className="mb-4">
-            <div className="mb-1 flex items-center justify-between text-xs font-medium text-stone-500">
-              <span className={allDone ? 'text-brand-dark dark:text-amber-400' : ''}>
-                {allDone ? 'Hotovo 🎉' : `Hotovo ${progressPct} %`}
-              </span>
-              <span>{progressParts.join(' · ')}</span>
-            </div>
+            <p
+              className={cx(
+                'mb-1 text-xs font-medium text-stone-500',
+                allDone && 'text-brand-dark dark:text-amber-400',
+              )}
+            >
+              {allDone ? 'Hotovo 🎉' : `Hotovo ${progressPct} %`}
+            </p>
             <div className="h-2 overflow-hidden rounded-full bg-stone-200">
               <div
                 className="h-full rounded-full bg-brand transition-all duration-300"
@@ -544,55 +461,56 @@ export default function CookingModeScreen() {
           </div>
         ) : null}
 
-        {items.length > 0 || editMode ? (
+        {hasTabs ? (
+          // Velké cíle na ťuknutí (mastné ruce), počty odškrtnutého přímo v záložce.
+          <div
+            className="mb-4 grid grid-cols-2 gap-1 rounded-full border border-stone-200 p-1 dark:border-stone-700"
+            role="tablist"
+            aria-label="Suroviny nebo postup"
+          >
+            {(
+              [
+                ['ingredients', 'Suroviny', `${checkedCount}/${ingredientUnits.length}`],
+                ['steps', 'Postup', `${doneStepCount}/${steps.length}`],
+              ] as const
+            ).map(([value, label, count]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+                className={cx(
+                  'rounded-full py-2.5 text-base font-medium transition',
+                  tab === value ? 'bg-brand text-white' : 'text-stone-500 dark:text-stone-400',
+                )}
+              >
+                {label} <span className="text-sm tabular-nums opacity-75">{count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {shownTab === 'ingredients' && items.length > 0 ? (
           <section>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Suroviny
-              </h2>
-              {editMode ? (
-                <Button role="primary" onClick={() => setEditMode(false)}>
-                  Hotovo
-                </Button>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <ServingsStepper
-                    value={targetPortions}
-                    onStep={(delta) =>
-                      setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
-                    }
-                  />
-                  <IconButton onClick={() => setEditMode(true)} aria-label="Upravit suroviny">
-                    ✎
-                  </IconButton>
-                </div>
+            <div className={cx('flex items-center gap-3', hasTabs ? 'justify-end' : 'justify-between')}>
+              {hasTabs ? null : (
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                  Suroviny
+                </h2>
               )}
+              <ServingsStepper
+                value={targetPortions}
+                onStep={(delta) =>
+                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
+                }
+              />
             </div>
+            {!recipe.servings ? (
+              <p className="mt-1 text-right text-xs text-stone-400">Porce nezadané – počítám od 1.</p>
+            ) : null}
             <ul className="mt-2">
               {items.map((item) => {
-                if (editMode) {
-                  return (
-                    <li key={item.id} className="flex items-center gap-2 py-1.5">
-                      <input
-                        defaultValue={item.rawText}
-                        onBlur={(event) => {
-                          if (event.target.value.trim() !== item.rawText) {
-                            void updateRecipeItemText(item.id, event.target.value);
-                          }
-                        }}
-                        className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-3 py-1.5 outline-none focus:border-brand"
-                      />
-                      <IconButton
-                        size="sm"
-                        tone="danger"
-                        onClick={() => void deleteRecipeItem(item.id)}
-                        aria-label="Odebrat surovinu"
-                      >
-                        ×
-                      </IconButton>
-                    </li>
-                  );
-                }
                 if (isIngredientHeading(item.rawText)) {
                   return (
                     <li
@@ -770,99 +688,25 @@ export default function CookingModeScreen() {
                   </li>
                 );
               })}
-              {editMode ? (
-                <li className="mt-2 flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={newItemText}
-                      onChange={(event) => setNewItemText(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') handleAddItem();
-                      }}
-                      placeholder="přidat surovinu…"
-                      className="min-w-0 flex-1 rounded-lg border border-dashed border-stone-300 dark:border-stone-600 px-3 py-1.5 outline-none focus:border-brand"
-                    />
-                    <div className="shrink-0">
-                      <Button role="tint" onClick={handleAddItem}>
-                        Přidat
-                      </Button>
-                    </div>
-                  </div>
-                  {addSuggestions.length > 0 ? (
-                    <ul className="flex flex-col gap-1">
-                      {addSuggestions.map((food) => (
-                        <li key={food.id}>
-                          <button
-                            type="button"
-                            onClick={() => linkNewItemFood(food.id)}
-                            className={cardClass({
-                              padding: 'row',
-                              interactive: true,
-                              className:
-                                'flex w-full items-center justify-between gap-3 text-left text-sm',
-                            })}
-                          >
-                            <span className="min-w-0 truncate">{food.name}</span>
-                            <span className="shrink-0 text-xs text-stone-400">
-                              {formatNumber(food.energyKcal)} kcal / 100 {food.basis}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <div className="flex flex-col gap-2 pl-1 text-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {newItemFoodId ? (
-                        <>
-                          <Tag
-                            onRemove={() => {
-                              setNewItemFoodId(null);
-                              setNewItemValue({ unitId: 'g', raw: '' });
-                              if (addMeasureFor === 'add') setAddMeasureFor(null);
-                            }}
-                            removeLabel="Odpojit potravinu"
-                          >
-                            → {foodMap.get(newItemFoodId)?.name}
-                          </Tag>
-                          <AmountPicker
-                            options={optionsFor(newItemFoodId)}
-                            value={newItemValue}
-                            onChange={setNewItemValue}
-                          />
-                          {addMeasureFor === 'add' ? null : (
-                            <button
-                              type="button"
-                              onClick={() => setAddMeasureFor('add')}
-                              className="text-xs font-medium text-brand dark:text-amber-400"
-                            >
-                              + míra
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <Button role="tint" onClick={() => setAddPickerOpen(true)}>
-                          napojit potravinu (kvůli kaloriím)
-                        </Button>
-                      )}
-                    </div>
-                    {newItemFoodId && addMeasureFor === 'add' ? (
-                      <AddPortionInline
-                        onAdd={(label, grams) => void addMeasureForAdd(label, grams)}
-                        onClose={() => setAddMeasureFor(null)}
-                      />
-                    ) : null}
-                  </div>
-                </li>
-              ) : null}
             </ul>
+            {hasTabs && allIngredientsChecked ? (
+              <button
+                type="button"
+                onClick={() => setTab('steps')}
+                className="mt-4 w-full rounded-full border border-brand py-3 text-base font-semibold text-brand-dark dark:text-amber-400"
+              >
+                Na postup →
+              </button>
+            ) : null}
           </section>
         ) : null}
 
-        {steps.length > 0 ? (
-          <section className="mt-8">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
-            <ol className="mt-2 space-y-4">
+        {shownTab === 'steps' && steps.length > 0 ? (
+          <section className={hasTabs ? undefined : 'mt-8'}>
+            {hasTabs ? null : (
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
+            )}
+            <ol className={cx('space-y-4', !hasTabs && 'mt-2')}>
               {steps.map((step, index) => {
                 const stepDone = doneSteps.has(index);
                 const isCurrent = index === currentStepIndex;
@@ -917,6 +761,8 @@ export default function CookingModeScreen() {
           <p className="mt-6 text-stone-400">Recept zatím nemá suroviny ani postup.</p>
         ) : null}
 
+        <AdhocTimerForm />
+
         {items.length > 0 || steps.length > 0 ? (
           showFinish ? (
             <Card className="mt-8">
@@ -965,19 +811,6 @@ export default function CookingModeScreen() {
             setReplPickerOpen(false);
           }}
           onClose={() => setReplPickerOpen(false)}
-        />
-      ) : null}
-
-      {addPickerOpen ? (
-        <FoodPicker
-          onSelect={(foodId) => {
-            linkNewItemFood(foodId);
-            // Text předvyplníme názvem jen když je pole prázdné (pravidlo 2).
-            const food = foodMap.get(foodId);
-            if (!newItemText.trim() && food) setNewItemText(food.name);
-            setAddPickerOpen(false);
-          }}
-          onClose={() => setAddPickerOpen(false)}
         />
       ) : null}
     </div>

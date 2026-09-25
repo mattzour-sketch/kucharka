@@ -15,6 +15,11 @@ import {
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 
+/** Porce jen kladné – 0 nebo nesmysl = nezadané. */
+function positiveOrNull(value: number | null): number | null {
+  return value != null && value > 0 ? value : null;
+}
+
 function snapshotOf(
   name: string,
   capturedOn: string,
@@ -22,8 +27,9 @@ function snapshotOf(
   instructions: string,
   tags: string[],
   prepMinutes: string,
+  servings: string,
 ): string {
-  return JSON.stringify([name, capturedOn, ingredients, instructions, tags, prepMinutes]);
+  return JSON.stringify([name, capturedOn, ingredients, instructions, tags, prepMinutes, servings]);
 }
 
 /**
@@ -59,6 +65,7 @@ export default function RecipeEditScreen() {
   const [instructions, setInstructions] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [prepMinutes, setPrepMinutes] = useState('');
+  const [servings, setServings] = useState('');
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
@@ -79,13 +86,23 @@ export default function RecipeEditScreen() {
     }
 
     const prepText = recipe.prepMinutes != null ? String(recipe.prepMinutes) : '';
+    const servingsText = recipe.servings != null ? String(recipe.servings).replace('.', ',') : '';
     setName(recipe.name);
     setCapturedOn(recipe.capturedOn);
     setIngredients(ingText);
     setInstructions(stepText);
     setTags(recipe.tags);
     setPrepMinutes(prepText);
-    lastSaved.current = snapshotOf(recipe.name, recipe.capturedOn, ingText, stepText, recipe.tags, prepText);
+    setServings(servingsText);
+    lastSaved.current = snapshotOf(
+      recipe.name,
+      recipe.capturedOn,
+      ingText,
+      stepText,
+      recipe.tags,
+      prepText,
+      servingsText,
+    );
   }, [routeId, loaded]);
 
   function buildContent(finalName: string): RecipeContent {
@@ -97,6 +114,7 @@ export default function RecipeEditScreen() {
       rawCapture: combineRawCapture(ingredients, instructions),
       tags,
       prepMinutes: parseDecimal(prepMinutes),
+      servings: positiveOrNull(parseDecimal(servings)),
     };
   }
 
@@ -113,7 +131,7 @@ export default function RecipeEditScreen() {
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
     if (!loadedRef.current) return;
-    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes);
+    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
     if (snapshot === lastSaved.current) return;
 
     const hasContent =
@@ -128,7 +146,7 @@ export default function RecipeEditScreen() {
     return () => clearTimeout(timer);
     // persist čte aktuální stav ze closure; závislosti jsou samotná pole.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, capturedOn, ingredients, instructions, tags, prepMinutes]);
+  }, [name, capturedOn, ingredients, instructions, tags, prepMinutes, servings]);
 
   function deriveName(): string {
     const base = splitIngredientLines(ingredients)[0] ?? splitIngredientLines(instructions)[0] ?? '';
@@ -139,7 +157,7 @@ export default function RecipeEditScreen() {
     const finalName = name.trim() || deriveName() || 'Bez názvu';
     if (finalName !== name) setName(finalName);
     const id = await persist(finalName);
-    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags, prepMinutes);
+    lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
     navigate(`/recept/${id}`, { replace: true });
   }
 
@@ -198,6 +216,17 @@ export default function RecipeEditScreen() {
               className="w-14 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
             />
             <span>min</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <label htmlFor="servings">Porcí</label>
+            <input
+              id="servings"
+              value={servings}
+              onChange={(event) => setServings(event.target.value)}
+              inputMode="decimal"
+              placeholder="—"
+              className="w-10 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
+            />
           </span>
         </div>
 
