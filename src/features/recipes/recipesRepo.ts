@@ -1,6 +1,7 @@
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
+import type { AutoLinkEntry } from '../../lib/autoLink';
 
 /**
  * Zápisy do receptů. Recept má dvě části: suroviny (řádky → `recipe_items`,
@@ -157,6 +158,48 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
     const removed = existing.filter((item) => !keptIds.has(item.id)).map((item) => item.id);
     if (removed.length > 0) await db.recipeItems.bulkDelete(removed);
     await db.recipeItems.bulkPut(next);
+  });
+}
+
+/** Stav napojení suroviny – záloha pro „Vrátit" po automatickém napojení. */
+export type ItemLinkSnapshot = Pick<
+  RecipeItem,
+  'id' | 'foodId' | 'subRecipeId' | 'amountG' | 'amountKs' | 'isSkipped'
+>;
+
+/**
+ * Uloží plán automatického napojení (lib/autoLink) v jedné transakci a vrátí zálohu
+ * původního stavu dotčených surovin. `raw_text` se nemění (pravidlo 2).
+ */
+export async function applyAutoLinks(plan: readonly AutoLinkEntry[]): Promise<ItemLinkSnapshot[]> {
+  return db.transaction('rw', db.recipeItems, async () => {
+    const before = await db.recipeItems.bulkGet(plan.map((entry) => entry.itemId));
+    const snapshot: ItemLinkSnapshot[] = before
+      .filter((item): item is RecipeItem => item !== undefined)
+      .map(({ id, foodId, subRecipeId, amountG, amountKs, isSkipped }) => ({
+        id,
+        foodId: foodId ?? null,
+        subRecipeId: subRecipeId ?? null,
+        amountG: amountG ?? null,
+        amountKs: amountKs ?? null,
+        isSkipped,
+      }));
+    for (const entry of plan) {
+      await db.recipeItems.update(
+        entry.itemId,
+        entry.kind === 'skip'
+          ? { isSkipped: true }
+          : { foodId: entry.foodId, subRecipeId: null, amountG: entry.amountG, amountKs: entry.amountKs, isSkipped: false },
+      );
+    }
+    return snapshot;
+  });
+}
+
+/** Vrátí napojení surovin do stavu ze zálohy (Vrátit po automatickém napojení). */
+export async function restoreItemLinks(snapshot: readonly ItemLinkSnapshot[]): Promise<void> {
+  await db.transaction('rw', db.recipeItems, async () => {
+    for (const { id, ...link } of snapshot) await db.recipeItems.update(id, link);
   });
 }
 

@@ -25,6 +25,9 @@ Kód je ve třech vrstvách kvůli testovatelnosti — logika se dá ověřit be
   se dřív než UI: `nutrition.ts` (úplnost, hodnoty na 100 g / porci, rekurze podreceptů
   + detekce cyklů), `scale.ts`, `search.ts` (fulltext bez diakritiky + kmen skloňování),
   `backup.ts` (serializace zálohy + `computeRestoreImpact`), `ingredientParse.ts`,
+  `foodMatch.ts` + `autoLink.ts` (automatické napojení surovin na potraviny: nejlepší shoda,
+  anglické aliasy, učení z dřívějších napojení, odhad lžíce 15 g / lžičky 5 g, přeskočení
+  soli/vody; regresní test proti celé vestavěné databázi v `features/foods/seedFoods.match.test.ts`),
   `date.ts`, `theme.ts`, `backupStatus.ts`.
 - **Data — Dexie/IndexedDB.** `src/db/index.ts` je schéma (verzované `stores()`, camelCase
   zrcadlo SPEC 7.4). K datům se sahá přes „repo" moduly (`features/*/…Repo.ts`) a v

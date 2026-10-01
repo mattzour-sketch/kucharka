@@ -3,8 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Food, type FoodPortion } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
-import { parseIngredientLine } from '../../lib/ingredientParse';
-import { matchesQuery } from '../../lib/search';
+import { isIngredientHeading } from '../../lib/ingredientSection';
+import { bestFoodMatch, buildLearnedLinks, extractFoodQuery, learnedKey } from '../../lib/foodMatch';
+import { isUnlinked, planAutoLinks, resolveAmountFromText } from '../../lib/autoLink';
+import { czechPlural } from '../../lib/plural';
+import { useUndo } from '../../components/undoContext';
 import {
   deriveInitialAmountValue,
   resolveAmount,
@@ -18,7 +21,7 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import LinkPicker from './LinkPicker';
-import { updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
+import { applyAutoLinks, restoreItemLinks, updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
@@ -28,24 +31,8 @@ import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
 import { ReadingSkeleton } from '../../components/ui/Loading';
 
-/**
- * Návrh napojení podle textu suroviny (S4, „40g másla" → gramáž 40 + tip na
- * potravinu „máslo"). Jen návrh k potvrzení jedním klepnutím — `raw_text` se
- * nemění a nic se nenapojí samo (pravidlo 1, 2; mimo rozsah je jen tiché
- * automatické napojení bez potvrzení).
- */
 /** Podrecept se zadává jen v gramech (UC016, rozhodnutí 1). */
 const GRAMS_ONLY: AmountUnitOption[] = [{ id: 'g', kind: 'g', label: 'g', gramsPerUnit: 1 }];
-
-function suggestFood(query: string, foods: Food[]): Food | null {
-  const trimmed = query.trim();
-  if (trimmed.length < 3) return null;
-  return (
-    foods.find(
-      (food) => !food.deletedAt && matchesQuery(`${food.name} ${food.brand ?? ''}`, trimmed),
-    ) ?? null
-  );
-}
 
 /**
  * Škálování na cílové kcal/porci (UC024). Orientační pomůcka: z celkových kalorií
@@ -110,11 +97,55 @@ export default function RecipeNutritionScreen() {
   const [cookedWeight, setCookedWeight] = useState('');
   const [values, setValues] = useState<Record<string, AmountValue>>({});
   const [addMeasureItemId, setAddMeasureItemId] = useState<string | null>(null);
-  const seededRef = useRef(false);
+  // Id receptu, pro který jsou pickery naplněné / proběhlo automatické napojení. Vázané
+  // na id: obrazovka se při přechodu na jiný recept (odkaz „doplnit" u podreceptu) nepřemontuje.
+  const seededRef = useRef<string | null>(null);
+  const autoRanRef = useRef<string | null>(null);
+  const { showUndo } = useUndo();
+
+  /**
+   * Automatické napojení (rozhodnutí 2026-09-26): uloží se rovnou, lišta nabídne „Vrátit".
+   * Po zápisu se pickery znovu naplní z uložených hodnot (seededRef → null).
+   */
+  async function autoLink(source: NonNullable<typeof data>, recipeId: string) {
+    const plan = planAutoLinks({
+      items: source.items.filter((item) => item.recipeId === recipeId),
+      foods: source.foods,
+      portions: source.portions,
+      learned: buildLearnedLinks(source.items, source.foods, source.recipes),
+    });
+    if (plan.length === 0) return;
+    const snapshot = await applyAutoLinks(plan);
+    seededRef.current = null;
+    const linked = plan.filter((entry) => entry.kind === 'link').length;
+    const skipped = plan.length - linked;
+    const parts = [
+      linked > 0 ? `Napárováno ${linked} ${czechPlural(linked, ['surovina', 'suroviny', 'surovin'])}` : null,
+      skipped > 0 ? `přeskočeno ${skipped}` : null,
+    ].filter(Boolean);
+    showUndo({
+      message: parts.join(' · '),
+      undo: async () => {
+        await restoreItemLinks(snapshot);
+        seededRef.current = null;
+      },
+    });
+  }
+
+  // Recept, který ještě nemá nic napojeno ani přeskočeno, se napáruje sám hned po otevření
+  // – „Spočítat kalorie" je tak jedno ťuknutí. Jednou za návštěvu obrazovky.
+  useEffect(() => {
+    if (!data || !data.recipe || !id || data.recipe.id !== id || autoRanRef.current === id) return;
+    autoRanRef.current = id;
+    const own = data.items.filter((item) => item.recipeId === id && !isIngredientHeading(item.rawText));
+    if (own.length > 0 && own.every(isUnlinked)) void autoLink(data, id);
+    // autoLink čte jen argumenty; spustit se má jen při prvním načtení dat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, id]);
 
   useEffect(() => {
-    if (!data || !data.recipe || seededRef.current) return;
-    seededRef.current = true;
+    if (!data || !data.recipe || data.recipe.id !== id || seededRef.current === id) return;
+    seededRef.current = id;
     setServings(data.recipe.servings != null ? String(data.recipe.servings) : '');
     setCookedWeight(data.recipe.cookedWeightG != null ? String(data.recipe.cookedWeightG) : '');
     const localFoodMap = new Map(data.foods.map((food) => [food.id, food]));
@@ -140,7 +171,8 @@ export default function RecipeNutritionScreen() {
     setValues(initialValues);
   }, [data, id]);
 
-  if (data === undefined) {
+  // Data předchozího receptu (dotaz pro nové id ještě neproběhl) = pořád se načítá.
+  if (data === undefined || (data?.recipe && data.recipe.id !== id)) {
     return (
       <div className="min-h-dvh">
         <ScreenHeader
@@ -156,7 +188,7 @@ export default function RecipeNutritionScreen() {
       </div>
     );
   }
-  if (!data || !data.recipe || !id) {
+  if (!data || !data.recipe || data.recipe.deletedAt || !id) {
     return (
       <div className="min-h-dvh">
         <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" title="Kalorie" />
@@ -177,10 +209,14 @@ export default function RecipeNutritionScreen() {
 
   // Zúžená (nenull) reference pro použití v closurech (linkSubRecipe apod.).
   const loadedData = data;
+  // Nadpisy sekcí („# Na těsto", UC023) nejsou suroviny – nenapojují se.
   const items = data.items
-    .filter((item) => item.recipeId === id)
+    .filter((item) => item.recipeId === id && !isIngredientHeading(item.rawText))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const foodMap = new Map(data.foods.map((food) => [food.id, food]));
+  const learned = buildLearnedLinks(data.items, data.foods, data.recipes);
+  // Kolik surovin by „Napárovat automaticky" ještě zvládlo (napojit nebo přeskočit).
+  const pendingAutoLinks = planAutoLinks({ items, foods: data.foods, portions: data.portions, learned }).length;
   const portionsByFood = new Map<string, FoodPortion[]>();
   for (const portion of data.portions) {
     if (portion.deletedAt) continue;
@@ -222,9 +258,10 @@ export default function RecipeNutritionScreen() {
     void updateRecipeItemLink(itemId, { amountG, amountKs });
   }
 
-  // Napojení potraviny na surovinu — ať přijde z ručního výběru, nebo z návrhu
-  // (viz suggestFood výše). Předvyplnění výběru: 1) míra rozpoznaná z textu (OO5),
-  // 2) „ks" u potraviny s hmotností kusu, 3) gramáž z textu, když je pole prázdné.
+  // Napojení potraviny na surovinu — ať přijde z ručního výběru, nebo z návrhu.
+  // Předvyplnění výběru: 1) míra rozpoznaná z textu (OO5), 2) množství z textu stejně
+  // jako u automatického napojení („4 vejce" → 4 ks, „200 g" → 200 g, „2 lžíce" → odhad),
+  // 3) už napsaná gramáž, 4) prázdné „ks" u potraviny s hmotností kusu.
   function linkFood(itemId: string, foodId: string, food: Food | undefined, rawText: string) {
     void updateRecipeItemLink(itemId, { foodId, isSkipped: false });
     const portions = portionsByFood.get(foodId) ?? [];
@@ -234,17 +271,21 @@ export default function RecipeNutritionScreen() {
       commitValue(itemId, { unitId: match.portionId, raw: String(match.count) }, options);
       return;
     }
-    if (food?.pieceGrams) {
-      setValues((prev) => ({ ...prev, [itemId]: { unitId: 'ks', raw: '' } }));
+    const resolved = food ? resolveAmountFromText(rawText, food, portions) : null;
+    if (resolved?.amountKs != null) {
+      commitValue(itemId, { unitId: 'ks', raw: String(resolved.amountKs) }, options);
+      return;
+    }
+    if (resolved?.amountG != null) {
+      commitValue(itemId, { unitId: 'g', raw: String(resolved.amountG) }, options);
       return;
     }
     const existingRaw = values[itemId]?.raw ?? '';
     if (existingRaw !== '') {
-      setValues((prev) => ({ ...prev, [itemId]: { unitId: 'g', raw: existingRaw } }));
+      commitValue(itemId, { unitId: 'g', raw: existingRaw }, options);
       return;
     }
-    const parsedAmount = parseIngredientLine(rawText).amountG;
-    commitValue(itemId, { unitId: 'g', raw: parsedAmount != null ? String(parsedAmount) : '' }, options);
+    setValues((prev) => ({ ...prev, [itemId]: { unitId: food?.pieceGrams ? 'ks' : 'g', raw: '' } }));
   }
 
   // Inline „+ míra" u suroviny: uloží míru k potravině a rovnou ji vybere (počet 1).
@@ -279,6 +320,17 @@ export default function RecipeNutritionScreen() {
       />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
+        {/* Výsledek nahoře – po automatickém napárování je vidět hned, bez scrollování. */}
+        <div className="mb-4">
+          {nutrition.computable || nutrition.hasCycle ? (
+            <NutritionSummary result={nutrition} />
+          ) : (
+            <p className="text-center text-sm text-stone-400">
+              Napoj suroviny na potraviny a doplň gramáž, ať se spočítají kalorie.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2">
             <span className="text-stone-500">Porcí</span>
@@ -308,6 +360,14 @@ export default function RecipeNutritionScreen() {
           </label>
         </div>
 
+        {pendingAutoLinks > 0 ? (
+          <div className="mt-4">
+            <Button role="primary" fullWidth onClick={() => void autoLink(data, id)}>
+              Napárovat automaticky ({pendingAutoLinks})
+            </Button>
+          </div>
+        ) : null}
+
         <ul className="mt-4 flex flex-col gap-2">
           {items.map((item) => {
             const food = item.foodId ? foodMap.get(item.foodId) : undefined;
@@ -317,11 +377,19 @@ export default function RecipeNutritionScreen() {
             const value = values[item.id] ?? deriveInitialAmountValue(item, options);
             const currentOption = options.find((option) => option.id === value.unitId);
             const isGramUnit = !currentOption || currentOption.kind === 'g';
+            // Gramáž je odhad z obecné lžíce/lžičky (a uživatel ji nezměnil) → „≈".
+            const isEstimate =
+              food != null &&
+              item.amountG != null &&
+              (() => {
+                const guess = resolveAmountFromText(item.rawText, food, portionsByFood.get(food.id) ?? []);
+                return guess.estimated && guess.amountG === item.amountG;
+              })();
             // U „g" ukaž kcal (jako dřív); u „ks"/míry ukaž dopočtenou gramáž,
             // ať je vidět, z čeho číslo vzniklo („2 lžíce" → 30 g).
             const readout = isGramUnit
               ? contribution != null
-                ? `${formatNumber(contribution)} kcal`
+                ? `${isEstimate ? '≈ ' : ''}${formatNumber(contribution)} kcal`
                 : ''
               : item.amountG != null
                 ? `${formatNumber(item.amountG)} g`
@@ -337,9 +405,12 @@ export default function RecipeNutritionScreen() {
                 : subContribution != null
                   ? `${formatNumber(subContribution)} kcal`
                   : '';
+            // Návrh k potvrzení jedním ťuknutím: naučené napojení, jinak nejlepší shoda názvu.
+            const learnedFood = foodMap.get(learned.get(learnedKey(item.rawText)) ?? '');
             const suggestion =
-              !food && !item.isSkipped
-                ? suggestFood(parseIngredientLine(item.rawText).foodQuery, data.foods)
+              !food && !item.isSkipped && !item.subRecipeId
+                ? (learnedFood && !learnedFood.deletedAt ? learnedFood : null) ??
+                  bestFoodMatch(extractFoodQuery(item.rawText), data.foods)
                 : null;
             return (
               <li key={item.id} className={cardClass({ padding: 'row' })}>
@@ -472,16 +543,6 @@ export default function RecipeNutritionScreen() {
         {items.length === 0 ? (
           <EmptyState title="Recept nemá suroviny" description="Přidej je v úpravě receptu." />
         ) : null}
-
-        <div className="mt-5">
-          {nutrition.computable || nutrition.hasCycle ? (
-            <NutritionSummary result={nutrition} />
-          ) : (
-            <p className="text-center text-sm text-stone-400">
-              Napoj suroviny na potraviny a doplň gramáž, ať se spočítají kalorie.
-            </p>
-          )}
-        </div>
 
         {nutrition.computable && nutrition.total && nutrition.finalWeight ? (
           <TargetKcalHint totalKcal={nutrition.total.kcal} finalWeight={nutrition.finalWeight} />
