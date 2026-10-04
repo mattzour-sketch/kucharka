@@ -10,7 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: ['icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Osobní kuchařka',
         short_name: 'Kuchařka',
@@ -24,6 +24,8 @@ export default defineConfig({
         orientation: 'portrait',
         background_color: '#ffffff',
         theme_color: '#b45309',
+        // PNG ikony jsou vyrenderované z public/icon.svg (logo hrnce, stejné jako Logo.tsx).
+        // Hrnec je uvnitř bezpečné zóny 80 %, takže stejný obrázek slouží i jako maskable.
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
