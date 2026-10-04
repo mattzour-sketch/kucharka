@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe } from '../../db';
 import RecipeCard from './RecipeCard';
@@ -23,28 +23,49 @@ const SORT_LABELS: Record<SortKey, string> = {
 };
 
 export default function RecipeListScreen() {
-  const [sort, setSort] = useState<SortKey>('updated');
-  const [favOnly, setFavOnly] = useState(false);
-  const [quickOnly, setQuickOnly] = useState(false);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  // Hledání, řazení a filtry jsou v URL (?q=…&razeni=…): po návratu z detailu receptu
+  // (tlačítko Zpět) zůstanou, jak byly. Bez localStorage (pravidlo 6). Mění se přes
+  // `replace`, ať každé písmeno hledání nepřidává krok do historie.
+  const [params, setParams] = useSearchParams();
+  const sortParam = params.get('razeni');
+  const sort: SortKey = sortParam === 'cooked' || sortParam === 'name' ? sortParam : 'updated';
+  const favOnly = params.get('oblibene') === '1';
+  const quickOnly = params.get('rychle') === '1';
+  const activeTag = params.get('stitek');
+  const query = params.get('q') ?? '';
+
+  function updateParams(patch: Record<string, string | null>) {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === null || value === '') next.delete(key);
+          else next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  const setSort = (value: SortKey) => updateParams({ razeni: value === 'updated' ? null : value });
+  const setFavOnly = (value: boolean) => updateParams({ oblibene: value ? '1' : null });
+  const setQuickOnly = (value: boolean) => updateParams({ rychle: value ? '1' : null });
+  const setActiveTag = (value: string | null) => updateParams({ stitek: value });
+  const setQuery = (value: string) => updateParams({ q: value });
   // Recepty odznačené PŘI zapnutém filtru „Oblíbené" nezmizí hned (mis-tap) – zůstanou
   // matně vidět, dokud filtr nepřepnu, ať je stihnu vrátit dalším klikem.
   const [keepVisibleIds, setKeepVisibleIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   function toggleFavOnly() {
-    setFavOnly((value) => !value);
+    setFavOnly(!favOnly);
     setKeepVisibleIds(new Set());
   }
 
   // Jedním ťuknutím zpět na plný seznam – vynuluje všechny filtry i hledání.
   // keepVisibleIds čistíme konzistentně s toggleFavOnly (interakce s UC028).
   function clearFilters() {
-    setFavOnly(false);
-    setQuickOnly(false);
-    setActiveTag(null);
-    setQuery('');
+    updateParams({ oblibene: null, rychle: null, stitek: null, q: null });
     setKeepVisibleIds(new Set());
   }
 
@@ -223,7 +244,7 @@ export default function RecipeListScreen() {
               </FilterChip>
               <FilterChip
                 active={quickOnly}
-                onClick={() => setQuickOnly((value) => !value)}
+                onClick={() => setQuickOnly(!quickOnly)}
                 aria-pressed={quickOnly}
               >
                 ⚡ Rychlé

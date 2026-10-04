@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Food, RecipeItem } from '../../db';
 import { planAutoLinks } from '../../lib/autoLink';
 import { parseRecipeText } from '../../lib/parseRecipe';
@@ -7,7 +7,7 @@ import { basicFoodSeeds } from './seedFoods';
 
 // Párování proti CELÉ vestavěné databázi potravin – hlídá, že nové položky nepokazí
 // výběr u běžných surovin (skutečné recepty uživatele).
-const FOODS: Food[] = basicFoodSeeds().map((seed, index) => ({
+const SEED_FOODS: Food[] = basicFoodSeeds().map((seed, index) => ({
   id: `seed${index}`,
   name: seed.name,
   basis: seed.basis ?? 'g',
@@ -21,6 +21,9 @@ const FOODS: Food[] = basicFoodSeeds().map((seed, index) => ({
   createdAt: '2026-09-26T00:00:00.000Z',
   updatedAt: '2026-09-26T00:00:00.000Z',
 }));
+
+// V telefonu je pořadí potravin náhodné (podle id) – výsledek na něm nesmí záviset.
+let FOODS = SEED_FOODS;
 
 function linkedNames(lines: string[]): Record<string, string> {
   const items: RecipeItem[] = lines.map((rawText, index) => ({
@@ -39,7 +42,14 @@ function linkedNames(lines: string[]): Record<string, string> {
   return result;
 }
 
-describe('automatické napojení proti vestavěné databázi', () => {
+describe.each([
+  ['pořadí jako v seznamu', SEED_FOODS],
+  ['obrácené pořadí', [...SEED_FOODS].reverse()],
+])('automatické napojení proti vestavěné databázi (%s)', (_label, foods) => {
+  beforeEach(() => {
+    FOODS = foods;
+  });
+
   it('česká bábovka', () => {
     expect(
       linkedNames([
@@ -78,6 +88,9 @@ describe('automatické napojení proti vestavěné databázi', () => {
         '1 polévková lžíce medu nebo cukru',
         'trochu neutrálního oleje na orestování',
         '250 g špaget',
+        '200 g mouky',
+        '3 lžíce oleje',
+        '100 g sýra',
       ]),
     ).toEqual({
       '100 g strouhaného eidamu': 'Eidam 30 %',
@@ -91,6 +104,9 @@ describe('automatické napojení proti vestavěné databázi', () => {
       '1 polévková lžíce medu nebo cukru': 'Med',
       'trochu neutrálního oleje na orestování': 'Olej řepkový',
       '250 g špaget': 'Těstoviny semolinové (syrové)',
+      '200 g mouky': 'Mouka pšeničná hladká',
+      '3 lžíce oleje': 'Olej řepkový',
+      '100 g sýra': 'Eidam 30 %',
     });
   });
 

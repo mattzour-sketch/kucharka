@@ -1,7 +1,8 @@
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
-import type { AutoLinkEntry } from '../../lib/autoLink';
+import { resolveAmountFromText, type AutoLinkEntry } from '../../lib/autoLink';
+import { pairEditedLines } from '../../lib/itemPairing';
 
 /**
  * Zápisy do receptů. Recept má dvě části: suroviny (řádky → `recipe_items`,
@@ -116,7 +117,7 @@ export async function duplicateRecipe(id: string): Promise<string | null> {
 
 export async function updateRecipeContent(id: string, content: RecipeContent): Promise<void> {
   const now = new Date().toISOString();
-  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+  await db.transaction('rw', [db.recipes, db.recipeItems, db.foods, db.foodPortions], async () => {
     await db.recipes.update(id, {
       name: content.name,
       capturedOn: content.capturedOn,
@@ -128,36 +129,62 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
       updatedAt: now,
     });
 
-    // Zachovej id a napojení (food_id, amount_g, is_skipped) pro řádky, jejichž
-    // text se nezměnil – jinak by úprava textu smazala napojení na potraviny.
-    // Přiřazuje se podle raw_text, každá existující položka se použije nejvýš jednou.
+    // Zachovej id a napojení (food_id, amount_g, is_skipped) i u upravených řádků – oprava
+    // překlepu nebo množství nesmí odpojit potravinu (lib/itemPairing). U upraveného řádku
+    // s potravinou se množství přečte z nového textu; když v něm není, zůstane původní.
     const existing = await db.recipeItems.where('recipeId').equals(id).toArray();
-    const byText = new Map<string, RecipeItem[]>();
-    for (const item of existing) {
-      const list = byText.get(item.rawText) ?? [];
-      list.push(item);
-      byText.set(item.rawText, list);
+    const paired = pairEditedLines(existing, content.ingredientLines);
+    const next: RecipeItem[] = [];
+    for (const [index, line] of content.ingredientLines.entries()) {
+      const reused = paired[index];
+      if (reused && reused.rawText !== line && reused.foodId) {
+        const food = await db.foods.get(reused.foodId);
+        const portions = await db.foodPortions.where('foodId').equals(reused.foodId).toArray();
+        const amount = food ? resolveAmountFromText(line, food, portions) : null;
+        next.push({
+          ...reused,
+          rawText: line,
+          sortOrder: index,
+          ...(amount && amount.amountG != null ? { amountG: amount.amountG, amountKs: amount.amountKs } : {}),
+        });
+        continue;
+      }
+      next.push(
+        reused
+          ? { ...reused, rawText: line, sortOrder: index }
+          : {
+              id: newId(),
+              recipeId: id,
+              rawText: line,
+              foodId: null,
+              subRecipeId: null,
+              amountG: null,
+              isSkipped: false,
+              note: null,
+              sortOrder: index,
+            },
+      );
     }
-    const next: RecipeItem[] = content.ingredientLines.map((line, index) => {
-      const reused = byText.get(line)?.shift();
-      return reused
-        ? { ...reused, sortOrder: index }
-        : {
-            id: newId(),
-            recipeId: id,
-            rawText: line,
-            foodId: null,
-            subRecipeId: null,
-            amountG: null,
-            isSkipped: false,
-            note: null,
-            sortOrder: index,
-          };
-    });
     const keptIds = new Set(next.map((item) => item.id));
     const removed = existing.filter((item) => !keptIds.has(item.id)).map((item) => item.id);
     if (removed.length > 0) await db.recipeItems.bulkDelete(removed);
     await db.recipeItems.bulkPut(next);
+  });
+}
+
+/**
+ * „Zahodit změny" v úpravě receptu: vrátí recept i suroviny přesně do stavu při otevření
+ * úprav (včetně `updatedAt` a napojení). Položky přidané během úpravy zmizí stejně jako
+ * při běžném uložení úpravy.
+ */
+export async function restoreRecipeSnapshot(recipe: Recipe, items: readonly RecipeItem[]): Promise<void> {
+  await db.transaction('rw', db.recipes, db.recipeItems, async () => {
+    await db.recipes.put(recipe);
+    const keep = new Set(items.map((item) => item.id));
+    const current = await db.recipeItems.where('recipeId').equals(recipe.id).primaryKeys();
+    const added = current.filter((key) => !keep.has(key));
+    if (added.length > 0) await db.recipeItems.bulkDelete(added);
+    await db.recipeItems.bulkPut([...items]);
   });
 }
 

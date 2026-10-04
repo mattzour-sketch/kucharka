@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type Recipe, type RecipeItem } from '../../db';
 import { todayIso } from '../../lib/date';
 import { parseDecimal } from '../../lib/num';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
@@ -9,11 +9,15 @@ import TagInput from './TagInput';
 import {
   createRecipeWithContent,
   getRecipeItems,
+  restoreRecipeSnapshot,
+  softDeleteRecipe,
   updateRecipeContent,
   type RecipeContent,
 } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useAutoGrow } from '../../hooks/useAutoGrow';
 
 /** Porce jen kladné – 0 nebo nesmysl = nezadané. */
 function positiveOrNull(value: number | null): number | null {
@@ -67,9 +71,17 @@ export default function RecipeEditScreen() {
   const [prepMinutes, setPrepMinutes] = useState('');
   const [servings, setServings] = useState('');
 
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const ingredientsRef = useAutoGrow(ingredients);
+  const instructionsRef = useAutoGrow(instructions);
+
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
   const lastSaved = useRef('');
+  /** Stav při otevření úprav – pro „Zahodit změny" (recept i suroviny s napojením). */
+  const originalRef = useRef<{ recipe: Recipe; items: RecipeItem[]; snapshot: string } | null>(null);
+  /** Po „Zahodit" už nic neukládat (doběhnutý debounce by změny vrátil). */
+  const discardedRef = useRef(false);
 
   // Načtení existujícího receptu do formuláře (jen jednou).
   useEffect(() => {
@@ -103,6 +115,7 @@ export default function RecipeEditScreen() {
       prepText,
       servingsText,
     );
+    originalRef.current = { recipe, items: loaded.items, snapshot: lastSaved.current };
   }, [routeId, loaded]);
 
   function buildContent(finalName: string): RecipeContent {
@@ -128,17 +141,22 @@ export default function RecipeEditScreen() {
     return idRef.current;
   }
 
+  const currentSnapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
+  const hasContent = name.trim() !== '' || ingredients.trim() !== '' || instructions.trim() !== '';
+  // Je co zahodit: u úpravy změna oproti otevření, u nového receptu cokoliv napsaného.
+  const canDiscard = originalRef.current
+    ? currentSnapshot !== originalRef.current.snapshot
+    : !isEdit && (hasContent || idRef.current !== null);
+
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
-    if (!loadedRef.current) return;
-    const snapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
+    if (!loadedRef.current || discardedRef.current) return;
+    const snapshot = currentSnapshot;
     if (snapshot === lastSaved.current) return;
-
-    const hasContent =
-      name.trim() !== '' || ingredients.trim() !== '' || instructions.trim() !== '';
     if (!idRef.current && !hasContent) return;
 
     const timer = setTimeout(() => {
+      if (discardedRef.current) return;
       void persist().then(() => {
         lastSaved.current = snapshot;
       });
@@ -155,6 +173,11 @@ export default function RecipeEditScreen() {
 
   async function handleSave() {
     const finalName = name.trim() || deriveName() || 'Bez názvu';
+    // Beze změny nic neukládat – recept se jinak posune nahoru v řazení „Upravené".
+    if (idRef.current && finalName === name && currentSnapshot === lastSaved.current) {
+      navigate(`/recept/${idRef.current}`, { replace: true });
+      return;
+    }
     if (finalName !== name) setName(finalName);
     const id = await persist(finalName);
     lastSaved.current = snapshotOf(finalName, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
@@ -162,14 +185,30 @@ export default function RecipeEditScreen() {
   }
 
   async function handleClose() {
-    const hasContent =
-      name.trim() !== '' || ingredients.trim() !== '' || instructions.trim() !== '';
+    if (idRef.current && currentSnapshot === lastSaved.current) {
+      navigate(isEdit ? `/recept/${idRef.current}` : '/', { replace: true });
+      return;
+    }
     if (idRef.current || hasContent) {
       const id = await persist();
       navigate(isEdit ? `/recept/${id}` : '/', { replace: true });
     } else {
       navigate('/', { replace: true });
     }
+  }
+
+  /** Úprava: recept zpět do stavu při otevření. Nový recept: do koše (jde obnovit). */
+  async function handleDiscard() {
+    discardedRef.current = true;
+    setConfirmDiscard(false);
+    const original = originalRef.current;
+    if (original) {
+      await restoreRecipeSnapshot(original.recipe, original.items);
+      navigate(`/recept/${original.recipe.id}`, { replace: true });
+      return;
+    }
+    if (idRef.current) await softDeleteRecipe(idRef.current);
+    navigate('/', { replace: true });
   }
 
   return (
@@ -181,9 +220,16 @@ export default function RecipeEditScreen() {
         onBack={() => void handleClose()}
         title={isEdit ? 'Upravit recept' : 'Nový recept'}
         actions={
-          <Button role="primary" onClick={() => void handleSave()}>
-            Uložit
-          </Button>
+          <>
+            {canDiscard ? (
+              <Button role="ghost" onClick={() => setConfirmDiscard(true)}>
+                Zahodit
+              </Button>
+            ) : null}
+            <Button role="primary" onClick={() => void handleSave()}>
+              Uložit
+            </Button>
+          </>
         }
       />
 
@@ -234,23 +280,25 @@ export default function RecipeEditScreen() {
           Suroviny
         </label>
         <textarea
+          ref={ingredientsRef}
           value={ingredients}
           onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
           placeholder={
             'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n4 velký brambory\n2 vejce\nhrst hladký mouky'
           }
-          className="mt-1 min-h-[20dvh] resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[20dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
           Postup
         </label>
         <textarea
+          ref={instructionsRef}
           value={instructions}
           onChange={(event) => setInstructions(event.target.value)}
           placeholder={'jak to uvařit…\n\nNastrouhat najemno, osmažit na sádle na prudkém ohni.'}
-          className="mt-1 min-h-[22dvh] flex-1 resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className="mt-1 min-h-[22dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
         <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
@@ -264,6 +312,17 @@ export default function RecipeEditScreen() {
           Ukládá se průběžně. Uložit jde kdykoliv, obě pole jsou nepovinná.
         </p>
       </div>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title={isEdit ? 'Zahodit změny?' : 'Zahodit recept?'}
+        confirmLabel="Zahodit"
+        confirmRole="destructive"
+        onConfirm={() => void handleDiscard()}
+        onCancel={() => setConfirmDiscard(false)}
+      >
+        {isEdit ? 'Recept zůstane, jak byl před úpravou.' : 'Recept se přesune do koše.'}
+      </ConfirmDialog>
     </div>
   );
 }

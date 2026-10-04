@@ -206,15 +206,74 @@ function commonPrefix(a: string, b: string): number {
   return i;
 }
 
-/** Nejlepší potravina pro dotaz, nebo null, když nic nesedí dost. Při shodě skóre vyhrává dřívější. */
+// Výchozí volba pro samotný obecný název („mouky", „mléka"), kde stejně sedí víc potravin.
+// Klíč = kmen slova bez diakritiky. Použije se jen, když taková potravina v databázi je.
+const GENERIC_DEFAULTS: Record<string, string> = {
+  mouk: 'Mouka pšeničná hladká',
+  mlek: 'Mléko polotučné',
+  cukr: 'Cukr krystal',
+  ryz: 'Rýže dlouhozrnná (syrová)',
+  testovin: 'Těstoviny semolinové (syrové)',
+  olej: 'Olej řepkový',
+  jogurt: 'Jogurt bílý',
+  tvaroh: 'Tvaroh měkký polotučný',
+  smetan: 'Smetana na vaření 12 %',
+  syr: 'Eidam 30 %',
+  vejc: 'Vejce slepičí',
+  chleb: 'Chléb kmínový',
+  paprik: 'Paprika červená',
+  cibul: 'Cibule',
+  maslo: 'Máslo',
+  masl: 'Máslo',
+  hovez: 'Hovězí zadní',
+  vepr: 'Vepřová kýta',
+  vepov: 'Vepřová kýta',
+  kurec: 'Kuřecí prsa',
+};
+
+/** Výchozí potravina pro slovo dotazu: shoda kmene, u delších klíčů i začátek slova („hovězího"). */
+function genericDefault(token: string): string | undefined {
+  const exact = GENERIC_DEFAULTS[stem(token)];
+  if (exact) return exact;
+  const prefix = Object.keys(GENERIC_DEFAULTS).find((key) => key.length >= 4 && token.startsWith(key));
+  return prefix ? GENERIC_DEFAULTS[prefix] : undefined;
+}
+
+/**
+ * Při stejném skóre: výchozí volba pro některé slovo dotazu („oleje" → Olej řepkový), pak
+ * kratší (obecnější) název, pak abecedně – nezávisle na pořadí v databázi.
+ */
+function preferOnTie(candidate: Food, current: Food, defaults: ReadonlySet<string>): boolean {
+  const candidateDefault = defaults.has(candidate.name.toLowerCase());
+  const currentDefault = defaults.has(current.name.toLowerCase());
+  if (candidateDefault !== currentDefault) return candidateDefault;
+  const lengthDiff = nameTokens(candidate.name).length - nameTokens(current.name).length;
+  return lengthDiff !== 0 ? lengthDiff < 0 : candidate.name.localeCompare(current.name, 'cs') < 0;
+}
+
+/** Nejlepší potravina pro dotaz, nebo null, když nic nesedí dost. */
 export function bestFoodMatch(query: string, foods: readonly Food[]): Food | null {
   const tokens = queryTokens(query);
+  if (tokens.all.length === 1) {
+    const defaultName = genericDefault(tokens.all[0]);
+    const preferred = defaultName
+      ? foods.find((food) => !food.deletedAt && food.name.toLowerCase() === defaultName.toLowerCase())
+      : undefined;
+    if (preferred) return preferred;
+  }
+  const defaults = new Set(
+    tokens.all
+      .map(genericDefault)
+      .filter((name): name is string => Boolean(name))
+      .map((name) => name.toLowerCase()),
+  );
   let best: Food | null = null;
   let bestScore = MIN_SCORE - 1;
   for (const food of foods) {
     if (food.deletedAt) continue;
     const score = scoreFood(tokens, food);
-    if (score !== null && score > bestScore) {
+    if (score === null) continue;
+    if (score > bestScore || (score === bestScore && best && preferOnTie(food, best, defaults))) {
       best = food;
       bestScore = score;
     }

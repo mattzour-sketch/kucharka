@@ -221,7 +221,8 @@ export default function RecipeDetailScreen() {
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">
           {formatCzechDate(recipe.capturedOn)}
-          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}        </p>
+          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}
+        </p>
 
         {recipe.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -231,7 +232,8 @@ export default function RecipeDetailScreen() {
           </div>
         ) : null}
 
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        {/* Bez fotek jen malé tlačítko – velká prázdná dlaždice odsouvala suroviny dolů. */}
+        <div className={photos.length > 0 ? 'mt-4 flex gap-2 overflow-x-auto pb-1' : 'mt-3'}>
           {photos.map((photo) => (
             <PhotoThumb
               key={photo.id}
@@ -239,14 +241,25 @@ export default function RecipeDetailScreen() {
               onClick={() => setViewingPhotoId(photo.id)}
             />
           ))}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
-          >
-            <span className="text-2xl leading-none">📷</span>
-            <span className="text-xs">Fotka</span>
-          </button>
+          {photos.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              aria-label="Přidat fotku"
+              className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
+            >
+              <span className="text-2xl leading-none">📷</span>
+              <span className="text-xs">Fotka</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 transition hover:border-brand hover:text-brand dark:border-stone-600 dark:text-stone-400 dark:hover:text-amber-400"
+            >
+              📷 Přidat fotku
+            </button>
+          )}
           <input
             ref={fileRef}
             type="file"
