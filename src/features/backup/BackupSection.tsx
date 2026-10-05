@@ -10,7 +10,7 @@ import {
   formatRelativeDays,
   todayIso,
 } from '../../lib/date';
-import { restoreItemsAdded } from '../../lib/backup';
+import { backupContentCounts, restoreItemsAdded } from '../../lib/backup';
 import { readLastBackupAt, writeLastBackupAt } from '../../lib/backupStatus';
 import { czechPlural } from '../../lib/plural';
 import { applyRestore, exportBackupJson, prepareRestore, type RestorePreview } from './dbBackup';
@@ -156,6 +156,8 @@ export default function BackupSection() {
 function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
   const { parsed, impact } = preview;
   const { added, overwritten, newerInDb } = impact.recipes;
+  // Obsah zálohy bez smazaných položek a receptů v koši.
+  const counts = backupContentCounts(parsed.data);
   const itemsAdded = restoreItemsAdded(impact);
 
   const effects: string[] = [];
@@ -206,9 +208,12 @@ function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
       ) : null}
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-stone-200 pt-3 text-stone-500 dark:border-stone-700">
-        <Row label="Recepty" value={parsed.data.recipes.length} />
-        <Row label="Suroviny" value={parsed.data.recipeItems.length} />
-        <Row label="Fotky" value={parsed.data.photos.length} />
+        <Row label="Recepty" value={counts.recipes} />
+        <Row label="Suroviny" value={counts.recipeItems} />
+        <Row label="Poznámky" value={counts.recipeNotes} />
+        <Row label="Fotky" value={counts.photos} />
+        <Row label="Potraviny" value={counts.foods} />
+        <Row label="Domácí míry" value={counts.foodPortions} />
         <Row
           label="Historie vaření"
           value={parsed.present.cookLogs ? parsed.data.cookLogs.length : 'neobsahuje'}

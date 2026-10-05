@@ -106,7 +106,7 @@ export function buildRecipeCopy(
 export async function duplicateRecipe(id: string): Promise<string | null> {
   const recipe = await db.recipes.get(id);
   if (!recipe) return null;
-  const items = await db.recipeItems.where('recipeId').equals(id).sortBy('sortOrder');
+  const items = await getRecipeItems(id);
   const copy = buildRecipeCopy(recipe, items, new Date().toISOString(), newId);
   await db.transaction('rw', db.recipes, db.recipeItems, async () => {
     await db.recipes.add(copy.recipe);
@@ -132,7 +132,7 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
     // Zachovej id a napojení (food_id, amount_g, is_skipped) i u upravených řádků – oprava
     // překlepu nebo množství nesmí odpojit potravinu (lib/itemPairing). U upraveného řádku
     // s potravinou se množství přečte z nového textu; když v něm není, zůstane původní.
-    const existing = await db.recipeItems.where('recipeId').equals(id).toArray();
+    const existing = (await db.recipeItems.where('recipeId').equals(id).toArray()).filter(isAlive);
     const paired = pairEditedLines(existing, content.ingredientLines);
     const next: RecipeItem[] = [];
     for (const [index, line] of content.ingredientLines.entries()) {
@@ -165,26 +165,29 @@ export async function updateRecipeContent(id: string, content: RecipeContent): P
             },
       );
     }
+    // Odebrané suroviny jen označit (pravidlo 7) – tvrdé smazání by obnova/sync vzkřísily.
     const keptIds = new Set(next.map((item) => item.id));
-    const removed = existing.filter((item) => !keptIds.has(item.id)).map((item) => item.id);
-    if (removed.length > 0) await db.recipeItems.bulkDelete(removed);
-    await db.recipeItems.bulkPut(next);
+    const removed = existing
+      .filter((item) => !keptIds.has(item.id))
+      .map((item) => ({ ...item, deletedAt: now }));
+    await db.recipeItems.bulkPut([...next, ...removed]);
   });
 }
 
 /**
  * „Zahodit změny" v úpravě receptu: vrátí recept i suroviny přesně do stavu při otevření
- * úprav (včetně `updatedAt` a napojení). Položky přidané během úpravy zmizí stejně jako
- * při běžném uložení úpravy.
+ * úprav (včetně `updatedAt` a napojení). Položky přidané během úpravy se označí jako
+ * smazané, odebrané se vrátí.
  */
 export async function restoreRecipeSnapshot(recipe: Recipe, items: readonly RecipeItem[]): Promise<void> {
   await db.transaction('rw', db.recipes, db.recipeItems, async () => {
     await db.recipes.put(recipe);
     const keep = new Set(items.map((item) => item.id));
-    const current = await db.recipeItems.where('recipeId').equals(recipe.id).primaryKeys();
-    const added = current.filter((key) => !keep.has(key));
-    if (added.length > 0) await db.recipeItems.bulkDelete(added);
-    await db.recipeItems.bulkPut([...items]);
+    const now = new Date().toISOString();
+    const added = (await db.recipeItems.where('recipeId').equals(recipe.id).toArray())
+      .filter((item) => isAlive(item) && !keep.has(item.id))
+      .map((item) => ({ ...item, deletedAt: now }));
+    await db.recipeItems.bulkPut([...items, ...added]);
   });
 }
 
@@ -262,8 +265,20 @@ export async function updateRecipeMeta(
   await db.recipes.update(id, { ...patch, updatedAt: new Date().toISOString() });
 }
 
-export function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
-  return db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
+/** Nesmazaná surovina (soft delete, pravidlo 7). */
+function isAlive(item: RecipeItem): boolean {
+  return !item.deletedAt;
+}
+
+/** Suroviny receptu v pořadí, bez smazaných. */
+export async function getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
+  const items = await db.recipeItems.where('recipeId').equals(recipeId).sortBy('sortOrder');
+  return items.filter(isAlive);
+}
+
+/** Všechny nesmazané suroviny (výpočty kalorií napříč recepty, podrecepty, učení napojení). */
+export async function getAllRecipeItems(): Promise<RecipeItem[]> {
+  return (await db.recipeItems.toArray()).filter(isAlive);
 }
 
 /** Přepne oblíbenost receptu. Záměrně nemění `updatedAt`, ať se recept

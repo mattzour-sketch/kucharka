@@ -1,4 +1,5 @@
 import { db, type CookLog, type CookLogIngredient, type CookReplacement } from '../../db';
+import { getAllRecipeItems } from './recipesRepo';
 import { newId } from '../../lib/id';
 import { todayIso } from '../../lib/date';
 import { saveCookSession } from './cookSessionRepo';
@@ -59,7 +60,7 @@ export async function backfillMissingNutrition(): Promise<number> {
   const [foods, recipes, items] = await Promise.all([
     db.foods.toArray(),
     db.recipes.toArray(),
-    db.recipeItems.toArray(),
+    getAllRecipeItems(),
   ]);
   const recipeById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
 

@@ -1,6 +1,7 @@
 import { db, type RecipePhoto } from '../../db';
 import {
   computeRestoreImpact,
+  keepLocalDeletions,
   parseBackup,
   serializeBackup,
   type BackupData,
@@ -127,12 +128,19 @@ export async function applyRestore(preview: RestorePreview): Promise<{ recipes: 
   // Rozsah transakce = všechny tabulky (jeden zdroj místo ručního seznamu, který by se
   // mohl rozejít s bulkPut níž). Širší zámek u jednorázové obnovy nevadí.
   await db.transaction('rw', db.tables, async () => {
+    // Poznámka smazaná po záloze zůstane smazaná (rozhodnutí uživatele 2026-10-04).
+    const localDeletedNotes = new Map(
+      (await db.recipeNotes.toArray())
+        .filter((note) => note.deletedAt)
+        .map((note) => [note.id, note.deletedAt as string]),
+    );
+    const recipeNotes = keepLocalDeletions(data.recipeNotes, localDeletedNotes);
     await Promise.all([
       db.foods.bulkPut(data.foods),
       db.foodPortions.bulkPut(data.foodPortions),
       db.recipes.bulkPut(data.recipes),
       db.recipeItems.bulkPut(data.recipeItems),
-      db.recipeNotes.bulkPut(data.recipeNotes),
+      db.recipeNotes.bulkPut(recipeNotes),
       db.logEntries.bulkPut(data.logEntries),
       db.goals.bulkPut(data.goals),
       db.weightEntries.bulkPut(data.weightEntries),

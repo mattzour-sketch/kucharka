@@ -184,3 +184,42 @@ export function computeRestoreImpact(backup: BackupData, current: RestoreCurrent
 export function restoreItemsAdded(impact: RestoreImpact): number {
   return impact.cookLogsRevived + impact.shoppingItemsRevived;
 }
+
+/**
+ * Smazání po záloze má při obnově přednost (rozhodnutí uživatele 2026-10-04): řádek, který
+ * je v DB smazaný (`deletedAt`), se obnovou nevzkřísí – dostane zpět lokální `deletedAt`.
+ * Použití: poznámky k receptu. Suroviny se vrací spolu s receptem (obnova přepíše recept
+ * do stavu ze zálohy, tak i jeho suroviny).
+ */
+export function keepLocalDeletions<T extends { id: string; deletedAt?: string | null }>(
+  incoming: readonly T[],
+  localDeletedAt: ReadonlyMap<string, string>,
+): T[] {
+  return incoming.map((row) => {
+    const deletedAt = localDeletedAt.get(row.id);
+    return deletedAt && !row.deletedAt ? { ...row, deletedAt } : row;
+  });
+}
+
+/** Obsah zálohy pro náhled obnovy – jen živé řádky (smazané/v koši se nepočítají). */
+export interface BackupContentCounts {
+  recipes: number;
+  recipeItems: number;
+  recipeNotes: number;
+  foods: number;
+  foodPortions: number;
+  photos: number;
+}
+
+export function backupContentCounts(data: BackupData): BackupContentCounts {
+  const alive = (rows: readonly { deletedAt?: string | null }[]) => rows.filter((row) => !row.deletedAt).length;
+  const liveRecipeIds = new Set(data.recipes.filter((recipe) => !recipe.deletedAt).map((recipe) => recipe.id));
+  return {
+    recipes: liveRecipeIds.size,
+    recipeItems: data.recipeItems.filter((item) => !item.deletedAt && liveRecipeIds.has(item.recipeId)).length,
+    recipeNotes: data.recipeNotes.filter((note) => !note.deletedAt && liveRecipeIds.has(note.recipeId)).length,
+    foods: alive(data.foods),
+    foodPortions: alive(data.foodPortions),
+    photos: data.photos.filter((photo) => liveRecipeIds.has(photo.recipeId)).length,
+  };
+}

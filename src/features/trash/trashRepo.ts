@@ -32,7 +32,7 @@ export async function restoreRecipe(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.transaction('rw', [db.recipes, db.recipeItems, db.foods], async () => {
     await db.recipes.update(id, { deletedAt: null, updatedAt: now });
-    const items = await db.recipeItems.where('recipeId').equals(id).toArray();
+    const items = (await db.recipeItems.where('recipeId').equals(id).toArray()).filter((item) => !item.deletedAt);
     const foodIds = [...new Set(items.map((item) => item.foodId).filter((x): x is string => !!x))];
     for (const foodId of foodIds) {
       const food = await db.foods.get(foodId);

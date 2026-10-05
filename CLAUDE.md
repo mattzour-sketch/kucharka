@@ -46,6 +46,9 @@ Věci rozprostřené přes víc souborů, kde se snadno šlápne vedle:
   aditivní `dark:` varianty, ne CSS proměnné.
 - **Záloha je jediný most mezi zařízeními** — žádný server ani sync. JSON export/import
   (`features/backup/`) je pojistka i přenos; obnova je merge (upsert podle id, nemaže).
+  Suroviny i poznámky se mažou jen přes `deletedAt` – čti je přes `getRecipeItems` /
+  `getAllRecipeItems` / `getRecipeNotes`, ne `db.recipeItems.toArray()`. Při obnově zůstane
+  smazaná poznámka smazaná (`keepLocalDeletions`); suroviny se vrací spolu s receptem.
 - **Výjimka z pravidla 6:** localStorage je JEN v `theme.ts` a `backupStatus.ts` (předvolby
   zařízení, ne data aplikace). Nikam jinam.
 - **Dokumentace:** `docs/SPEC.md` (plná spec, fáze v sekci 9), `docs/specs/` + `docs/design/`

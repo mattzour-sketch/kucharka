@@ -13,7 +13,7 @@ import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos, restoreRecipePhoto } from '../photos/photosRepo';
-import { duplicateRecipe, setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
+import { duplicateRecipe, getAllRecipeItems, setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
 import { restoreRecipe } from '../trash/trashRepo';
 import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
@@ -57,7 +57,7 @@ export default function RecipeDetailScreen() {
     const [foods, recipes, allItems] = await Promise.all([
       db.foods.toArray(),
       db.recipes.toArray(),
-      db.recipeItems.toArray(),
+      getAllRecipeItems(),
     ]);
     const items = allItems
       .filter((item) => item.recipeId === id)

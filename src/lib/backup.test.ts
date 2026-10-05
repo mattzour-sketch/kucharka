@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { CookLog, Recipe, ShoppingItem } from '../db';
+import type { CookLog, Recipe, RecipeNote, ShoppingItem } from '../db';
 import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
+  backupContentCounts,
+  keepLocalDeletions,
   computeRestoreImpact,
   parseBackup,
   serializeBackup,
@@ -140,5 +142,60 @@ describe('computeRestoreImpact', () => {
 
     expect(impact.cookLogsRevived).toBe(1);
     expect(impact.shoppingItemsRevived).toBe(1);
+  });
+});
+
+describe('keepLocalDeletions – smazání po záloze má přednost', () => {
+  const note = (id: string, deletedAt?: string): RecipeNote => ({
+    id,
+    recipeId: 'r1',
+    notedOn: '2026-09-01',
+    body: `poznámka ${id}`,
+    ...(deletedAt ? { deletedAt } : {}),
+  });
+
+  it('poznámka smazaná v DB zůstane smazaná, ostatní beze změny', () => {
+    const local = new Map([['n1', '2026-10-01T10:00:00.000Z']]);
+    const result = keepLocalDeletions([note('n1'), note('n2')], local);
+    expect(result[0].deletedAt).toBe('2026-10-01T10:00:00.000Z');
+    expect(result[0].body).toBe('poznámka n1');
+    expect(result[1]).toEqual(note('n2'));
+  });
+
+  it('smazaná v záloze zůstane smazaná (smazání se přenese)', () => {
+    const result = keepLocalDeletions([note('n1', '2026-09-20T00:00:00.000Z')], new Map());
+    expect(result[0].deletedAt).toBe('2026-09-20T00:00:00.000Z');
+  });
+});
+
+describe('backupContentCounts – náhled obnovy', () => {
+  it('počítá jen živé řádky a jen u receptů, které nejsou v koši', () => {
+    const data = emptyData();
+    data.recipes = [makeRecipe('r1', '2026-09-01T00:00:00.000Z'), { ...makeRecipe('r2', '2026-09-01T00:00:00.000Z'), deletedAt: '2026-09-02T00:00:00.000Z' }];
+    data.recipeItems = [
+      { id: 'i1', recipeId: 'r1', rawText: 'mouka', isSkipped: false, sortOrder: 0 },
+      { id: 'i2', recipeId: 'r1', rawText: 'cukr', isSkipped: false, sortOrder: 1, deletedAt: '2026-09-03T00:00:00.000Z' },
+      { id: 'i3', recipeId: 'r2', rawText: 'sůl', isSkipped: false, sortOrder: 0 },
+    ];
+    data.recipeNotes = [
+      { id: 'n1', recipeId: 'r1', notedOn: '2026-09-01', body: 'a' },
+      { id: 'n2', recipeId: 'r1', notedOn: '2026-09-01', body: 'b', deletedAt: '2026-09-03T00:00:00.000Z' },
+    ];
+    data.foodPortions = [
+      { id: 'p1', foodId: 'f1', label: 'lžíce', grams: 15 },
+      { id: 'p2', foodId: 'f1', label: 'hrnek', grams: 200, deletedAt: '2026-09-03T00:00:00.000Z' },
+    ];
+    data.photos = [
+      { id: 'ph1', recipeId: 'r1', dataUrl: 'data:', createdAt: '' },
+      { id: 'ph2', recipeId: 'r2', dataUrl: 'data:', createdAt: '' },
+    ];
+    expect(backupContentCounts(data)).toEqual({
+      recipes: 1,
+      recipeItems: 1,
+      recipeNotes: 1,
+      foods: 0,
+      foodPortions: 1,
+      photos: 1,
+    });
   });
 });

@@ -21,7 +21,13 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import LinkPicker from './LinkPicker';
-import { applyAutoLinks, restoreItemLinks, updateRecipeItemLink, updateRecipeMeta } from './recipesRepo';
+import {
+  applyAutoLinks,
+  getAllRecipeItems,
+  restoreItemLinks,
+  updateRecipeItemLink,
+  updateRecipeMeta,
+} from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
@@ -86,7 +92,7 @@ export default function RecipeNutritionScreen() {
     const [foods, recipes, items, portions] = await Promise.all([
       db.foods.toArray(),
       db.recipes.toArray(),
-      db.recipeItems.toArray(),
+      getAllRecipeItems(),
       db.foodPortions.toArray(),
     ]);
     return { recipe, foods, recipes, items, portions };

@@ -17,7 +17,7 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
-import { getRecipeItems } from './recipesRepo';
+import { getAllRecipeItems, getRecipeItems } from './recipesRepo';
 import {
   clearCookSession,
   getCookSession,
@@ -79,7 +79,7 @@ export default function CookingModeScreen() {
       getRecipeItems(id),
       db.foods.toArray(),
       db.recipes.toArray(),
-      db.recipeItems.toArray(),
+      getAllRecipeItems(),
       db.foodPortions.toArray(),
     ]);
     return { recipe, items, foods, recipes, allItems, portions };

@@ -99,6 +99,8 @@ export interface RecipeItem {
   isSkipped: boolean;
   note?: string | null;
   sortOrder: number;
+  /** Soft delete (pravidlo 7) – surovina odebraná při úpravě receptu. Neindexované → bez bumpu verze. */
+  deletedAt?: IsoTimestamp | null;
 }
 
 /** Poznámky z jednotlivých vaření (R-24). */
@@ -107,6 +109,8 @@ export interface RecipeNote {
   recipeId: string;
   notedOn: IsoDate;
   body: string;
+  /** Soft delete (pravidlo 7). Smazaná poznámka zůstane smazaná i po obnově starší zálohy. */
+  deletedAt?: IsoTimestamp | null;
 }
 
 /** Zápis v deníku – snapshot spočítaný v okamžiku zápisu (E-01). */

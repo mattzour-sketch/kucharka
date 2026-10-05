@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
+import { getAllRecipeItems } from './recipesRepo';
 import { matchesQuery } from '../../lib/search';
 import { formatNumber } from '../../lib/num';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
@@ -25,7 +26,7 @@ export default function RecipePickList({
     const [recipes, foods, items] = await Promise.all([
       db.recipes.toArray(),
       db.foods.toArray(),
-      db.recipeItems.toArray(),
+      getAllRecipeItems(),
     ]);
     return { recipes, foods, items };
   }, []);

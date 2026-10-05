@@ -1,4 +1,5 @@
 import { db, type CookReplacement, type Food, type Recipe, type RecipeItem } from '../../db';
+import { getAllRecipeItems } from '../recipes/recipesRepo';
 import { isIngredientHeading } from '../../lib/ingredientSection';
 import {
   completeness,
@@ -173,7 +174,7 @@ export async function computeRecipeNutrition(recipeId: string): Promise<RecipeNu
   const [foods, recipes, items] = await Promise.all([
     db.foods.toArray(),
     db.recipes.toArray(),
-    db.recipeItems.toArray(),
+    getAllRecipeItems(),
   ]);
   return nutritionFromData(recipeId, { foods, recipes, items });
 }
