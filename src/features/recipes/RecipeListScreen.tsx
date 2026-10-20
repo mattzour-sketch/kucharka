@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe } from '../../db';
 import RecipeCard from './RecipeCard';
+import { rememberListSearch } from './listReturn';
 import { setRecipeFavorite } from './recipesRepo';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Logo from '../../components/ui/Logo';
@@ -33,6 +34,8 @@ export default function RecipeListScreen() {
   const quickOnly = params.get('rychle') === '1';
   const activeTag = params.get('stitek');
   const query = params.get('q') ?? '';
+  const search = params.toString();
+  useEffect(() => rememberListSearch(search), [search]);
 
   function updateParams(patch: Record<string, string | null>) {
     setParams(

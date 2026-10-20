@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookReplacement, type FoodPortion } from '../../db';
 import { formatCzechDate } from '../../lib/date';
@@ -26,6 +26,8 @@ import {
   type CookSessionState,
 } from './cookSessionRepo';
 import { addTimer } from './timerRepo';
+import { getRecipeNotes } from './recipeNotesRepo';
+import { partitionNotes } from '../../lib/originalNote';
 import { addCookLog, getCookLogs } from './cookLogRepo';
 import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import FoodPicker from '../foods/FoodPicker';
@@ -43,9 +45,18 @@ import { Skeleton, ReadingSkeleton } from '../../components/ui/Loading';
 
 // Do téhle doby se sezení obnoví tiše; po delší době appka nabídne volbu (§6 [R]).
 const STALE_MS = 3 * 60 * 60 * 1000;
+// Kolik posledních poznámek k receptu je vidět hned; zbytek po ťuknutí.
+const NOTES_SHOWN = 2;
 
 function keysOf(record: Record<string, boolean>): string[] {
   return Object.keys(record).filter((key) => record[key]);
+}
+
+/** Porce zvolené na detailu receptu (předané při ťuknutí na Vařit). */
+function entryServingsOf(state: unknown): number | null {
+  if (typeof state !== 'object' || state === null || !('servings' in state)) return null;
+  const servings = state.servings;
+  return typeof servings === 'number' && servings > 0 ? servings : null;
 }
 
 /** Jemná odezva při odškrtnutí (kde to zařízení umí). */
@@ -73,6 +84,9 @@ function replacementAmountLabel(replacement: CookReplacement): string {
 export default function CookingModeScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Porce z detailu mají přednost před uloženým sezením (je to čerstvá volba).
+  const entryServingsRef = useRef(entryServingsOf(location.state));
   const lastLog = useLiveQuery(
     () => (id ? getCookLogs(id).then((logs) => logs[0] ?? null) : Promise.resolve(null)),
     [id],
@@ -112,7 +126,15 @@ export default function CookingModeScreen() {
   // Inline „+ míra" u náhrady: je otevřený mini-formulář?
   const [addMeasureFor, setAddMeasureFor] = useState<'repl' | null>(null);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
-  useEffect(() => setTargetServings(null), [id]);
+  // Vlastní poznámky k receptu („příště míň soli") – při vaření jen ke čtení.
+  const ownNotes =
+    useLiveQuery(
+      async () => (id ? partitionNotes(await getRecipeNotes(id)).own : []),
+      [id],
+    ) ?? [];
+  const [notesOpen, setNotesOpen] = useState(false);
+  const shownNotes = notesOpen ? ownNotes : ownNotes.slice(-NOTES_SHOWN);
+  const hiddenNoteCount = ownNotes.length - shownNotes.length;
   useWakeLock();
 
   // Načtení sezení: čerstvé obnovit tiše, staré nabídnout.
@@ -128,33 +150,47 @@ export default function CookingModeScreen() {
     setReplValue({ unitId: 'g', raw: '' });
     setAddMeasureFor(null);
     setTab('ingredients');
+    const entryServings = entryServingsRef.current;
+    setTargetServings(entryServings);
     if (!id) return;
+    // Porce z detailu jsou přečtené → pryč z historie, ať je návrat sem nepřebije.
+    if (entryServings !== null) navigate('.', { replace: true, state: null });
     let cancelled = false;
     void getCookSession(id).then((session) => {
-      if (cancelled || !session) return;
+      if (cancelled) return;
       const state: CookSessionState = {
-        checkedItemIds: session.checkedItemIds,
-        offItemIds: session.offItemIds ?? [],
-        amountOverrides: session.amountOverrides ?? {},
-        replacements: session.replacements ?? {},
-        doneStepIndices: session.doneStepIndices ?? [],
+        checkedItemIds: session?.checkedItemIds ?? [],
+        offItemIds: session?.offItemIds ?? [],
+        amountOverrides: session?.amountOverrides ?? {},
+        replacements: session?.replacements ?? {},
+        doneStepIndices: session?.doneStepIndices ?? [],
+        targetServings: session?.targetServings ?? null,
       };
-      const hasContent =
+      const hasProgress =
         state.checkedItemIds.length > 0 ||
         state.offItemIds.length > 0 ||
         Object.keys(state.amountOverrides).length > 0 ||
         Object.keys(state.replacements ?? {}).length > 0 ||
         (state.doneStepIndices ?? []).length > 0;
-      if (!hasContent) return;
-      if (Date.now() - Date.parse(session.updatedAt) < STALE_MS) {
-        applyState(state);
-      } else {
+      const fresh = session !== undefined && Date.now() - Date.parse(session.updatedAt) < STALE_MS;
+      if (!fresh && hasProgress) {
         setStalePrompt(state);
+        return;
+      }
+      if (fresh) applyState(state);
+      // Porce z detailu uložit hned – po zamčení telefonu a návratu do appky zůstanou.
+      if (entryServings !== null) {
+        void saveCookSession(id, {
+          ...(fresh ? state : { checkedItemIds: [], offItemIds: [], amountOverrides: {} }),
+          targetServings: entryServings,
+        });
       }
     });
     return () => {
       cancelled = true;
     };
+    // navigate jen uklízí předané porce; sezení se načítá při změně receptu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   function applyState(state: CookSessionState) {
@@ -163,23 +199,28 @@ export default function CookingModeScreen() {
     setOverrides(state.amountOverrides);
     setReplacements(state.replacements ?? {});
     setDoneSteps(new Set(state.doneStepIndices ?? []));
+    setTargetServings(entryServingsRef.current ?? state.targetServings ?? null);
   }
 
   function persist(
-    nextChecked: Record<string, boolean>,
-    nextOff: Record<string, boolean>,
-    nextOverrides: Record<string, string>,
-    nextReplacements: Record<string, CookReplacement> = replacements,
-    nextDoneSteps: Set<number> = doneSteps,
+    patch: {
+      checked?: Record<string, boolean>;
+      off?: Record<string, boolean>;
+      overrides?: Record<string, string>;
+      replacements?: Record<string, CookReplacement>;
+      doneSteps?: Set<number>;
+      servings?: number | null;
+    } = {},
   ) {
     // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
     if (!id || stalePrompt) return;
     void saveCookSession(id, {
-      checkedItemIds: keysOf(nextChecked),
-      offItemIds: keysOf(nextOff),
-      amountOverrides: nextOverrides,
-      replacements: nextReplacements,
-      doneStepIndices: [...nextDoneSteps],
+      checkedItemIds: keysOf(patch.checked ?? checked),
+      offItemIds: keysOf(patch.off ?? off),
+      amountOverrides: patch.overrides ?? overrides,
+      replacements: patch.replacements ?? replacements,
+      doneStepIndices: [...(patch.doneSteps ?? doneSteps)],
+      targetServings: patch.servings !== undefined ? patch.servings : targetServings,
     });
   }
 
@@ -234,7 +275,7 @@ export default function CookingModeScreen() {
   function toggleCheck(itemId: string) {
     const next = { ...checked, [itemId]: !(checked[itemId] ?? false) };
     setChecked(next);
-    persist(next, off, overrides);
+    persist({ checked: next });
     buzz();
   }
 
@@ -243,7 +284,7 @@ export default function CookingModeScreen() {
     if (next.has(index)) next.delete(index);
     else next.add(index);
     setDoneSteps(next);
-    persist(checked, off, overrides, replacements, next);
+    persist({ doneSteps: next });
     buzz();
   }
 
@@ -254,7 +295,7 @@ export default function CookingModeScreen() {
     if (next[itemId]) delete nextRepl[itemId];
     setOff(next);
     setReplacements(nextRepl);
-    persist(checked, next, overrides, nextRepl);
+    persist({ off: next, replacements: nextRepl });
     setEditingItemId(null);
   }
 
@@ -302,7 +343,7 @@ export default function CookingModeScreen() {
     const nextOff = { ...off, [itemId]: false };
     setReplacements(nextRepl);
     setOff(nextOff);
-    persist(checked, nextOff, overrides, nextRepl);
+    persist({ off: nextOff, replacements: nextRepl });
     setReplacingItemId(null);
   }
 
@@ -310,7 +351,7 @@ export default function CookingModeScreen() {
     const nextRepl = { ...replacements };
     delete nextRepl[itemId];
     setReplacements(nextRepl);
-    persist(checked, off, overrides, nextRepl);
+    persist({ replacements: nextRepl });
     setReplacingItemId(null);
   }
 
@@ -320,7 +361,7 @@ export default function CookingModeScreen() {
     if (value) next[itemId] = value;
     else delete next[itemId];
     setOverrides(next);
-    persist(checked, off, next);
+    persist({ overrides: next });
     setEditingItemId(null);
   }
 
@@ -332,7 +373,10 @@ export default function CookingModeScreen() {
   function continueSession() {
     if (!stalePrompt || !id) return;
     applyState(stalePrompt);
-    void saveCookSession(id, stalePrompt);
+    void saveCookSession(id, {
+      ...stalePrompt,
+      targetServings: entryServingsRef.current ?? stalePrompt.targetServings,
+    });
     setStalePrompt(null);
   }
 
@@ -436,10 +480,28 @@ export default function CookingModeScreen() {
       />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
-        {lastLog ? (
-          <div className="mb-4 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-3 text-sm text-stone-600 dark:text-stone-300">
-            Naposledy uvařeno {formatCzechDate(lastLog.cookedOn)}
-            {lastLog.note ? ` · ${lastLog.note}` : ''}
+        {lastLog || ownNotes.length > 0 ? (
+          <div className="mb-4 space-y-1.5 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-3 text-sm text-stone-600 dark:text-stone-300">
+            {lastLog ? (
+              <p>
+                Naposledy uvařeno {formatCzechDate(lastLog.cookedOn)}
+                {lastLog.note ? ` · ${lastLog.note}` : ''}
+              </p>
+            ) : null}
+            {shownNotes.map((note) => (
+              <p key={note.id} className="whitespace-pre-line">
+                📝 {note.body}
+              </p>
+            ))}
+            {hiddenNoteCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setNotesOpen(true)}
+                className="text-xs font-medium text-brand-dark dark:text-amber-400"
+              >
+                Další poznámky ({hiddenNoteCount})
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -520,9 +582,11 @@ export default function CookingModeScreen() {
               )}
               <ServingsStepper
                 value={targetPortions}
-                onStep={(delta) =>
-                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
-                }
+                onStep={(delta) => {
+                  const next = Math.max(1, targetPortions + delta);
+                  setTargetServings(next);
+                  persist({ servings: next });
+                }}
               />
             </div>
             {!recipe.servings ? (
@@ -790,7 +854,7 @@ export default function CookingModeScreen() {
               <textarea
                 value={finishNote}
                 onChange={(event) => setFinishNote(event.target.value)}
-                placeholder="Poznámka (nepovinné) – např. „příště míň soli“"
+                placeholder="Poznámka (nepovinné) – např. „vyšlo na 3 porce“"
                 className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 dark:border-stone-700 p-3 text-sm outline-none focus:border-brand"
               />
               <div className="mt-2 flex gap-2">

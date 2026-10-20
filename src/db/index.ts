@@ -186,6 +186,8 @@ export interface CookSession {
   replacements?: Record<string, CookReplacement>;
   /** Hotové kroky postupu (indexy) – průběh vaření. */
   doneStepIndices?: number[];
+  /** Počet porcí, na který se dnes vaří (null = porce receptu). */
+  targetServings?: number | null;
   updatedAt: IsoTimestamp;
 }
 

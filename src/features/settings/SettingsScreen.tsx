@@ -120,7 +120,7 @@ export default function SettingsScreen() {
         <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
           <h2 className="font-medium">O aplikaci</h2>
           <p className="mt-1 text-stone-500">
-            Osobní kuchařka · Fáze 1. Local-first, funguje offline, bez serveru a bez účtu.
+            Osobní kuchařka. Funguje offline, bez serveru a bez účtu. Data jsou jen v tomhle prohlížeči.
           </p>
         </section>
       </main>

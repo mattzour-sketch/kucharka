@@ -131,14 +131,21 @@ export default function RecipeEditScreen() {
     };
   }
 
-  async function persist(finalName?: string): Promise<string> {
+  /** Zápisy jdou po sobě – souběžné uložení nového receptu by jinak založilo dva. */
+  const persistQueue = useRef<Promise<unknown>>(Promise.resolve());
+
+  function persist(finalName?: string): Promise<string> {
     const content = buildContent(finalName ?? name.trim());
-    if (!idRef.current) {
-      idRef.current = await createRecipeWithContent(content);
-    } else {
-      await updateRecipeContent(idRef.current, content);
-    }
-    return idRef.current;
+    const run = persistQueue.current.then(async () => {
+      if (!idRef.current) {
+        idRef.current = await createRecipeWithContent(content);
+      } else {
+        await updateRecipeContent(idRef.current, content);
+      }
+      return idRef.current;
+    });
+    persistQueue.current = run.catch(() => undefined);
+    return run;
   }
 
   const currentSnapshot = snapshotOf(name, capturedOn, ingredients, instructions, tags, prepMinutes, servings);
@@ -166,6 +173,32 @@ export default function RecipeEditScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, capturedOn, ingredients, instructions, tags, prepMinutes, servings]);
 
+  // Uložení hned, bez čekání na debounce. Ref drží verzi s aktuálním stavem.
+  const flushRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    flushRef.current = () => {
+      if (!loadedRef.current || discardedRef.current) return;
+      const snapshot = currentSnapshot;
+      if (snapshot === lastSaved.current) return;
+      if (!idRef.current && !hasContent) return;
+      lastSaved.current = snapshot;
+      void persist();
+    };
+  });
+
+  // PWA na pozadí může zemřít dřív, než debounce doběhne → uložit hned. Totéž při odchodu
+  // z obrazovky (gesto Zpět), jinak by se poslední napsaná slova ztratila.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') flushRef.current();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      flushRef.current();
+    };
+  }, []);
+
   function deriveName(): string {
     const base = splitIngredientLines(ingredients)[0] ?? splitIngredientLines(instructions)[0] ?? '';
     return base.length > 80 ? base.slice(0, 80).trimEnd() : base;
@@ -190,6 +223,7 @@ export default function RecipeEditScreen() {
       return;
     }
     if (idRef.current || hasContent) {
+      lastSaved.current = currentSnapshot;
       const id = await persist();
       navigate(isEdit ? `/recept/${id}` : '/', { replace: true });
     } else {
@@ -201,6 +235,7 @@ export default function RecipeEditScreen() {
   async function handleDiscard() {
     discardedRef.current = true;
     setConfirmDiscard(false);
+    await persistQueue.current; // rozběhnutý zápis nesmí doběhnout až po zahození
     const original = originalRef.current;
     if (original) {
       await restoreRecipeSnapshot(original.recipe, original.items);
@@ -305,7 +340,7 @@ export default function RecipeEditScreen() {
           ref={instructionsRef}
           value={instructions}
           onChange={(event) => setInstructions(event.target.value)}
-          placeholder={'jak to uvařit…\n\nNastrouhat najemno, osmažit na sádle na prudkém ohni.'}
+          placeholder={'jeden krok na řádek…\n\nBrambory nastrouhat najemno.\nOsmažit na sádle na prudkém ohni.'}
           className="mt-1 min-h-[22dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 

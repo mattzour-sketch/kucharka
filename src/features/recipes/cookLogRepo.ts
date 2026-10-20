@@ -93,5 +93,6 @@ export async function replayCookLog(log: CookLog): Promise<void> {
     offItemIds: log.offItemIds,
     amountOverrides: log.amountOverrides,
     replacements: log.replacements ?? {},
+    targetServings: log.portions,
   });
 }

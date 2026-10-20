@@ -31,6 +31,7 @@ import {
 } from './recipeNotesRepo';
 import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
+import { recipeListHref } from './listReturn';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
@@ -82,7 +83,7 @@ export default function RecipeDetailScreen() {
   if (data === undefined) {
     return (
       <div className="min-h-dvh">
-        <ScreenHeader variant="stack" width="narrow" backTo="/" backLabel="Zpět na seznam" />
+        <ScreenHeader variant="stack" width="narrow" backTo={recipeListHref()} backLabel="Zpět na seznam" />
         <main className="mx-auto max-w-2xl px-4 py-4">
           <ReadingSkeleton />
         </main>
@@ -211,7 +212,7 @@ export default function RecipeDetailScreen() {
       <ScreenHeader
         variant="stack"
         width="narrow"
-        backTo="/"
+        backTo={recipeListHref()}
         backLabel="Zpět na seznam"
         actions={
           <>
@@ -227,7 +228,14 @@ export default function RecipeDetailScreen() {
             <Button role="secondary" to={`/recept/${recipe.id}/upravit`}>
               Upravit
             </Button>
-            <Button role="primary" to={`/recept/${recipe.id}/varit`}>
+            <Button
+              role="primary"
+              onClick={() =>
+                navigate(`/recept/${recipe.id}/varit`, {
+                  state: targetServings !== null ? { servings: targetServings } : null,
+                })
+              }
+            >
               Vařit
             </Button>
           </>
