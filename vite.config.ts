@@ -31,6 +31,15 @@ export default defineConfig({
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // Appka v nabídce „Sdílet" (Android, nainstalovaná PWA): text ze zprávy, poznámky
+        // nebo webu otevře Vložit předvyplněné (`lib/shareTarget.ts`). GET → funguje i
+        // offline přes navigateFallback service workeru, bez vlastního handleru.
+        share_target: {
+          action: 'vlozit',
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: { title: 'title', text: 'text', url: 'url' },
+        },
       },
       workbox: {
         // App shell se předcachuje → aplikace naběhne i úplně offline (NF-3).

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { todayIso } from '../../lib/date';
 import { parseDecimal } from '../../lib/num';
 import { isBareUrl, parseRecipeText } from '../../lib/parseRecipe';
+import { sharedTextFromParams } from '../../lib/shareTarget';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import {
   fallbackImportName,
@@ -43,6 +44,9 @@ const areaClass =
  */
 export default function ImportRecipeScreen() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  /** Text sdílený z jiné appky (manifest `share_target`) – čte se jen při otevření. */
+  const [sharedText] = useState(() => sharedTextFromParams(searchParams));
   const [loaded, setLoaded] = useState(false);
   const [restored, setRestored] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -79,7 +83,23 @@ export default function ImportRecipeScreen() {
     else void saveImportDraft(draft);
   }, []);
 
-  // Načtení rozdělaného konceptu (jednou).
+  const applyParse = useCallback((text: string) => {
+    const next = previewFromParsed(parseRecipeText(text));
+    setPreview(next);
+    setParsedPreview(next);
+    setParsedText(text);
+    setMessage('');
+    setRestored(false);
+    setSourceOpen(false);
+    if (next.name.trim() === '') setFocusNameRequest((count) => count + 1);
+  }, []);
+
+  // Sdílený text je přečtený → pryč z adresy, ať ho obnovení stránky nevloží znovu.
+  useEffect(() => {
+    if (searchParams.toString() !== '') setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Načtení rozdělaného konceptu (jednou), pak případně sdíleného textu.
   useEffect(() => {
     let cancelled = false;
     void getImportDraft()
@@ -91,6 +111,20 @@ export default function ImportRecipeScreen() {
           setPreview(draft.preview);
           setParsedPreview(draft.parsedPreview);
           setRestored(true);
+        }
+        if (sharedText !== null) {
+          if (isBareUrl(sharedText)) {
+            // Koncept zůstává, jen nápověda (IG sdílí odkaz, ne popisek).
+            setMessage(URL_MESSAGE);
+          } else {
+            setPasteText(sharedText);
+            const edited =
+              draft?.preview != null &&
+              draft.parsedPreview != null &&
+              isPreviewEdited(draft.preview, draft.parsedPreview);
+            if (edited) setPendingParse(sharedText);
+            else applyParse(sharedText);
+          }
         }
         // Zapisovat koncept smíme jen po úspěšném načtení – jinak by prázdný stav přepsal
         // (smazal) koncept, který se jen nepodařilo přečíst.
@@ -107,7 +141,7 @@ export default function ImportRecipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sharedText, applyParse]);
 
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
@@ -135,17 +169,6 @@ export default function ImportRecipeScreen() {
     nameRef.current?.focus();
     nameRef.current?.scrollIntoView({ block: 'center' });
   }, [focusNameRequest]);
-
-  function applyParse(text: string) {
-    const next = previewFromParsed(parseRecipeText(text));
-    setPreview(next);
-    setParsedPreview(next);
-    setParsedText(text);
-    setMessage('');
-    setRestored(false);
-    setSourceOpen(false);
-    if (next.name.trim() === '') setFocusNameRequest((count) => count + 1);
-  }
 
   function requestParse(text: string) {
     if (isBareUrl(text)) {

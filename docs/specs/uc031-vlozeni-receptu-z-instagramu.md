@@ -238,7 +238,8 @@ Instructions:
 - Načtení receptu z odkazu na IG/web, OCR ze screenshotu, diktování — parkoviště UC026
   (síť/CSP, přihlášení k IG, nová závislost).
 - Web Share Target (sdílení z IG přímo do appky) — IG sdílí odkaz, ne text popisku, takže by
-  nepomohlo bez načtení z URL.
+  nepomohlo bez načtení z URL. (Pro jiné zdroje textu je sdílení do appky hotové od 2026-10-20,
+  viz `use-cases-navrhy.md`; odkaz z IG dostane stejnou nápovědu jako vložené URL.)
 - Stažení fotky receptu z IG.
 - Automatické napojení surovin na potraviny při vložení (pravidlo 1; napojuje se na obrazovce
   Kalorie).

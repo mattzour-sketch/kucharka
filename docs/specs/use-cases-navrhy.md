@@ -30,6 +30,9 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 - **UC022 — Co dnes uvařit** ✅ tlačítko „🎲 Co dnes?" na seznamu (náhodně z aktuálně zobrazených).
 - **UC025 — Tmavý režim** ✅ přepínač Systém/Světlý/Tmavý ve „Víc", bez FOUC.
 - **UC023 — Sekce surovin** ✅ nadpis sekce = řádek „# Na těsto" (bez změny modelu).
+- **Sdílení do appky** ✅ (2026-10-20) manifest `share_target`: text z WhatsAppu / Keep / prohlížeče
+  → Sdílet → Kuchařka otevře Vložit předvyplněné (`lib/shareTarget.ts`). Jen Android + nainstalovaná
+  PWA. IG sdílí jen odkaz → ukáže se nápověda „Odkaz neotevřu".
 - **Doba přípravy + „⚡ Rychlé"** ✅ nepovinný čas u receptu (odznak na kartě, filtr rychlých ≤ 30 min).
 - **UC021 — Týdenní plán** ❌ ZAHOZENO — do osobní kuchařky nesedí (plánování jídel je jiná aplikace).
 
