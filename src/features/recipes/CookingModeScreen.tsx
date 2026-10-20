@@ -15,6 +15,7 @@ import { matchPortionInText } from '../../lib/portionMatch';
 import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
+import { matchStepIngredients } from '../../lib/stepIngredients';
 import { primeAlarm } from '../../lib/alarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getAllRecipeItems, getRecipeItems } from './recipesRepo';
@@ -55,6 +56,12 @@ function buzz(): void {
 }
 
 type CookTab = 'ingredients' | 'steps';
+
+function replacementAmountLabel(replacement: CookReplacement): string {
+  if (replacement.amountKs != null) return `${replacement.amountKs} ks`;
+  if (replacement.amountG != null) return `${replacement.amountG} g`;
+  return '';
+}
 
 /**
  * Režim vaření (R-22, §6, §7, §8): velké písmo, displej nezhasíná (wake lock),
@@ -350,6 +357,18 @@ export default function CookingModeScreen() {
   const targetPortions = targetServings ?? baseServings;
   const scaleFactor = targetPortions / baseServings;
 
+  // Množství surovin zmíněných v kroku – jak se dnes vaří (porce, odchylky, náhrady).
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const stepIngredientLabels = matchStepIngredients(steps, items).map((itemIds) =>
+    itemIds.flatMap((itemId) => {
+      const item = itemById.get(itemId);
+      if (!item || off[itemId]) return [];
+      const replacement = replacements[itemId];
+      if (replacement) return [`${replacement.text} ${replacementAmountLabel(replacement)}`.trim()];
+      return [overrides[itemId] || scaleQuantityText(item.rawText, scaleFactor)];
+    }),
+  );
+
   // Průběh vaření: odškrtané suroviny (mimo vypnuté a nahrazené) + hotové kroky.
   const ingredientUnits = items.filter(
     (item) => !isIngredientHeading(item.rawText) && !(off[item.id] ?? false) && !replacements[item.id],
@@ -524,13 +543,7 @@ export default function CookingModeScreen() {
                 const isOff = off[item.id] ?? false;
                 const replacement = replacements[item.id];
                 const isReplaced = Boolean(replacement);
-                const replAmountLabel = replacement
-                  ? replacement.amountKs != null
-                    ? `${replacement.amountKs} ks`
-                    : replacement.amountG != null
-                      ? `${replacement.amountG} g`
-                      : ''
-                  : '';
+                const replAmountLabel = replacement ? replacementAmountLabel(replacement) : '';
                 const override = overrides[item.id];
                 const baseText = scaleQuantityText(item.rawText, scaleFactor);
                 const isChecked = !isOff && !isReplaced && (checked[item.id] ?? false);
@@ -729,6 +742,7 @@ export default function CookingModeScreen() {
                   >
                     {stepDone ? '✓' : index + 1}
                   </button>
+                  <div className="min-w-0">
                   <span className={stepDone ? 'text-stone-400 line-through' : ''}>
                     {splitStepByDurations(step).map((segment, segIndex) => {
                       if (segment.seconds == null) {
@@ -750,6 +764,12 @@ export default function CookingModeScreen() {
                       );
                     })}
                   </span>
+                  {stepIngredientLabels[index].length > 0 ? (
+                    <p className="mt-1 text-base text-stone-500 dark:text-stone-400">
+                      {stepIngredientLabels[index].join(' · ')}
+                    </p>
+                  ) : null}
+                  </div>
                 </li>
                 );
               })}

@@ -13,7 +13,13 @@ import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import { addRecipePhoto, deleteRecipePhoto, getRecipePhotos, restoreRecipePhoto } from '../photos/photosRepo';
-import { duplicateRecipe, getAllRecipeItems, setRecipeFavorite, softDeleteRecipe } from './recipesRepo';
+import {
+  duplicateRecipe,
+  getAllRecipeItems,
+  setRecipeFavorite,
+  softDeleteRecipe,
+  updateRecipeMeta,
+} from './recipesRepo';
 import { deleteCookLog, getCookLogs, replayCookLog, restoreCookLog } from './cookLogRepo';
 import { restoreRecipe } from '../trash/trashRepo';
 import { addLinesToShopping, removeShoppingItems } from '../shopping/shoppingRepo';
@@ -30,10 +36,14 @@ import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import Tag from '../../components/ui/Tag';
 import Segmented from '../../components/ui/Segmented';
+import FilterChip from '../../components/ui/FilterChip';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
 import { ReadingSkeleton } from '../../components/ui/Loading';
+
+/** Nabídka porcí u receptu bez počtu porcí (víc porcí se nastaví v Upravit). */
+const SERVINGS_CHOICES = [1, 2, 3, 4, 5, 6];
 
 export default function RecipeDetailScreen() {
   const { id } = useParams();
@@ -125,6 +135,13 @@ export default function RecipeDetailScreen() {
     if (ids.length > 0) {
       showUndo({ message: `Přidáno do nákupu (${ids.length})`, undo: () => removeShoppingItems(ids) });
     }
+  }
+
+  /** Počet porcí rovnou z detailu; množství se dál ukazují tak, jak jsou napsaná. */
+  async function handleSetServings(count: number) {
+    if (!id) return;
+    await updateRecipeMeta(id, { servings: count });
+    setTargetServings(null);
   }
 
   async function handleDeleteLog(logId: string) {
@@ -321,15 +338,15 @@ export default function RecipeDetailScreen() {
               )}
             </ul>
             {!recipe.servings ? (
-              <p className="mt-1.5 text-xs text-stone-400">
-                Recept nemá počet porcí – počítám od 1. Nastavíš ho v Upravit.
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-xs text-stone-400">Pro kolik porcí?</span>
+                {SERVINGS_CHOICES.map((count) => (
+                  <FilterChip key={count} active={false} onClick={() => void handleSetServings(count)}>
+                    {count}
+                  </FilterChip>
+                ))}
+              </div>
             ) : null}
-            <div className="mt-3">
-              <Button role="secondary" onClick={() => void handleAddToShopping()}>
-                🛒 Do nákupního seznamu
-              </Button>
-            </div>
           </section>
         ) : null}
 
@@ -493,6 +510,11 @@ export default function RecipeDetailScreen() {
           <Button role="secondary" fullWidth onClick={() => void handleDuplicate()}>
             Duplikovat
           </Button>
+          {hasIngredients ? (
+            <Button role="secondary" fullWidth onClick={() => void handleAddToShopping()}>
+              Do nákupu
+            </Button>
+          ) : null}
         </div>
         {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark dark:text-amber-400">{shareMsg}</p> : null}
 

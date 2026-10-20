@@ -237,6 +237,14 @@ export default function RecipeEditScreen() {
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter v názvu = rovnou psát suroviny (rychlé zachycení).
+            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              ingredientsRef.current?.focus();
+            }
+          }}
+          enterKeyHint="next"
           placeholder="Název receptu"
           className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
         />
@@ -285,7 +293,7 @@ export default function RecipeEditScreen() {
           onChange={(event) => setIngredients(event.target.value)}
           autoFocus={!isEdit}
           placeholder={
-            'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n4 velký brambory\n2 vejce\nhrst hladký mouky'
+            'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n800 g brambor\n2 vejce\n100 g hladké mouky'
           }
           className="mt-1 min-h-[20dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />

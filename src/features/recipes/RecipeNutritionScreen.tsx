@@ -18,6 +18,7 @@ import {
 import { matchPortionInText } from '../../lib/portionMatch';
 import { portionsForTargetKcal, type Nutrients } from '../../lib/nutrition';
 import { addPortion } from '../foods/foodPortionsRepo';
+import { basicFoodCount, seedBasicFoods } from '../foods/seedFoods';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
 import LinkPicker from './LinkPicker';
@@ -77,6 +78,18 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
   );
 }
 
+async function loadNutritionData(id: string) {
+  const recipe = await db.recipes.get(id);
+  if (!recipe) return { recipe: null, foods: [], recipes: [], items: [], portions: [] };
+  const [foods, recipes, items, portions] = await Promise.all([
+    db.foods.toArray(),
+    db.recipes.toArray(),
+    getAllRecipeItems(),
+    db.foodPortions.toArray(),
+  ]);
+  return { recipe, foods, recipes, items, portions };
+}
+
 /**
  * Doplnění nutričních hodnot k receptu (SPEC 6.6). Levý text suroviny je
  * nedotknutelný – napojení potraviny ho nikdy nepřepíše (E-17). Souhrn se
@@ -85,18 +98,7 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
 export default function RecipeNutritionScreen() {
   const { id } = useParams();
 
-  const data = useLiveQuery(async () => {
-    if (!id) return null;
-    const recipe = await db.recipes.get(id);
-    if (!recipe) return { recipe: null, foods: [], recipes: [], items: [], portions: [] };
-    const [foods, recipes, items, portions] = await Promise.all([
-      db.foods.toArray(),
-      db.recipes.toArray(),
-      getAllRecipeItems(),
-      db.foodPortions.toArray(),
-    ]);
-    return { recipe, foods, recipes, items, portions };
-  }, [id]);
+  const data = useLiveQuery(() => (id ? loadNutritionData(id) : null), [id]);
 
   const [pickingItemId, setPickingItemId] = useState<string | null>(null);
   const [servings, setServings] = useState('');
@@ -136,6 +138,13 @@ export default function RecipeNutritionScreen() {
         seededRef.current = null;
       },
     });
+  }
+
+  /** Čisté zařízení bez potravin: naplnit vestavěnou databázi a rovnou napárovat. */
+  async function seedFoodsAndLink(recipeId: string) {
+    await seedBasicFoods();
+    const fresh = await loadNutritionData(recipeId);
+    if (fresh.recipe) await autoLink(fresh, recipeId);
   }
 
   // Recept, který ještě nemá nic napojeno ani přeskočeno, se napáruje sám hned po otevření
@@ -220,6 +229,7 @@ export default function RecipeNutritionScreen() {
     .filter((item) => item.recipeId === id && !isIngredientHeading(item.rawText))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const foodMap = new Map(data.foods.map((food) => [food.id, food]));
+  const noFoods = !data.foods.some((food) => !food.deletedAt);
   const learned = buildLearnedLinks(data.items, data.foods, data.recipes);
   // Kolik surovin by „Napárovat automaticky" ještě zvládlo (napojit nebo přeskočit).
   const pendingAutoLinks = planAutoLinks({ items, foods: data.foods, portions: data.portions, learned }).length;
@@ -366,7 +376,14 @@ export default function RecipeNutritionScreen() {
           </label>
         </div>
 
-        {pendingAutoLinks > 0 ? (
+        {noFoods ? (
+          <div className="mt-4">
+            <Button role="primary" fullWidth onClick={() => void seedFoodsAndLink(id)}>
+              Přidat základní potraviny ({basicFoodCount()})
+            </Button>
+            <p className="mt-1.5 text-center text-xs text-stone-400">Databáze potravin je prázdná.</p>
+          </div>
+        ) : pendingAutoLinks > 0 ? (
           <div className="mt-4">
             <Button role="primary" fullWidth onClick={() => void autoLink(data, id)}>
               Napárovat automaticky ({pendingAutoLinks})

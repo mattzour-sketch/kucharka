@@ -110,6 +110,17 @@ describe.each([
     });
   });
 
+  it('odrůdy rýže', () => {
+    expect(
+      linkedNames(['300 g rýže arborio', '300 g rizotové rýže', '250 g rýže na sushi', '200 g rýže parboiled']),
+    ).toEqual({
+      '300 g rýže arborio': 'Rýže arborio na rizoto (syrová)',
+      '300 g rizotové rýže': 'Rýže arborio na rizoto (syrová)',
+      '250 g rýže na sushi': 'Rýže na sushi (syrová)',
+      '200 g rýže parboiled': 'Rýže parboiled (syrová)',
+    });
+  });
+
   it('„1 polévková lžíce" je lžíce (odhad 15 g)', () => {
     const items: RecipeItem[] = [{ id: 'x', recipeId: 'r', rawText: '1 polévková lžíce medu', isSkipped: false, sortOrder: 0 }];
     const [entry] = planAutoLinks({ items, foods: FOODS, portions: [], learned: new Map() });
