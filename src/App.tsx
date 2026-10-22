@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import TabLayout from './components/TabLayout';
 import { UndoProvider } from './components/UndoProvider';
 import { backfillMissingNutrition } from './features/recipes/cookLogRepo';
+import { shrinkStoredPhotos } from './features/photos/photosRepo';
 import RecipeListScreen from './features/recipes/RecipeListScreen';
 import RecipeEditScreen from './features/recipes/RecipeEditScreen';
 import ImportRecipeScreen from './features/recipes/ImportRecipeScreen';
@@ -24,6 +25,8 @@ export default function App() {
   // (vznikly dřív, než se na porci počítalo i bez zadaných porcí).
   useEffect(() => {
     void backfillMissingNutrition();
+    // Fotky uložené dřív v plné velikosti zmenši (záloha by jinak měla desítky MB).
+    void shrinkStoredPhotos();
   }, []);
   return (
     <BrowserRouter basename={basename}>
