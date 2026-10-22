@@ -261,6 +261,8 @@ export interface ImportDraft {
   preview: ImportPreview | null;
   /** Náhled hned po „Rozebrat" – k detekci ručních úprav. */
   parsedPreview: ImportPreview | null;
+  /** Štítky vybrané v náhledu. Starší koncepty je nemají. */
+  tags?: string[];
   updatedAt: IsoTimestamp;
 }
 

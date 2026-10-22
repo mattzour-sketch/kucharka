@@ -6,6 +6,7 @@ import { todayIso } from '../../lib/date';
 import { parseDecimal } from '../../lib/num';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import TagInput from './TagInput';
+import { useTagSuggestions } from './useTagSuggestions';
 import {
   createRecipeWithContent,
   getRecipeItems,
@@ -54,14 +55,7 @@ export default function RecipeEditScreen() {
     return { recipe, items: await getRecipeItems(routeId) };
   }, [routeId]);
 
-  const tagSuggestions = useLiveQuery(async () => {
-    const recipes = await db.recipes.toArray();
-    const set = new Set<string>();
-    for (const recipe of recipes) {
-      if (!recipe.deletedAt) recipe.tags.forEach((tag) => set.add(tag));
-    }
-    return [...set].sort((a, b) => a.localeCompare(b, 'cs'));
-  }, []);
+  const tagSuggestions = useTagSuggestions();
 
   const [name, setName] = useState('');
   const [capturedOn, setCapturedOn] = useState(todayIso());
@@ -348,7 +342,7 @@ export default function RecipeEditScreen() {
           Štítky
         </label>
         <div className="mt-1">
-          <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions ?? []} />
+          <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />
         </div>
 
         <p className="py-3 text-center text-xs text-stone-400">

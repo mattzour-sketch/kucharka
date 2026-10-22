@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useBackupReminder } from '../features/backup/useBackupReminder';
 
 const tabs = [
   { to: '/', label: 'Recepty', icon: '🍲' },
@@ -8,6 +9,8 @@ const tabs = [
 
 /** Layout se spodní navigační lištou (SPEC 6.1). */
 export default function TabLayout() {
+  const backupDue = useBackupReminder().due;
+
   return (
     <div className="min-h-dvh pb-16">
       <Outlet />
@@ -24,8 +27,14 @@ export default function TabLayout() {
                 }`
               }
             >
-              <span className="text-lg leading-none">{tab.icon}</span>
+              <span className="relative text-lg leading-none">
+                {tab.icon}
+                {tab.to === '/vic' && backupDue ? (
+                  <span className="absolute -right-1.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+                ) : null}
+              </span>
               {tab.label}
+              {tab.to === '/vic' && backupDue ? <span className="sr-only"> (záloha je stará)</span> : null}
             </NavLink>
           ))}
         </div>

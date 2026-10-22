@@ -12,7 +12,12 @@
  * přenosu na nový telefon nesvítí falešné „nezálohováno".
  */
 
+import { STALE_BACKUP_DAYS, daysSince } from './date';
+
 export const LAST_BACKUP_STORAGE_KEY = 'kucharka-last-backup';
+
+/** Událost v tomhle okně – `storage` se v okně, které zapisuje, nespouští. */
+const CHANGE_EVENT = 'kucharka-last-backup-change';
 
 /** ISO timestamp poslední zálohy, nebo null (ještě se nezálohovalo / úložiště nejde číst). */
 export function readLastBackupAt(): string | null {
@@ -28,7 +33,32 @@ export function readLastBackupAt(): string | null {
 export function writeLastBackupAt(iso: string): void {
   try {
     localStorage.setItem(LAST_BACKUP_STORAGE_KEY, iso);
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
     /* nejde uložit – přinejhorším se datum nezapamatuje */
   }
+}
+
+/** Odběr změn (pro `useSyncExternalStore`): zápis v tomhle okně i v jiné záložce. */
+export function subscribeLastBackup(onChange: () => void): () => void {
+  window.addEventListener(CHANGE_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
+}
+
+/**
+ * Připomenout zálohu (tečka u „Víc", UC030 rozhodnutí 6)? Ano, když je co ztratit
+ * (aspoň jeden recept) a záloha chybí nebo je starší než `STALE_BACKUP_DAYS`.
+ */
+export function isBackupReminderDue(
+  lastBackupAt: string | null,
+  recipeCount: number,
+  now: Date = new Date(),
+): boolean {
+  if (recipeCount === 0) return false;
+  if (lastBackupAt === null) return true;
+  return daysSince(lastBackupAt, now) > STALE_BACKUP_DAYS;
 }

@@ -33,6 +33,10 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 - **Sdílení do appky** ✅ (2026-10-20) manifest `share_target`: text z WhatsAppu / Keep / prohlížeče
   → Sdílet → Kuchařka otevře Vložit předvyplněné (`lib/shareTarget.ts`). Jen Android + nainstalovaná
   PWA. IG sdílí jen odkaz → ukáže se nápověda „Odkaz neotevřu".
+- **Připomínka a sdílení zálohy** ✅ (2026-10-22) tečka u „Víc", když záloha chybí nebo je starší
+  než 30 dní (jen když existuje recept). Na mobilu „Sdílet zálohu" přes systémové sdílení (.txt,
+  protože Chrome .json nesdílí; obnova bere obojí).
+- **Štítky ve Vložit** ✅ (2026-10-22) výběr štítků v náhledu, přežijí nové „Rozebrat" i zavření appky.
 - **Doba přípravy + „⚡ Rychlé"** ✅ nepovinný čas u receptu (odznak na kartě, filtr rychlých ≤ 30 min).
 - **UC021 — Týdenní plán** ❌ ZAHOZENO — do osobní kuchařky nesedí (plánování jídel je jiná aplikace).
 
@@ -88,7 +92,7 @@ Zapsáno jako parkoviště, ne brzký kandidát.
 
 ## Jak dál
 
-Jede se shora dolů podle priority, story po story přes `/feature`. Hotovo je vše kromě dvou:
-zbývá už jen velký **UC021 Týdenní plán** (nová tabulka + migrace + nákup z plánu) a parkoviště
-**UC026 Chytřejší přenos** (OCR/hlas/URL — nová závislost, napřed se zeptat). UC027 je
-zaparkovaný (koliduje s architekturou zachycení).
+Velké stories jsou hotové. UC021 Týdenní plán je zahozený. V backlogu zůstávají jen dvě parkoviště:
+**UC026 Chytřejší přenos** (OCR/hlas/URL — nová závislost, napřed se zeptat; text z jiných appek
+už řeší Sdílení do appky) a **UC027** (koliduje s architekturou zachycení). Další práce jsou drobná
+vylepšení z dogfoodingu a procházek appkou, ne nové stories.

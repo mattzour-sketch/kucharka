@@ -2,17 +2,12 @@ import { useRef, useState } from 'react';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { cardClass } from '../../components/ui/cardClass';
-import { downloadTextFile } from '../../lib/download';
-import {
-  STALE_BACKUP_DAYS,
-  daysSince,
-  formatCzechDateTime,
-  formatRelativeDays,
-  todayIso,
-} from '../../lib/date';
+import { canShareTextFile, downloadTextFile, shareTextFile } from '../../lib/download';
+import { formatCzechDateTime, formatRelativeDays, todayIso } from '../../lib/date';
 import { backupContentCounts, restoreItemsAdded } from '../../lib/backup';
-import { readLastBackupAt, writeLastBackupAt } from '../../lib/backupStatus';
+import { writeLastBackupAt } from '../../lib/backupStatus';
 import { czechPlural } from '../../lib/plural';
+import { useBackupReminder } from './useBackupReminder';
 import { applyRestore, exportBackupJson, prepareRestore, type RestorePreview } from './dbBackup';
 
 const pluralRecipes = (n: number) => `${n} ${czechPlural(n, ['recept', 'recepty', 'receptů'])}`;
@@ -27,11 +22,12 @@ function formatFileSize(bytes: number): string {
 type Notice = { text: string; tone: 'info' | 'error' } | null;
 
 export default function BackupSection() {
-  const [lastBackupAt, setLastBackupAt] = useState<string | null>(() => readLastBackupAt());
+  const { lastBackupAt, due } = useBackupReminder();
   const [notice, setNotice] = useState<Notice>(null);
   const [preview, setPreview] = useState<RestorePreview | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [canShare] = useState(canShareTextFile);
 
   async function handleExport() {
     try {
@@ -39,13 +35,25 @@ export default function BackupSection() {
       downloadTextFile(`kucharka-${todayIso()}.json`, json);
       // „Naposledy zálohováno" až TEĎ, po úspěšném stažení (ne uvnitř exportu).
       writeLastBackupAt(exportedAt);
-      setLastBackupAt(readLastBackupAt());
       setNotice({
         tone: 'info',
         text: 'Záloha je stažená v tomhle zařízení. Ulož si soubor i mimo něj (e-mail, cloud, flash) — jinak o něj při ztrátě nebo rozbití telefonu přijdeš.',
       });
     } catch (error) {
       setNotice({ tone: 'error', text: error instanceof Error ? error.message : 'Export se nepovedl.' });
+    }
+  }
+
+  async function handleShare() {
+    try {
+      const { json, exportedAt } = await exportBackupJson();
+      // .txt, protože .json Chrome sdílet nedovolí; obnova bere obojí.
+      const shared = await shareTextFile(`kucharka-${todayIso()}.txt`, json);
+      if (!shared) return;
+      writeLastBackupAt(exportedAt);
+      setNotice({ tone: 'info', text: 'Záloha odeslaná.' });
+    } catch (error) {
+      setNotice({ tone: 'error', text: error instanceof Error ? error.message : 'Sdílení se nepovedlo.' });
     }
   }
 
@@ -66,7 +74,6 @@ export default function BackupSection() {
       const { added, overwritten } = preview.impact.recipes;
       const itemsAdded = restoreItemsAdded(preview.impact);
       await applyRestore(preview);
-      setLastBackupAt(readLastBackupAt());
       // Shrnutí toho, co obnova reálně udělala (spočítané proti DB, ne holý počet ze zálohy).
       const changes: string[] = [];
       if (added > 0) changes.push(`přidala ${pluralRecipes(added)}`);
@@ -84,8 +91,6 @@ export default function BackupSection() {
     }
   }
 
-  const stale = lastBackupAt !== null && daysSince(lastBackupAt) > STALE_BACKUP_DAYS;
-
   return (
     <section className={cardClass({ className: 'mt-3' })}>
       <h2 className="font-medium">Záloha dat</h2>
@@ -94,20 +99,22 @@ export default function BackupSection() {
         přenést jinam.
       </p>
 
-      {lastBackupAt ? (
-        <p className="mt-2 flex items-center gap-1.5 text-sm text-stone-500">
-          {stale ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden /> : null}
-          <span>
-            Naposledy zálohováno {formatRelativeDays(lastBackupAt)}
-            {stale ? ' — zálohuj radši znovu' : ''}.
-          </span>
-        </p>
-      ) : (
-        <p className="mt-2 text-sm text-stone-500">Zatím nezálohováno.</p>
-      )}
+      <p className="mt-2 flex items-center gap-1.5 text-sm text-stone-500">
+        {due ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden /> : null}
+        <span>
+          {lastBackupAt
+            ? `Naposledy zálohováno ${formatRelativeDays(lastBackupAt)}${due ? ' — zálohuj radši znovu' : ''}.`
+            : 'Zatím nezálohováno.'}
+        </span>
+      </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button role="primary" onClick={() => void handleExport()}>
+        {canShare ? (
+          <Button role="primary" onClick={() => void handleShare()}>
+            Sdílet zálohu
+          </Button>
+        ) : null}
+        <Button role={canShare ? 'secondary' : 'primary'} onClick={() => void handleExport()}>
           Exportovat do souboru
         </Button>
         <Button role="secondary" onClick={() => fileRef.current?.click()}>
@@ -116,7 +123,7 @@ export default function BackupSection() {
         <input
           ref={fileRef}
           type="file"
-          accept="application/json,.json"
+          accept="application/json,.json,text/plain,.txt"
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];

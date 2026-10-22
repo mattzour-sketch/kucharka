@@ -18,6 +18,8 @@ import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
+import TagInput from './TagInput';
+import { useTagSuggestions } from './useTagSuggestions';
 
 const IG_HINT = 'Instagram: ⋯ → Otevřít v prohlížeči, podrž popisek → Kopírovat.';
 const URL_MESSAGE = `Odkaz neotevřu – vlož text popisku. ${IG_HINT}`;
@@ -28,6 +30,7 @@ interface DraftState {
   parsedText: string | null;
   preview: ImportPreview | null;
   parsedPreview: ImportPreview | null;
+  tags: string[];
 }
 
 const fieldClass =
@@ -53,6 +56,9 @@ export default function ImportRecipeScreen() {
   const [parsedText, setParsedText] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [parsedPreview, setParsedPreview] = useState<ImportPreview | null>(null);
+  /** Mimo náhled, ať je nové „Rozebrat" nezahodí. */
+  const [tags, setTags] = useState<string[]>([]);
+  const tagSuggestions = useTagSuggestions();
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   /** Text čekající na potvrzení „Přepsat náhled?" (null = dialog zavřený). */
@@ -69,7 +75,13 @@ export default function ImportRecipeScreen() {
   /** Po uložení už koncept nezapisovat (jinak by ho doběhnutý debounce vzkřísil). */
   const doneRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const draftRef = useRef<DraftState>({ pasteText: '', parsedText: null, preview: null, parsedPreview: null });
+  const draftRef = useRef<DraftState>({
+    pasteText: '',
+    parsedText: null,
+    preview: null,
+    parsedPreview: null,
+    tags: [],
+  });
 
   // Zapíše aktuální koncept hned (flush). Čte jen refy, takže je stabilní.
   const persistDraft = useCallback(() => {
@@ -110,6 +122,7 @@ export default function ImportRecipeScreen() {
           setParsedText(draft.parsedText);
           setPreview(draft.preview);
           setParsedPreview(draft.parsedPreview);
+          setTags(draft.tags ?? []);
           setRestored(true);
         }
         if (sharedText !== null) {
@@ -145,11 +158,11 @@ export default function ImportRecipeScreen() {
 
   // Průběžné ukládání konceptu (debounce).
   useEffect(() => {
-    draftRef.current = { pasteText, parsedText, preview, parsedPreview };
+    draftRef.current = { pasteText, parsedText, preview, parsedPreview, tags };
     if (!loaded) return;
     if (timerRef.current !== null) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(persistDraft, DRAFT_DEBOUNCE_MS);
-  }, [pasteText, parsedText, preview, parsedPreview, loaded, persistDraft]);
+  }, [pasteText, parsedText, preview, parsedPreview, tags, loaded, persistDraft]);
 
   // PWA na pozadí může zemřít dřív, než debounce doběhne → uložit hned. Totéž při odchodu z obrazovky.
   useEffect(() => {
@@ -219,6 +232,7 @@ export default function ImportRecipeScreen() {
     setParsedText(null);
     setPreview(null);
     setParsedPreview(null);
+    setTags([]);
     setMessage('');
     setRestored(false);
   }
@@ -250,7 +264,7 @@ export default function ImportRecipeScreen() {
         ingredientLines: [],
         instructions: text,
         rawCapture: combineRawCapture('', text),
-        tags: [],
+        tags,
         prepMinutes: null,
       },
       servings: null,
@@ -271,7 +285,7 @@ export default function ImportRecipeScreen() {
         ingredientLines: splitIngredientLines(preview.ingredients),
         instructions: preview.instructions.trim() || null,
         rawCapture: combineRawCapture(preview.ingredients, preview.instructions),
-        tags: [],
+        tags,
         prepMinutes: prepMinutes != null && prepMinutes > 0 ? prepMinutes : null,
         source: preview.source.trim() || null,
       },
@@ -417,6 +431,11 @@ export default function ImportRecipeScreen() {
                 onChange={(event) => updateField('instructions', event.target.value)}
                 className={areaClass}
               />
+
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">Štítky</p>
+              <div className="mt-1">
+                <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />
+              </div>
             </div>
           ) : null}
         </main>
