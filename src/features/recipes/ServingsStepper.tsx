@@ -1,9 +1,15 @@
-/** Počítadlo porcí (−/+). `onStep` dostane delta; rodič drží stav funkčně. */
+/**
+ * Počítadlo porcí (−/+). `onStep` dostane delta; rodič drží stav funkčně.
+ * `base` = porce, na které je recept napsaný: když se od nich počet liší, je vidět
+ * „z 3 · zpět" (množství jsou přepočtená) a ťuknutím se vrátí původní počet.
+ */
 export default function ServingsStepper({
   value,
+  base,
   onStep,
 }: {
   value: number;
+  base?: number;
   onStep: (delta: number) => void;
 }) {
   return (
@@ -28,6 +34,16 @@ export default function ServingsStepper({
           +
         </button>
       </div>
+      {base !== undefined && value !== base ? (
+        <button
+          type="button"
+          onClick={() => onStep(base - value)}
+          className="text-xs text-stone-400 transition hover:text-brand dark:hover:text-amber-400"
+          aria-label={`Zpět na ${base}`}
+        >
+          z {base} · <span className="font-medium text-brand dark:text-amber-400">zpět</span>
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookReplacement, type FoodPortion } from '../../db';
-import { formatCzechDate } from '../../lib/date';
+import { formatCzechDate, toLocalIsoDate } from '../../lib/date';
 import { scaleQuantityText } from '../../lib/scale';
 import {
   deriveInitialAmountValue,
@@ -17,6 +17,7 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { matchStepIngredients } from '../../lib/stepIngredients';
 import { primeAlarm } from '../../lib/alarm';
+import { isStaleTimer, stepTimerLabel } from '../../lib/timers';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getAllRecipeItems, getRecipeItems } from './recipesRepo';
 import {
@@ -25,10 +26,11 @@ import {
   saveCookSession,
   type CookSessionState,
 } from './cookSessionRepo';
-import { addTimer } from './timerRepo';
+import { addTimer, getTimers, removeTimers, restoreTimers } from './timerRepo';
 import { getRecipeNotes } from './recipeNotesRepo';
 import { partitionNotes } from '../../lib/originalNote';
-import { addCookLog, getCookLogs } from './cookLogRepo';
+import { addCookLog, deleteCookLog, getCookLogs } from './cookLogRepo';
+import { useUndo } from '../../components/undoContext';
 import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import FoodPicker from '../foods/FoodPicker';
 import CookingTimers, { AdhocTimerForm } from './CookingTimers';
@@ -111,6 +113,7 @@ export default function CookingModeScreen() {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [targetServings, setTargetServings] = useState<number | null>(null);
   const [stalePrompt, setStalePrompt] = useState<CookSessionState | null>(null);
+  const [staleUpdatedAt, setStaleUpdatedAt] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [overrideDraft, setOverrideDraft] = useState('');
   const [showFinish, setShowFinish] = useState(false);
@@ -135,6 +138,11 @@ export default function CookingModeScreen() {
   const [notesOpen, setNotesOpen] = useState(false);
   const shownNotes = notesOpen ? ownNotes : ownNotes.slice(-NOTES_SHOWN);
   const hiddenNoteCount = ownNotes.length - shownNotes.length;
+  // Časovače jsou společné všem receptům; Hotovo je zruší (jdou vrátit s historií).
+  const activeTimers = (useLiveQuery(() => getTimers(), []) ?? []).filter(
+    (timer) => !isStaleTimer(timer.endsAt, Date.now()),
+  );
+  const { showUndo } = useUndo();
   useWakeLock();
 
   // Načtení sezení: čerstvé obnovit tiše, staré nabídnout.
@@ -175,6 +183,7 @@ export default function CookingModeScreen() {
       const fresh = session !== undefined && Date.now() - Date.parse(session.updatedAt) < STALE_MS;
       if (!fresh && hasProgress) {
         setStalePrompt(state);
+        setStaleUpdatedAt(session?.updatedAt ?? null);
         return;
       }
       if (fresh) applyState(state);
@@ -212,8 +221,10 @@ export default function CookingModeScreen() {
       servings?: number | null;
     } = {},
   ) {
-    // Během nabídky (staré vaření) neukládáme, ať se původní sezení nepřepíše.
-    if (!id || stalePrompt) return;
+    if (!id) return;
+    // Ťuknutí do seznamu během nabídky (staré vaření) = začít znovu: stav na obrazovce
+    // je prázdný, takže uložení staré sezení přepíše tím novým a nabídka zmizí.
+    if (stalePrompt) setStalePrompt(null);
     void saveCookSession(id, {
       checkedItemIds: keysOf(patch.checked ?? checked),
       offItemIds: keysOf(patch.off ?? off),
@@ -403,6 +414,7 @@ export default function CookingModeScreen() {
 
   // Množství surovin zmíněných v kroku – jak se dnes vaří (porce, odchylky, náhrady).
   const itemById = new Map(items.map((item) => [item.id, item]));
+  const replacingItem = replacingItemId ? itemById.get(replacingItemId) : undefined;
   const stepIngredientLabels = matchStepIngredients(steps, items).map((itemIds) =>
     itemIds.flatMap((itemId) => {
       const item = itemById.get(itemId);
@@ -428,9 +440,22 @@ export default function CookingModeScreen() {
   // Záložky jen když je co přepínat; jinak se ukáže to, co recept má.
   const hasTabs = items.length > 0 && steps.length > 0;
   const shownTab: CookTab = hasTabs ? tab : items.length > 0 ? 'ingredients' : 'steps';
+  const staleDoneCount = stalePrompt
+    ? stalePrompt.checkedItemIds.length + (stalePrompt.doneStepIndices ?? []).length
+    : 0;
 
   function handleFinish() {
     if (!recipe || !id) return;
+    const recipeId = id;
+    const sessionBefore: CookSessionState = {
+      checkedItemIds: keysOf(checked),
+      offItemIds: keysOf(off),
+      amountOverrides: overrides,
+      replacements,
+      doneStepIndices: [...doneSteps],
+      targetServings,
+    };
+    const cancelledTimers = activeTimers;
     const ingredients = items.map((item) => {
       const override = overrides[item.id];
       const replacement = replacements[item.id];
@@ -463,9 +488,19 @@ export default function CookingModeScreen() {
         connected: result.completeness.connected,
         countable: result.completeness.countable,
       },
-    }).then(() => {
-      if (id) void clearCookSession(id);
-      navigate(`/recept/${id}`, { replace: true });
+    }).then(async (log) => {
+      await clearCookSession(recipeId);
+      if (cancelledTimers.length > 0) await removeTimers(cancelledTimers);
+      navigate(`/recept/${recipeId}`, { replace: true });
+      // Ťuknutí omylem: vrátí záznam, rozdělané vaření i časovače.
+      showUndo({
+        message: 'Uloženo do historie',
+        undo: async () => {
+          await deleteCookLog(log.id);
+          await saveCookSession(recipeId, sessionBefore);
+          if (cancelledTimers.length > 0) await restoreTimers(cancelledTimers);
+        },
+      });
     });
   }
 
@@ -510,7 +545,10 @@ export default function CookingModeScreen() {
         {stalePrompt ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
-              Rozdělané vaření. Pokračovat, nebo začít znovu?
+              Rozdělané vaření
+              {staleUpdatedAt ? ` z ${formatCzechDate(toLocalIsoDate(new Date(staleUpdatedAt)))}` : ''}
+              {staleDoneCount > 0 ? `, odškrtnuto ${staleDoneCount}` : ''}. Pokračovat, nebo začít
+              znovu?
             </p>
             <div className="mt-3 flex gap-2">
               <Button role="primary" onClick={continueSession}>
@@ -582,6 +620,7 @@ export default function CookingModeScreen() {
               )}
               <ServingsStepper
                 value={targetPortions}
+                base={recipe.servings && recipe.servings > 0 ? recipe.servings : undefined}
                 onStep={(delta) => {
                   const next = Math.max(1, targetPortions + delta);
                   setTargetServings(next);
@@ -819,7 +858,7 @@ export default function CookingModeScreen() {
                           type="button"
                           onClick={() => {
                             primeAlarm();
-                            void addTimer(`Krok ${index + 1}`, seconds);
+                            void addTimer(stepTimerLabel(index, step), seconds);
                           }}
                           className="rounded bg-brand/10 px-1 font-medium text-brand-dark dark:text-amber-400 underline decoration-dotted underline-offset-2"
                         >
@@ -857,6 +896,13 @@ export default function CookingModeScreen() {
                 placeholder="Poznámka (nepovinné) – např. „vyšlo na 3 porce“"
                 className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 dark:border-stone-700 p-3 text-sm outline-none focus:border-brand"
               />
+              {activeTimers.length > 0 ? (
+                <p className="mt-1 text-xs text-stone-500">
+                  {activeTimers.length === 1
+                    ? `Zruší se i časovač ${activeTimers[0].label}.`
+                    : `Zruší se i časovače (${activeTimers.length}).`}
+                </p>
+              ) : null}
               <div className="mt-2 flex gap-2">
                 <Button role="primary" onClick={handleFinish}>
                   Uložit do historie
@@ -882,6 +928,8 @@ export default function CookingModeScreen() {
 
       {replPickerOpen ? (
         <FoodPicker
+          context={replacingItem ? `Náhrada za: ${replacingItem.rawText}` : undefined}
+          initialQuery={replText}
           onSelect={(foodId) => {
             setReplFoodId(foodId);
             const food = foodMap.get(foodId);

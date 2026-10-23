@@ -20,13 +20,16 @@ export interface NewCookLog {
   nutrition?: { connected: number; countable: number } | null;
 }
 
-export async function addCookLog(data: NewCookLog): Promise<void> {
-  await db.cookLogs.add({
+/** Vrací uložený záznam (id pro „Vrátit zpět" hned po Hotovo). */
+export async function addCookLog(data: NewCookLog): Promise<CookLog> {
+  const log: CookLog = {
     id: newId(),
     ...data,
     cookedOn: todayIso(),
     createdAt: new Date().toISOString(),
-  });
+  };
+  await db.cookLogs.add(log);
+  return log;
 }
 
 /** Záznamy receptu, nejnovější první. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Food, FoodPortion, RecipeItem } from '../db';
-import { isNegligible, planAutoLinks, resolveAmountFromText } from './autoLink';
+import { isNegligible, nutritionGap, planAutoLinks, resolveAmountFromText } from './autoLink';
 
 let counter = 0;
 function food(name: string, extra: Partial<Food> = {}): Food {
@@ -123,5 +123,19 @@ describe('planAutoLinks', () => {
     const items = [item('150g flour'), item('40g melted butter'), item('1tsp baking powder'), item('Pinch salt')];
     const plan = planAutoLinks({ items, foods: FOODS, portions: [], learned: new Map() });
     expect(plan.map((entry) => (entry.kind === 'link' ? entry.foodId : 'skip'))).toEqual([mouka.id, maslo.id, 'skip']);
+  });
+});
+
+describe('nutritionGap', () => {
+  it('rozliší nenapojenou surovinu a napojenou bez gramů', () => {
+    expect(nutritionGap(item('200 g mouky'))).toBe('unlinked');
+    expect(nutritionGap(item('mouka', { foodId: mouka.id }))).toBe('noGrams');
+    expect(nutritionGap(item('omáčka', { subRecipeId: 'r2', amountG: null }))).toBe('noGrams');
+  });
+
+  it('hotová, přeskočená surovina a nadpis sekce nic nechybí', () => {
+    expect(nutritionGap(item('200 g mouky', { foodId: mouka.id, amountG: 200 }))).toBeNull();
+    expect(nutritionGap(item('sůl', { isSkipped: true }))).toBeNull();
+    expect(nutritionGap(item('# Na těsto'))).toBeNull();
   });
 });

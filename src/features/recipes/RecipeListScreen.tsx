@@ -199,9 +199,15 @@ export default function RecipeListScreen() {
             icon="🍲"
             title="Zatím žádné recepty"
             action={
-              <Button role="primary" to="/novy">
-                + Nový recept
-              </Button>
+              // Na novém zařízení se většinou začíná obnovou zálohy (ve „Víc").
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button role="primary" to="/novy">
+                  + Nový recept
+                </Button>
+                <Button role="secondary" to="/vic">
+                  Obnovit ze zálohy
+                </Button>
+              </div>
             }
           />
         ) : (

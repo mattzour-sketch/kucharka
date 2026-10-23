@@ -115,6 +115,18 @@ export function isUnlinked(item: RecipeItem): boolean {
 }
 
 /**
+ * Proč surovina nepřispívá do kalorií (pravidlo 4 – ať je vidět, co chybí):
+ * nenapojená, nebo napojená bez gramáže. Stejná podmínka jako `isConnected` v nutrition.ts.
+ */
+export type NutritionGap = 'unlinked' | 'noGrams';
+
+export function nutritionGap(item: RecipeItem): NutritionGap | null {
+  if (isIngredientHeading(item.rawText) || item.isSkipped) return null;
+  if (!item.foodId && !item.subRecipeId) return 'unlinked';
+  return item.amountG == null ? 'noGrams' : null;
+}
+
+/**
  * Plán napojení pro nenapojené suroviny receptu. Potravina: naučené napojení (jak to
  * uživatel napojil dřív) → nejlepší shoda názvu. Bez shody se surovina v plánu neobjeví.
  */

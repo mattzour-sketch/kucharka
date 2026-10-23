@@ -7,6 +7,8 @@ interface CardClassOptions {
   padding?: CardPadding;
   /** Klikací karta (Link/button): hover + jemný stisk. */
   interactive?: boolean;
+  /** warn = jantarový okraj (něco chybí, např. gramy u suroviny na Kaloriích). */
+  tone?: 'default' | 'warn';
   className?: string;
 }
 
@@ -15,9 +17,12 @@ interface CardClassOptions {
  * použít i `Link`/`<button>` (RecipeCard, řádek potraviny, odkazy ve „Víc").
  */
 export function cardClass(options: CardClassOptions = {}): string {
-  const { padding = 'panel', interactive = false, className } = options;
+  const { padding = 'panel', interactive = false, tone = 'default', className } = options;
   return cx(
-    'rounded-2xl border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900',
+    'rounded-2xl border bg-white dark:bg-stone-900',
+    tone === 'warn'
+      ? 'border-amber-300 dark:border-amber-800'
+      : 'border-stone-200 dark:border-stone-800',
     padding === 'panel' && 'p-4',
     padding === 'row' && 'p-3',
     interactive &&

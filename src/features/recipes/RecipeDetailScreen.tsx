@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookLog } from '../../db';
 import { formatCzechDate } from '../../lib/date';
 import { formatNumber } from '../../lib/num';
+import { czechPlural } from '../../lib/plural';
 import { scaleQuantityText } from '../../lib/scale';
 import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { formatPrepTime } from '../../lib/prepTime';
@@ -323,6 +324,7 @@ export default function RecipeDetailScreen() {
               </h2>
               <ServingsStepper
                 value={targetPortions}
+                base={recipe.servings && recipe.servings > 0 ? recipe.servings : undefined}
                 onStep={(delta) =>
                   setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
                 }
@@ -457,7 +459,8 @@ export default function RecipeDetailScreen() {
                 <li key={log.id} className={cardClass({ padding: 'panel' })}>
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm font-medium">
-                      {formatCzechDate(log.cookedOn)} · {log.portions} porcí
+                      {formatCzechDate(log.cookedOn)} · {log.portions}{' '}
+                      {czechPlural(log.portions, ['porce', 'porce', 'porcí'])}
                     </span>
                     <IconButton
                       size="sm"

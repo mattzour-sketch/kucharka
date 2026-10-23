@@ -37,6 +37,12 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
   než 30 dní (jen když existuje recept). Na mobilu „Sdílet zálohu" přes systémové sdílení (.txt,
   protože Chrome .json nesdílí; obnova bere obojí).
 - **Štítky ve Vložit** ✅ (2026-10-22) výběr štítků v náhledu, přežijí nové „Rozebrat" i zavření appky.
+- **Procházka appkou 2026-10-23** ✅ časovače se po Hotovo zruší, zapomenuté (doběhlé před >3 h)
+  se tiše smažou a mají v názvu začátek kroku. Hláška o rozdělaném vaření ukáže datum a první
+  ťuknutí = začít znovu. Po Hotovo je lišta „Vrátit zpět“. U porcí je „z 3 · zpět“. Kalorie ukazují
+  „chybí gramy“ a souhrn „Chybí: …“. Výběr potraviny je předvyplněný názvem suroviny. Drobnosti:
+  „2 porce“, obnova ze zálohy v prázdném seznamu, „Použito v N receptech“, datum v koši.
+  Vynecháno: přepočet množství na konci řádku („Mouka 500 g“) – Martin ho nechce.
 - **Doba přípravy + „⚡ Rychlé"** ✅ nepovinný čas u receptu (odznak na kartě, filtr rychlých ≤ 30 min).
 - **UC021 — Týdenní plán** ❌ ZAHOZENO — do osobní kuchařky nesedí (plánování jídel je jiná aplikace).
 

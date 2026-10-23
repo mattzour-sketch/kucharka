@@ -5,7 +5,7 @@ import { db, type Food, type FoodPortion } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
 import { isIngredientHeading } from '../../lib/ingredientSection';
 import { bestFoodMatch, buildLearnedLinks, extractFoodQuery, learnedKey } from '../../lib/foodMatch';
-import { isUnlinked, planAutoLinks, resolveAmountFromText } from '../../lib/autoLink';
+import { isUnlinked, nutritionGap, planAutoLinks, resolveAmountFromText } from '../../lib/autoLink';
 import { czechPlural } from '../../lib/plural';
 import { useUndo } from '../../components/undoContext';
 import {
@@ -76,6 +76,17 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
       )}
     </div>
   );
+}
+
+/** Porce / hmotnost: nula ani záporné číslo nedává smysl → jako nezadané (stejně jako v Upravit). */
+function positiveOrNull(raw: string): number | null {
+  const value = parseDecimal(raw);
+  return value != null && value > 0 ? value : null;
+}
+
+/** Odjede na řádek suroviny (z řádku „Chybí: …" nad seznamem). */
+function scrollToItem(itemId: string) {
+  document.getElementById(`item-${itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function loadNutritionData(id: string) {
@@ -245,6 +256,16 @@ export default function RecipeNutritionScreen() {
     recipes: data.recipes,
     items: data.items,
   });
+  // Co chybí do úplného výpočtu – ať se to v dlouhém receptu nemusí hledat.
+  const gapItems = items.filter((item) => nutritionGap(item) !== null);
+  const unlinkedCount = gapItems.filter((item) => nutritionGap(item) === 'unlinked').length;
+  const noGramsCount = gapItems.length - unlinkedCount;
+  const gapParts = [
+    unlinkedCount > 0
+      ? `${unlinkedCount} ${czechPlural(unlinkedCount, ['nenapojená', 'nenapojené', 'nenapojených'])}`
+      : null,
+    noGramsCount > 0 ? `${noGramsCount} bez gramů` : null,
+  ].filter(Boolean);
 
   // Nesmazané recepty pro název podreceptu (smazaný/neznámý → „recept nedostupný").
   const recipeMap = new Map(data.recipes.filter((recipe) => !recipe.deletedAt).map((recipe) => [recipe.id, recipe]));
@@ -339,7 +360,18 @@ export default function RecipeNutritionScreen() {
         {/* Výsledek nahoře – po automatickém napárování je vidět hned, bez scrollování. */}
         <div className="mb-4">
           {nutrition.computable || nutrition.hasCycle ? (
-            <NutritionSummary result={nutrition} />
+            <>
+              <NutritionSummary result={nutrition} />
+              {nutrition.computable && gapItems.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => scrollToItem(gapItems[0].id)}
+                  className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300"
+                >
+                  Chybí: {gapParts.join(' · ')} ↓
+                </button>
+              ) : null}
+            </>
           ) : (
             <p className="text-center text-sm text-stone-400">
               Napoj suroviny na potraviny a doplň gramáž, ať se spočítají kalorie.
@@ -354,7 +386,7 @@ export default function RecipeNutritionScreen() {
               value={servings}
               onChange={(event) => {
                 setServings(event.target.value);
-                void updateRecipeMeta(id, { servings: parseDecimal(event.target.value) });
+                void updateRecipeMeta(id, { servings: positiveOrNull(event.target.value) });
               }}
               inputMode="decimal"
               placeholder="—"
@@ -367,7 +399,7 @@ export default function RecipeNutritionScreen() {
               value={cookedWeight}
               onChange={(event) => {
                 setCookedWeight(event.target.value);
-                void updateRecipeMeta(id, { cookedWeightG: parseDecimal(event.target.value) });
+                void updateRecipeMeta(id, { cookedWeightG: positiveOrNull(event.target.value) });
               }}
               inputMode="decimal"
               placeholder="—"
@@ -435,8 +467,13 @@ export default function RecipeNutritionScreen() {
                 ? (learnedFood && !learnedFood.deletedAt ? learnedFood : null) ??
                   bestFoodMatch(extractFoodQuery(item.rawText), data.foods)
                 : null;
+            const missingGrams = nutritionGap(item) === 'noGrams';
             return (
-              <li key={item.id} className={cardClass({ padding: 'row' })}>
+              <li
+                key={item.id}
+                id={`item-${item.id}`}
+                className={cardClass({ padding: 'row', tone: missingGrams ? 'warn' : 'default' })}
+              >
                 <p className="font-medium">{item.rawText}</p>
 
                 {item.isSkipped ? (
@@ -486,7 +523,10 @@ export default function RecipeNutritionScreen() {
                         />
                       </div>
                     ) : (
-                      <div className="mt-1 flex justify-end">
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                          {missingGrams ? 'chybí gramy' : ''}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setAddMeasureItemId(item.id)}
@@ -525,6 +565,11 @@ export default function RecipeNutritionScreen() {
                         ×
                       </IconButton>
                     </div>
+                    {missingGrams ? (
+                      <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                        chybí gramy
+                      </p>
+                    ) : null}
                     {subRecipe && subPer100 == null ? (
                       <p className="mt-1 text-xs text-stone-400">
                         {subRecipe.name} nemá napojené suroviny —{' '}
@@ -575,6 +620,7 @@ export default function RecipeNutritionScreen() {
       {pickingItemId ? (
         <LinkPicker
           currentRecipeId={id}
+          context={items.find((item) => item.id === pickingItemId)?.rawText}
           onSelect={(target) => {
             const pickedItem = items.find((item) => item.id === pickingItemId);
             if (target.kind === 'food') {

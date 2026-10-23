@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type FoodBasis } from '../../db';
 import { parseDecimal } from '../../lib/num';
-import { createFood, softDeleteFood, updateFood } from './foodsRepo';
+import { czechPlural } from '../../lib/plural';
+import { countRecipesUsingFood, createFood, softDeleteFood, updateFood } from './foodsRepo';
 import { listPortions, reconcilePortions } from './foodPortionsRepo';
 import { restoreFood } from '../trash/trashRepo';
 import { useUndo } from '../../components/undoContext';
@@ -28,6 +29,7 @@ export default function FoodEditScreen() {
   const isEdit = Boolean(routeId);
 
   const existing = useLiveQuery(() => (routeId ? db.foods.get(routeId) : undefined), [routeId]);
+  const usedIn = useLiveQuery(() => (routeId ? countRecipesUsingFood(routeId) : 0), [routeId]) ?? 0;
 
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -135,6 +137,11 @@ export default function FoodEditScreen() {
           placeholder="Značka (nepovinné)"
           className="mt-2 w-full bg-transparent py-1.5 text-sm outline-none placeholder:text-stone-400"
         />
+        {usedIn > 0 ? (
+          <p className="text-xs text-stone-400">
+            Použito v {usedIn} {czechPlural(usedIn, ['receptu', 'receptech', 'receptech'])}
+          </p>
+        ) : null}
 
         <div className="mt-4 flex items-center gap-2 text-sm">
           <span className="text-stone-500">Hodnoty na 100</span>

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatCountdown } from '../../lib/duration';
 import { primeAlarm, startAlarm, stopAlarm } from '../../lib/alarm';
-import { addTimer, getTimers, removeTimer } from './timerRepo';
+import { isStaleTimer } from '../../lib/timers';
+import { addTimer, getTimers, removeStaleTimers, removeTimer } from './timerRepo';
 import Button from '../../components/ui/Button';
 
 /**
@@ -11,10 +12,14 @@ import Button from '../../components/ui/Button';
  * nezabírá místo – nový se spustí ťuknutím na čas v kroku, nebo `AdhocTimerForm`.
  */
 export default function CookingTimers() {
-  const timers = useLiveQuery(() => getTimers(), []) ?? [];
   const [now, setNow] = useState(() => Date.now());
+  // Zapomenuté z minula se nezobrazí ani nezazvoní, ještě než je úklid smaže.
+  const timers = (useLiveQuery(() => getTimers(), []) ?? []).filter(
+    (timer) => !isStaleTimer(timer.endsAt, now),
+  );
 
   useEffect(() => {
+    void removeStaleTimers();
     const interval = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(interval);
   }, []);

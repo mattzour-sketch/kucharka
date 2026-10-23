@@ -53,3 +53,11 @@ export async function softDeleteFood(id: string): Promise<void> {
 export function getFood(id: string): Promise<Food | undefined> {
   return db.foods.get(id);
 }
+
+/** V kolika (nesmazaných) receptech je potravina napojená – změna kcal se projeví i tam. */
+export async function countRecipesUsingFood(foodId: string): Promise<number> {
+  const items = await db.recipeItems.where('foodId').equals(foodId).toArray();
+  const recipeIds = [...new Set(items.filter((item) => !item.deletedAt).map((item) => item.recipeId))];
+  const recipes = await db.recipes.bulkGet(recipeIds);
+  return recipes.filter((recipe) => recipe && !recipe.deletedAt).length;
+}
