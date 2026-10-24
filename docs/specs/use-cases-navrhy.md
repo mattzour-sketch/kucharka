@@ -43,6 +43,14 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
   „chybí gramy“ a souhrn „Chybí: …“. Výběr potraviny je předvyplněný názvem suroviny. Drobnosti:
   „2 porce“, obnova ze zálohy v prázdném seznamu, „Použito v N receptech“, datum v koši.
   Vynecháno: přepočet množství na konci řádku („Mouka 500 g“) – Martin ho nechce.
+- **Procházka appkou 2026-10-24** ✅ časovače jsou lišta dole na každé obrazovce a zvoní všude
+  (`TimerDock` v `App.tsx`). Ťuknutí na text kroku ho odškrtne a další krok se posune do zorného pole.
+  Zpět zavře jen překryv (fotka, výběr potraviny; `hooks/useBackToClose.ts`). Zavření receptu
+  odvodí název jako Uložit. Úprava potraviny se před zahozením zeptá. Odpojení na Kaloriích má
+  „Vrátit“. Prázdné hledání nabídne „+ Nový recept ‚xyz‘“ a v Potravinách „+ Založit ‚xyz‘“
+  (hledání potravin v URL a po uložení zůstane). Řazení Uvařené ukazuje „uvařeno …“. Statistiky
+  vedou na `?neuvarene=1`. Vložit upozorní „Už máš: …“. Zbývá: obnova zálohy přepíše novější
+  recepty bez volby – udělat zvlášť (logika v `lib/backup.ts` + test).
 - **Doba přípravy + „⚡ Rychlé"** ✅ nepovinný čas u receptu (odznak na kartě, filtr rychlých ≤ 30 min).
 - **UC021 — Týdenní plán** ❌ ZAHOZENO — do osobní kuchařky nesedí (plánování jídel je jiná aplikace).
 

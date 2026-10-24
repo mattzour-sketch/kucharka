@@ -68,7 +68,7 @@ export default function TrashScreen() {
                       })}
                     >
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{recipe.name}</span>
+                        <span className="block truncate font-medium">{recipe.name || '(bez názvu)'}</span>
                         <span className="block text-xs text-stone-400">{deletedLabel(recipe.deletedAt)}</span>
                       </span>
                       <Button role="secondary" onClick={() => void restoreRecipe(recipe.id)}>

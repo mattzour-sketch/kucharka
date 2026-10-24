@@ -17,6 +17,10 @@ import { orderFilterTags } from '../../lib/tags';
 
 type SortKey = 'updated' | 'cooked' | 'name';
 
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('cs') + text.slice(1);
+}
+
 const SORT_LABELS: Record<SortKey, string> = {
   updated: 'Upravené',
   cooked: 'Uvařené',
@@ -32,6 +36,8 @@ export default function RecipeListScreen() {
   const sort: SortKey = sortParam === 'cooked' || sortParam === 'name' ? sortParam : 'updated';
   const favOnly = params.get('oblibene') === '1';
   const quickOnly = params.get('rychle') === '1';
+  // Ze Statistik („Neuvařené recepty: N"); čip je vidět jen zapnutý, ať jde vypnout.
+  const neverCookedOnly = params.get('neuvarene') === '1';
   const activeTag = params.get('stitek');
   const query = params.get('q') ?? '';
   const search = params.toString();
@@ -68,7 +74,7 @@ export default function RecipeListScreen() {
   // Jedním ťuknutím zpět na plný seznam – vynuluje všechny filtry i hledání.
   // keepVisibleIds čistíme konzistentně s toggleFavOnly (interakce s UC028).
   function clearFilters() {
-    updateParams({ oblibene: null, rychle: null, stitek: null, q: null });
+    updateParams({ oblibene: null, rychle: null, neuvarene: null, stitek: null, q: null });
     setKeepVisibleIds(new Set());
   }
 
@@ -125,11 +131,13 @@ export default function RecipeListScreen() {
   const orderedTags = useMemo(() => orderFilterTags(tags, tagFilter, tagCounts), [tags, tagFilter, tagCounts]);
 
   // Běží nějaký filtr nebo hledání? (whitespace-only dotaz nefiltruje – viz matchesQuery)
-  const hasActiveFilter = favOnly || quickOnly || tagFilter !== null || query.trim().length > 0;
+  const hasActiveFilter =
+    favOnly || quickOnly || neverCookedOnly || tagFilter !== null || query.trim().length > 0;
 
   const visible = recipes
     .filter((recipe) => (favOnly ? recipe.isFavorite || keepVisibleIds.has(recipe.id) : true))
     .filter((recipe) => (quickOnly ? isQuick(recipe.prepMinutes) : true))
+    .filter((recipe) => (neverCookedOnly ? !lastCooked.has(recipe.id) : true))
     .filter((recipe) => (tagFilter ? recipe.tags.includes(tagFilter) : true))
     .filter((recipe) => matchesQuery(recipeHaystack(recipe), query))
     .sort((a, b) => {
@@ -258,6 +266,11 @@ export default function RecipeListScreen() {
               >
                 ⚡ Rychlé
               </FilterChip>
+              {neverCookedOnly ? (
+                <FilterChip active onClick={() => updateParams({ neuvarene: null })} aria-pressed>
+                  Neuvařené ×
+                </FilterChip>
+              ) : null}
               {orderedTags.length > 0 ? (
                 <span className="h-4 w-px bg-stone-200 dark:bg-stone-700" aria-hidden />
               ) : null}
@@ -274,7 +287,16 @@ export default function RecipeListScreen() {
             </div>
 
             {visible.length === 0 ? (
-              <EmptyState title={query.trim() ? 'Nic nenalezeno' : 'Nic neodpovídá filtru'} />
+              <EmptyState
+                title={query.trim() ? 'Nic nenalezeno' : 'Nic neodpovídá filtru'}
+                action={
+                  query.trim() ? (
+                    <Button role="primary" to={`/novy?nazev=${encodeURIComponent(capitalize(query.trim()))}`}>
+                      + Nový recept „{capitalize(query.trim())}“
+                    </Button>
+                  ) : undefined
+                }
+              />
             ) : (
               <ul className="mt-3 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((recipe) => (
@@ -284,6 +306,7 @@ export default function RecipeListScreen() {
                       cover={coverByRecipe.get(recipe.id) ?? null}
                       onToggleFavorite={handleToggleFavorite}
                       dimmed={favOnly && !recipe.isFavorite}
+                      cookedAt={sort === 'cooked' ? (lastCooked.get(recipe.id) ?? null) : undefined}
                     />
                   </li>
                 ))}

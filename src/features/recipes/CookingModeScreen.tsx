@@ -33,7 +33,7 @@ import { addCookLog, deleteCookLog, getCookLogs } from './cookLogRepo';
 import { useUndo } from '../../components/undoContext';
 import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import FoodPicker from '../foods/FoodPicker';
-import CookingTimers, { AdhocTimerForm } from './CookingTimers';
+import { AdhocTimerForm } from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
@@ -297,6 +297,22 @@ export default function CookingModeScreen() {
     setDoneSteps(next);
     persist({ doneSteps: next });
     buzz();
+    if (next.has(index)) revealNextStep(next, index);
+  }
+
+  /** Po odškrtnutí kroku dostat další nehotový do zorného pole (jen když je mimo). */
+  function revealNextStep(done: Set<number>, from: number) {
+    const after = steps.findIndex((_, i) => i > from && !done.has(i));
+    const target = after >= 0 ? after : steps.findIndex((_, i) => !done.has(i));
+    if (target < 0) return;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`step-${target}`);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.top < 120 || rect.bottom > window.innerHeight - 80) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
   }
 
   function toggleOff(itemId: string) {
@@ -539,8 +555,6 @@ export default function CookingModeScreen() {
             ) : null}
           </div>
         ) : null}
-
-        <CookingTimers />
 
         {stalePrompt ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -827,7 +841,7 @@ export default function CookingModeScreen() {
                 const stepDone = doneSteps.has(index);
                 const isCurrent = index === currentStepIndex;
                 return (
-                <li key={index} className="flex gap-3 text-lg leading-relaxed">
+                <li key={index} id={`step-${index}`} className="flex gap-3 text-lg leading-relaxed">
                   <button
                     type="button"
                     onClick={() => toggleStep(index)}
@@ -845,7 +859,8 @@ export default function CookingModeScreen() {
                   >
                     {stepDone ? '✓' : index + 1}
                   </button>
-                  <div className="min-w-0">
+                  {/* Ťuknutí na text kroku = odškrtnout (mokré ruce); kolečko zůstává pro klávesnici. */}
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => toggleStep(index)}>
                   <span className={stepDone ? 'text-stone-400 line-through' : ''}>
                     {splitStepByDurations(step).map((segment, segIndex) => {
                       if (segment.seconds == null) {
@@ -856,7 +871,8 @@ export default function CookingModeScreen() {
                         <button
                           key={segIndex}
                           type="button"
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation();
                             primeAlarm();
                             void addTimer(stepTimerLabel(index, step), seconds);
                           }}

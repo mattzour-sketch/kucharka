@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Recipe } from '../db';
-import { foldDiacritics, matchesQuery, normalizeForSearch, recipeHaystack } from './search';
+import { foldDiacritics, isSameName, matchesQuery, normalizeForSearch, recipeHaystack } from './search';
 
 describe('search', () => {
   it('foldDiacritics odstraní českou diakritiku', () => {
@@ -39,5 +39,17 @@ describe('search', () => {
     expect(matchesQuery(recipeHaystack(recipe), 'smetana')).toBe(true);
     expect(matchesQuery(recipeHaystack(recipe), 'ryze')).toBe(true);
     expect(matchesQuery(recipeHaystack(recipe), 'rychlovka')).toBe(true);
+  });
+});
+
+describe('isSameName', () => {
+  it('ignoruje velikost písmen, diakritiku a mezery', () => {
+    expect(isSameName('Bramboráky', ' bramboraky ')).toBe(true);
+    expect(isSameName('Kuře  na paprice', 'kuře na paprice')).toBe(true);
+  });
+
+  it('prázdný nebo jiný název není duplicita', () => {
+    expect(isSameName('', '')).toBe(false);
+    expect(isSameName('Bramboráky', 'Bramborák')).toBe(false);
   });
 });

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db';
+import { isSameName } from '../../lib/search';
 import { todayIso } from '../../lib/date';
 import { parseDecimal } from '../../lib/num';
 import { isBareUrl, parseRecipeText } from '../../lib/parseRecipe';
@@ -56,6 +59,16 @@ export default function ImportRecipeScreen() {
   const [parsedText, setParsedText] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [parsedPreview, setParsedPreview] = useState<ImportPreview | null>(null);
+  // Stejný příspěvek sdílený podruhé: jen upozornit, uložení nic neblokuje (pravidlo 3).
+  const previewName = preview?.name ?? '';
+  const sameNameRecipe = useLiveQuery(
+    async () =>
+      previewName.trim()
+        ? ((await db.recipes.toArray()).find((recipe) => !recipe.deletedAt && isSameName(recipe.name, previewName)) ??
+          null)
+        : null,
+    [previewName],
+  );
   /** Mimo náhled, ať je nové „Rozebrat" nezahodí. */
   const [tags, setTags] = useState<string[]>([]);
   const tagSuggestions = useTagSuggestions();
@@ -378,6 +391,14 @@ export default function ImportRecipeScreen() {
                 aria-label="Název receptu"
                 className="mt-3 w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
               />
+              {sameNameRecipe ? (
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  Už máš:{' '}
+                  <Link to={`/recept/${sameNameRecipe.id}`} className="font-medium underline">
+                    {sameNameRecipe.name}
+                  </Link>
+                </p>
+              ) : null}
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-stone-500">
                 <span className="flex items-center gap-2">
                   <label htmlFor="servings">Porcí</label>

@@ -14,6 +14,12 @@ export function normalizeForSearch(text: string): string {
   return foldDiacritics(text).toLowerCase();
 }
 
+/** Stejný název receptu bez ohledu na velikost písmen, diakritiku a mezery (duplicita ve Vložit). */
+export function isSameName(a: string, b: string): boolean {
+  const key = (text: string) => normalizeForSearch(text).replace(/\s+/g, ' ').trim();
+  return key(a) !== '' && key(a) === key(b);
+}
+
 /** Kmen slova: odsekne koncové samohlásky (skloňování), ale jen když něco zbyde. */
 function stem(token: string): string {
   const stripped = token.replace(/[aeiouy]+$/, '');

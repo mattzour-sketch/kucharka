@@ -7,6 +7,9 @@ const tabs = [
   { to: '/vic', label: 'Víc', icon: '☰' },
 ];
 
+/** Cesty obrazovek se spodní lištou (lišta časovačů nad ní sedí výš). */
+export const TAB_PATHS = tabs.map((tab) => tab.to);
+
 /** Layout se spodní navigační lištou (SPEC 6.1). */
 export default function TabLayout() {
   const backupDue = useBackupReminder().due;

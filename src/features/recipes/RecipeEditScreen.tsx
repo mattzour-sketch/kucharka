@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { todayIso } from '../../lib/date';
@@ -47,6 +47,9 @@ export default function RecipeEditScreen() {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(routeId);
+  // „+ Nový recept ‚xyz'" z prázdného hledání předvyplní název (kurzor zůstává v Surovinách).
+  const [searchParams] = useSearchParams();
+  const prefillName = isEdit ? '' : (searchParams.get('nazev') ?? '').trim();
 
   const loaded = useLiveQuery(async () => {
     if (!routeId) return undefined;
@@ -57,7 +60,7 @@ export default function RecipeEditScreen() {
 
   const tagSuggestions = useTagSuggestions();
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(prefillName);
   const [capturedOn, setCapturedOn] = useState(todayIso());
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -71,7 +74,10 @@ export default function RecipeEditScreen() {
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
-  const lastSaved = useRef('');
+  // Předvyplněný název sám o sobě recept nezakládá – uloží se až s prvním dalším písmenem.
+  const lastSaved = useRef(
+    prefillName ? snapshotOf(prefillName, todayIso(), '', '', [], '', '') : '',
+  );
   /** Stav při otevření úprav – pro „Zahodit změny" (recept i suroviny s napojením). */
   const originalRef = useRef<{ recipe: Recipe; items: RecipeItem[]; snapshot: string } | null>(null);
   /** Po „Zahodit" už nic neukládat (doběhnutý debounce by změny vrátil). */
@@ -128,8 +134,9 @@ export default function RecipeEditScreen() {
   /** Zápisy jdou po sobě – souběžné uložení nového receptu by jinak založilo dva. */
   const persistQueue = useRef<Promise<unknown>>(Promise.resolve());
 
+  /** Bez finalName (průběžné uložení, zavření) se název odvodí stejně jako u Uložit. */
   function persist(finalName?: string): Promise<string> {
-    const content = buildContent(finalName ?? name.trim());
+    const content = buildContent(finalName ?? fallbackName());
     const run = persistQueue.current.then(async () => {
       if (!idRef.current) {
         idRef.current = await createRecipeWithContent(content);
@@ -198,8 +205,12 @@ export default function RecipeEditScreen() {
     return base.length > 80 ? base.slice(0, 80).trimEnd() : base;
   }
 
+  function fallbackName(): string {
+    return name.trim() || deriveName() || 'Bez názvu';
+  }
+
   async function handleSave() {
-    const finalName = name.trim() || deriveName() || 'Bez názvu';
+    const finalName = fallbackName();
     // Beze změny nic neukládat – recept se jinak posune nahoru v řazení „Upravené".
     if (idRef.current && finalName === name && currentSnapshot === lastSaved.current) {
       navigate(`/recept/${idRef.current}`, { replace: true });
@@ -212,6 +223,10 @@ export default function RecipeEditScreen() {
   }
 
   async function handleClose() {
+    if (!idRef.current && currentSnapshot === lastSaved.current) {
+      navigate('/', { replace: true });
+      return;
+    }
     if (idRef.current && currentSnapshot === lastSaved.current) {
       navigate(isEdit ? `/recept/${idRef.current}` : '/', { replace: true });
       return;

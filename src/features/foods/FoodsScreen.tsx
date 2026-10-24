@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { matchesQuery } from '../../lib/search';
 import { formatNumber } from '../../lib/num';
 import { basicFoodCount, seedBasicFoods } from './seedFoods';
+import { rememberFoodsSearch } from './foodsReturn';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
@@ -13,7 +14,14 @@ import { cardClass } from '../../components/ui/cardClass';
 
 /** Seznam a hledání potravin (F-01). Potraviny slouží k napojení surovin receptů. */
 export default function FoodsScreen() {
-  const [query, setQuery] = useState('');
+  // Hledání je v URL (?q=…), ať po uložení potraviny zůstane (viz foodsReturn).
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') ?? '';
+  const search = params.toString();
+  useEffect(() => rememberFoodsSearch(search), [search]);
+  function setQuery(value: string) {
+    setParams(value ? { q: value } : {}, { replace: true });
+  }
   const [message, setMessage] = useState('');
   const foods = useLiveQuery(async () => {
     const all = await db.foods.toArray();
@@ -25,6 +33,7 @@ export default function FoodsScreen() {
     matchesQuery(`${food.name} ${food.brand ?? ''}`, query),
   );
   const emptyDb = !loading && foods.length === 0;
+  const trimmedQuery = query.trim();
 
   async function handleSeed() {
     const added = await seedBasicFoods();
@@ -63,6 +72,10 @@ export default function FoodsScreen() {
               emptyDb ? (
                 <Button role="primary" onClick={() => void handleSeed()}>
                   Přidat základní potraviny ({basicFoodCount()})
+                </Button>
+              ) : trimmedQuery ? (
+                <Button role="primary" to={`/potraviny/nova?nazev=${encodeURIComponent(trimmedQuery)}`}>
+                  + Založit „{trimmedQuery}“
                 </Button>
               ) : undefined
             }

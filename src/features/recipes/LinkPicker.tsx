@@ -4,6 +4,7 @@ import FoodPickList from '../foods/FoodPickList';
 import RecipePickList from './RecipePickList';
 import Button from '../../components/ui/Button';
 import Segmented from '../../components/ui/Segmented';
+import { useBackToClose } from '../../hooks/useBackToClose';
 
 /** Co picker vrátí: buď potravinu, nebo podrecept (nikdy oboje). */
 export type LinkTarget =
@@ -37,6 +38,7 @@ export default function LinkPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   // Předvyplněný název označit, ať ho první písmeno přepíše.
   useEffect(() => inputRef.current?.select(), []);
+  useBackToClose(true, onClose);
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-white dark:bg-stone-900">

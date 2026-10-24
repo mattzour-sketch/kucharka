@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type FoodBasis } from '../../db';
 import { parseDecimal } from '../../lib/num';
@@ -7,11 +7,13 @@ import { czechPlural } from '../../lib/plural';
 import { countRecipesUsingFood, createFood, softDeleteFood, updateFood } from './foodsRepo';
 import { listPortions, reconcilePortions } from './foodPortionsRepo';
 import { restoreFood } from '../trash/trashRepo';
+import { foodsListHref } from './foodsReturn';
 import { useUndo } from '../../components/undoContext';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import Segmented from '../../components/ui/Segmented';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { PortionNameDatalist } from '../../components/ui/AddPortionInline';
 import { ABSURD_GRAMS, PORTION_DATALIST_ID } from '../../components/ui/portionLabels';
 
@@ -22,16 +24,23 @@ interface PortionRow {
   grams: string;
 }
 
+function snapshotOf(fields: unknown[]): string {
+  return JSON.stringify(fields);
+}
+
 /** Ruční založení a editace potraviny (F-02, F-04, F-08). Hodnoty na 100 g/ml. */
 export default function FoodEditScreen() {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(routeId);
+  // „Založit ‚xyz'" z prázdného hledání předvyplní název.
+  const [searchParams] = useSearchParams();
+  const prefillName = isEdit ? '' : (searchParams.get('nazev') ?? '');
 
   const existing = useLiveQuery(() => (routeId ? db.foods.get(routeId) : undefined), [routeId]);
   const usedIn = useLiveQuery(() => (routeId ? countRecipesUsingFood(routeId) : 0), [routeId]) ?? 0;
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(prefillName);
   const [brand, setBrand] = useState('');
   const [basis, setBasis] = useState<FoodBasis>('g');
   const [kcal, setKcal] = useState('');
@@ -42,7 +51,11 @@ export default function FoodEditScreen() {
   const [portions, setPortions] = useState<PortionRow[]>([]);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const { showUndo } = useUndo();
+  /** Stav formuláře při otevření – křížek se při změnách zeptá, jestli je zahodit. */
+  const initialRef = useRef(snapshotOf([prefillName, '', 'g', '', '', '', '', '', []]));
+  const current = snapshotOf([name, brand, basis, kcal, protein, carbs, fat, pieceGrams, portions]);
 
   useEffect(() => {
     if (existing && loadedId !== existing.id) {
@@ -54,10 +67,24 @@ export default function FoodEditScreen() {
       setProtein(String(existing.proteinG));
       setCarbs(String(existing.carbsG));
       setFat(String(existing.fatG));
-      setPieceGrams(existing.pieceGrams != null ? String(existing.pieceGrams) : '');
-      void listPortions(existing.id).then((rows) =>
-        setPortions(rows.map((row) => ({ id: row.id, label: row.label, grams: String(row.grams) }))),
-      );
+      const pieceText = existing.pieceGrams != null ? String(existing.pieceGrams) : '';
+      setPieceGrams(pieceText);
+      const base = [
+        existing.name,
+        existing.brand ?? '',
+        existing.basis,
+        String(existing.energyKcal),
+        String(existing.proteinG),
+        String(existing.carbsG),
+        String(existing.fatG),
+        pieceText,
+      ];
+      initialRef.current = snapshotOf([...base, []]);
+      void listPortions(existing.id).then((rows) => {
+        const loaded = rows.map((row) => ({ id: row.id, label: row.label, grams: String(row.grams) }));
+        initialRef.current = snapshotOf([...base, loaded]);
+        setPortions(loaded);
+      });
     }
   }, [existing, loadedId]);
 
@@ -98,7 +125,7 @@ export default function FoodEditScreen() {
       foodId,
       portions.map((row) => ({ id: row.id, label: row.label, grams: parseDecimal(row.grams) })),
     );
-    navigate('/potraviny', { replace: true });
+    navigate(foodsListHref(), { replace: true });
   }
 
   async function handleDelete() {
@@ -106,7 +133,7 @@ export default function FoodEditScreen() {
     const foodId = routeId;
     await softDeleteFood(foodId);
     showUndo({ message: 'Potravina smazána', undo: () => restoreFood(foodId) });
-    navigate('/potraviny', { replace: true });
+    navigate(foodsListHref(), { replace: true });
   }
 
   return (
@@ -115,7 +142,7 @@ export default function FoodEditScreen() {
         variant="stack"
         width="narrow"
         closeIcon
-        onBack={() => navigate('/potraviny')}
+        onBack={() => (current !== initialRef.current ? setConfirmDiscard(true) : navigate(foodsListHref()))}
         title={isEdit ? 'Upravit potravinu' : 'Nová potravina'}
         actions={
           <Button role="primary" onClick={() => void handleSave()}>
@@ -243,6 +270,17 @@ export default function FoodEditScreen() {
           </div>
         ) : null}
       </main>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Zahodit změny?"
+        confirmLabel="Zahodit"
+        confirmRole="destructive"
+        onConfirm={() => navigate(foodsListHref())}
+        onCancel={() => setConfirmDiscard(false)}
+      >
+        {isEdit ? 'Potravina zůstane, jak byla.' : 'Nová potravina se neuloží.'}
+      </ConfirmDialog>
     </div>
   );
 }

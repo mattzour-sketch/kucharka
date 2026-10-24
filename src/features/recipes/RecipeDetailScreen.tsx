@@ -43,6 +43,7 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
 import { ReadingSkeleton } from '../../components/ui/Loading';
+import { useBackToClose } from '../../hooks/useBackToClose';
 
 /** Nabídka porcí u receptu bez počtu porcí (víc porcí se nastaví v Upravit). */
 const SERVINGS_CHOICES = [1, 2, 3, 4, 5, 6];
@@ -52,6 +53,7 @@ export default function RecipeDetailScreen() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
+  useBackToClose(viewingPhotoId !== null, () => setViewingPhotoId(null));
   const [targetServings, setTargetServings] = useState<number | null>(null);
   const [shareMsg, setShareMsg] = useState('');
   // Historie: kalorie na porci, nebo za celou uvařenou dávku.

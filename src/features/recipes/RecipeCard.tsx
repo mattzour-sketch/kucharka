@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Recipe } from '../../db';
-import { formatCzechDate } from '../../lib/date';
+import { formatCzechDate, toLocalIsoDate } from '../../lib/date';
 import { formatPrepTime } from '../../lib/prepTime';
 import { recipeSnippet } from '../../lib/recipeText';
 import { setRecipeFavorite } from './recipesRepo';
@@ -43,17 +43,21 @@ function LetterTile({ name }: { name: string }) {
 /**
  * Karta receptu v seznamu. S fotkou má obálku, bez fotky je kompaktní (dlaždice s písmenem),
  * ať se na mobil vejde víc receptů. `dimmed` = zůstává vidět matně (mis-tap ve filtru Oblíbené).
+ * `cookedAt` (jen při řazení Uvařené) nahradí datum zapsání datem posledního vaření.
  */
 export default function RecipeCard({
   recipe,
   cover,
   onToggleFavorite,
   dimmed = false,
+  cookedAt,
 }: {
   recipe: Recipe;
   cover?: Blob | null;
   onToggleFavorite?: (recipe: Recipe) => void;
   dimmed?: boolean;
+  /** ISO timestamp posledního vaření; `null` = neuvařeno; `undefined` = ukázat datum zapsání. */
+  cookedAt?: string | null;
 }) {
   const preview = recipeSnippet(recipe.rawCapture);
   const coverUrl = useObjectUrl(cover);
@@ -63,7 +67,11 @@ export default function RecipeCard({
     <>
       <h2 className="truncate font-medium">{recipe.name || '(bez názvu)'}</h2>
       <p className="mt-0.5 text-xs text-stone-400">
-        {formatCzechDate(recipe.capturedOn)}
+        {cookedAt === undefined
+          ? formatCzechDate(recipe.capturedOn)
+          : cookedAt
+            ? `uvařeno ${formatCzechDate(toLocalIsoDate(new Date(cookedAt)))}`
+            : 'neuvařeno'}
         {prepTime && !coverUrl ? ` · ⏱ ${prepTime}` : ''}
       </p>
       {recipe.tags.length > 0 ? (

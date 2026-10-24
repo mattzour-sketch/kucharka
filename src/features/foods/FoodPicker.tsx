@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { extractFoodQuery } from '../../lib/foodMatch';
 import FoodPickList from './FoodPickList';
 import Button from '../../components/ui/Button';
+import { useBackToClose } from '../../hooks/useBackToClose';
 
 /**
  * Vyhledání a výběr potraviny pro napojení suroviny (overlay). Používá režim vaření.
@@ -25,6 +26,7 @@ export default function FoodPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   // Předvyplněný název označit, ať ho první písmeno přepíše.
   useEffect(() => inputRef.current?.select(), []);
+  useBackToClose(true, onClose);
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-white dark:bg-stone-900">
       <header className="border-b border-stone-200 dark:border-stone-700 p-3">

@@ -16,6 +16,7 @@ import ShoppingListScreen from './features/shopping/ShoppingListScreen';
 import FoodEditScreen from './features/foods/FoodEditScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 import TrashScreen from './features/trash/TrashScreen';
+import TimerDock from './features/recipes/CookingTimers';
 
 export default function App() {
   // Base path podle nasazení (GitHub Pages běží na /nazev-repa/, jinak /).
@@ -52,6 +53,8 @@ export default function App() {
         <Route path="/kos" element={<TrashScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* Časovače vaření jsou vidět a zvoní na každé obrazovce. */}
+        <TimerDock />
       </UndoProvider>
     </BrowserRouter>
   );

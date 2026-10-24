@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Food, type FoodPortion } from '../../db';
+import { db, type Food, type FoodPortion, type RecipeItem } from '../../db';
 import { parseDecimal, formatNumber } from '../../lib/num';
 import { isIngredientHeading } from '../../lib/ingredientSection';
 import { bestFoodMatch, buildLearnedLinks, extractFoodQuery, learnedKey } from '../../lib/foodMatch';
@@ -146,6 +146,28 @@ export default function RecipeNutritionScreen() {
       message: parts.join(' · '),
       undo: async () => {
         await restoreItemLinks(snapshot);
+        seededRef.current = null;
+      },
+    });
+  }
+
+  /** Odpojení potraviny/podreceptu – s gramy pryč, tak s lištou „Vrátit". */
+  function unlinkItem(item: RecipeItem) {
+    const before = {
+      id: item.id,
+      foodId: item.foodId,
+      subRecipeId: item.subRecipeId,
+      amountG: item.amountG,
+      amountKs: item.amountKs,
+      isSkipped: item.isSkipped,
+    };
+    void updateRecipeItemLink(item.id, { foodId: null, subRecipeId: null, amountG: null, amountKs: null });
+    setValues((prev) => ({ ...prev, [item.id]: { unitId: 'g', raw: '' } }));
+    setAddMeasureItemId((prev) => (prev === item.id ? null : prev));
+    showUndo({
+      message: 'Odpojeno',
+      undo: async () => {
+        await restoreItemLinks([before]);
         seededRef.current = null;
       },
     });
@@ -499,15 +521,7 @@ export default function RecipeNutritionScreen() {
                       <span className="w-14 text-right text-xs text-stone-400">{readout}</span>
                       <IconButton
                         size="sm"
-                        onClick={() => {
-                          void updateRecipeItemLink(item.id, {
-                            foodId: null,
-                            amountG: null,
-                            amountKs: null,
-                          });
-                          setValues((prev) => ({ ...prev, [item.id]: { unitId: 'g', raw: '' } }));
-                          setAddMeasureItemId((prev) => (prev === item.id ? null : prev));
-                        }}
+                        onClick={() => unlinkItem(item)}
                         aria-label="Odpojit potravinu"
                       >
                         ×
@@ -552,14 +566,7 @@ export default function RecipeNutritionScreen() {
                       <span className="w-16 text-right text-xs text-stone-400">{subReadout}</span>
                       <IconButton
                         size="sm"
-                        onClick={() => {
-                          void updateRecipeItemLink(item.id, {
-                            subRecipeId: null,
-                            amountG: null,
-                            amountKs: null,
-                          });
-                          setValues((prev) => ({ ...prev, [item.id]: { unitId: 'g', raw: '' } }));
-                        }}
+                        onClick={() => unlinkItem(item)}
                         aria-label="Odpojit podrecept"
                       >
                         ×

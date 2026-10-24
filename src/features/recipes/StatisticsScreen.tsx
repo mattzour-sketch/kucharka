@@ -89,9 +89,12 @@ export default function StatisticsScreen() {
             </section>
 
             {stats.neverCookedCount > 0 ? (
-              <p className="mt-4 text-sm text-stone-400">
-                Neuvařené recepty: {stats.neverCookedCount}
-              </p>
+              <Link
+                to="/?neuvarene=1"
+                className="mt-4 block text-sm font-medium text-brand-dark dark:text-amber-400"
+              >
+                Neuvařené recepty: {stats.neverCookedCount} →
+              </Link>
             ) : null}
           </>
         )}
