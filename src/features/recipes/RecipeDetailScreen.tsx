@@ -10,6 +10,7 @@ import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredien
 import { formatPrepTime } from '../../lib/prepTime';
 import { originalNoteText, partitionNotes } from '../../lib/originalNote';
 import { buildRecipeText } from '../../lib/shareText';
+import LinkedText from '../../components/ui/LinkedText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
 import NutritionSummary from '../nutrition/NutritionSummary';
@@ -365,13 +366,17 @@ export default function RecipeDetailScreen() {
         {hasSteps ? (
           <section className="mt-5">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
-            <p className="mt-2 whitespace-pre-wrap leading-relaxed">{recipe.instructions}</p>
+            <p className="mt-2 whitespace-pre-wrap leading-relaxed">
+              <LinkedText text={recipe.instructions ?? ''} />
+            </p>
           </section>
         ) : null}
 
         {legacyText ? (
           <Card className="mt-5">
-            <p className="whitespace-pre-wrap leading-relaxed">{legacyText}</p>
+            <p className="whitespace-pre-wrap leading-relaxed">
+              <LinkedText text={legacyText} />
+            </p>
           </Card>
         ) : null}
 

@@ -7,6 +7,7 @@ import { todayIso } from '../../lib/date';
 import { parseDecimal } from '../../lib/num';
 import { isBareUrl, parseRecipeText } from '../../lib/parseRecipe';
 import { sharedTextFromParams } from '../../lib/shareTarget';
+import { linkRecipeName } from '../../lib/links';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import {
   fallbackImportName,
@@ -24,8 +25,8 @@ import { useAutoGrow } from '../../hooks/useAutoGrow';
 import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
 
-const IG_HINT = 'Instagram: ⋯ → Otevřít v prohlížeči, podrž popisek → Kopírovat.';
-const URL_MESSAGE = `Odkaz neotevřu – vlož text popisku. ${IG_HINT}`;
+const IG_HINT = 'Instagram: podrž spodní lištu (Circle to Search), označ text v reelu → Kopírovat.';
+const URL_MESSAGE = `Odkaz neotevřu – vlož text. ${IG_HINT}`;
 const DRAFT_DEBOUNCE_MS = 400;
 
 interface DraftState {
@@ -73,6 +74,8 @@ export default function ImportRecipeScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const tagSuggestions = useTagSuggestions();
   const [message, setMessage] = useState('');
+  /** Holý odkaz (IG sdílí jen ten) → nabídka „Uložit odkaz na později". */
+  const [bareLink, setBareLink] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   /** Text čekající na potvrzení „Přepsat náhled?" (null = dialog zavřený). */
   const [pendingParse, setPendingParse] = useState<string | null>(null);
@@ -114,6 +117,7 @@ export default function ImportRecipeScreen() {
     setParsedPreview(next);
     setParsedText(text);
     setMessage('');
+    setBareLink(null);
     setRestored(false);
     setSourceOpen(false);
     if (next.name.trim() === '') setFocusNameRequest((count) => count + 1);
@@ -142,6 +146,7 @@ export default function ImportRecipeScreen() {
           if (isBareUrl(sharedText)) {
             // Koncept zůstává, jen nápověda (IG sdílí odkaz, ne popisek).
             setMessage(URL_MESSAGE);
+            setBareLink(sharedText.trim());
           } else {
             setPasteText(sharedText);
             const edited =
@@ -199,6 +204,7 @@ export default function ImportRecipeScreen() {
   function requestParse(text: string) {
     if (isBareUrl(text)) {
       setMessage(URL_MESSAGE);
+      setBareLink(text.trim());
       return;
     }
     if (preview && parsedPreview && isPreviewEdited(preview, parsedPreview)) {
@@ -247,6 +253,7 @@ export default function ImportRecipeScreen() {
     setParsedPreview(null);
     setTags([]);
     setMessage('');
+    setBareLink(null);
     setRestored(false);
   }
 
@@ -284,6 +291,28 @@ export default function ImportRecipeScreen() {
       // Originál je celý v postupu, poznámka by byla duplicitní.
       originalText: '',
       clearDraft: loadedRef.current,
+    });
+  }
+
+  /**
+   * Recept jen s odkazem v postupu (na detailu klikací) – text se doplní později přes Upravit.
+   * Rozdělaný náhled zůstává: odkaz s ním nesouvisí, proto `clearDraft: false`.
+   */
+  function handleSaveLink() {
+    if (bareLink === null || saving) return;
+    void saveAndOpen({
+      content: {
+        name: linkRecipeName(bareLink),
+        capturedOn: todayIso(),
+        ingredientLines: [],
+        instructions: bareLink,
+        rawCapture: combineRawCapture('', bareLink),
+        tags,
+        prepMinutes: null,
+      },
+      servings: null,
+      originalText: '',
+      clearDraft: false,
     });
   }
 
@@ -371,6 +400,13 @@ export default function ImportRecipeScreen() {
             </>
           )}
           {message ? <p className="mt-2 text-sm text-stone-500">{message}</p> : null}
+          {bareLink !== null && message === URL_MESSAGE ? (
+            <div className="mt-2">
+              <Button role="secondary" disabled={saving} onClick={handleSaveLink}>
+                Uložit odkaz na později
+              </Button>
+            </div>
+          ) : null}
           {!preview && message !== URL_MESSAGE ? (
             <p className="mt-2 text-xs text-stone-400">{IG_HINT}</p>
           ) : null}

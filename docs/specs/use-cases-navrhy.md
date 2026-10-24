@@ -36,6 +36,10 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 - **Připomínka a sdílení zálohy** ✅ (2026-10-22) tečka u „Víc", když záloha chybí nebo je starší
   než 30 dní (jen když existuje recept). Na mobilu „Sdílet zálohu" přes systémové sdílení (.txt,
   protože Chrome .json nesdílí; obnova bere obojí).
+- **Odkaz z IG** ✅ (2026-10-24) místo slepé hlášky návod přes Circle to Search („podrž spodní lištu,
+  označ text v reelu → Kopírovat") a tlačítko „Uložit odkaz na později": recept „Recept z Instagramu"
+  (TikTok/YouTube/web obdobně, `lib/links.ts`) s odkazem v postupu, na detailu klikací. Rozdělaný
+  náhled ve Vložit zůstává.
 - **Štítky ve Vložit** ✅ (2026-10-22) výběr štítků v náhledu, přežijí nové „Rozebrat" i zavření appky.
 - **Procházka appkou 2026-10-23** ✅ časovače se po Hotovo zruší, zapomenuté (doběhlé před >3 h)
   se tiše smažou a mají v názvu začátek kroku. Hláška o rozdělaném vaření ukáže datum a první
