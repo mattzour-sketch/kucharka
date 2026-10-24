@@ -37,6 +37,33 @@ interface DraftState {
   tags: string[];
 }
 
+/** Návod k vložení (rozbalovací, ať nezdržuje). Sdílení do appky umí jen Android s nainstalovanou appkou. */
+function ImportHelp() {
+  return (
+    <details className="mt-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-3 py-2 text-sm text-stone-600 dark:text-stone-300">
+      <summary className="cursor-pointer text-stone-500">Jak na recept z Instagramu</summary>
+      <p className="mt-2 font-medium">Text z reelu</p>
+      <ol className="mt-1 list-decimal space-y-1 pl-5">
+        <li>Zastav reel, případně rozbal popisek.</li>
+        <li>Podrž spodní lištu (Circle to Search), označ text → Kopírovat.</li>
+        <li>Tady „Vložit ze schránky" → zkontroluj náhled → Uložit.</li>
+      </ol>
+      <p className="mt-3 font-medium">Jen odkaz</p>
+      <ol className="mt-1 list-decimal space-y-1 pl-5">
+        <li>V Instagramu Sdílet → Kuchařka, nebo Kopírovat odkaz a vložit sem.</li>
+        <li>„Uložit odkaz na později" → recept s klikacím odkazem, text doplníš přes Upravit.</li>
+      </ol>
+      <p className="mt-3 font-medium">Dobré vědět</p>
+      <ul className="mt-1 list-disc space-y-1 pl-5">
+        <li>Text z WhatsAppu, Keepu nebo webu: Sdílet → Kuchařka.</li>
+        <li>Sdílení do Kuchařky jde jen na Androidu s nainstalovanou appkou. Na iPhonu podrž text na snímku obrazovky → Kopírovat.</li>
+        <li>Když se recept rozebere špatně, uprav náhled, nebo „Uložit bez rozebrání".</li>
+        <li>Originál vloženého textu zůstane u receptu v poznámce.</li>
+      </ul>
+    </details>
+  );
+}
+
 const fieldClass =
   'rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand';
 // Pole náhledu rostou s obsahem (useAutoGrow) – žádný scroll uvnitř pole.
@@ -407,9 +434,7 @@ export default function ImportRecipeScreen() {
               </Button>
             </div>
           ) : null}
-          {!preview && message !== URL_MESSAGE ? (
-            <p className="mt-2 text-xs text-stone-400">{IG_HINT}</p>
-          ) : null}
+          {!preview ? <ImportHelp /> : null}
 
           {preview ? (
             <div className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-4">
