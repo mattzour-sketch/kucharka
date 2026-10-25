@@ -17,6 +17,17 @@ Supabase (Postgres + Auth) · TanStack Query · React Router · vite-plugin-pwa 
 
 Změnu kteréhokoliv bodu nejdřív navrhni a zdůvodni, neprováděj ji sám.
 
+## Soubory
+
+- `src/lib/` — čistá logika + testy (`*.test.ts`, `*.review.test.ts` od reviewera) vedle zdroje.
+- `src/db/index.ts` — schéma Dexie; `src/features/<oblast>/` — obrazovky a repo moduly
+  (recipes, foods, nutrition, photos, shopping, settings, backup, trash);
+  `src/components/` (`ui/`, `TabLayout`, `UndoProvider`); `src/hooks/`.
+- `supabase/migrations/` — verzované SQL (zatím nečinné, viz Architektura).
+- `docs/SPEC.md` — plná specifikace; `docs/specs/` (business-analyst, po UC, `use-cases*.md`
+  = katalog a backlog), `docs/design/` (architect); `docs/prompt-faze-0.md` — historický zadávací prompt.
+- `dist/`, `node_modules/` — generované, nečíst.
+
 ## Architektura
 
 Kód je ve třech vrstvách kvůli testovatelnosti — logika se dá ověřit bez prohlížeče:
@@ -111,6 +122,15 @@ Tohle jsou invarianty, ne preference. Když si nejsi jistý, ptej se.
 - Identifikátory v kódu anglicky, UI texty a komentáře česky.
 - Nová závislost = nejdřív se zeptej.
 
+## Rozsah
+
+> **NÁVRH k potvrzení.**
+
+- Nové funkce navrhuj, ale neimplementuj bez souhlasu uživatele; rozsah určují fáze v
+  `docs/SPEC.md` (sekce 9) a backlog `docs/specs/use-cases-navrhy.md`.
+- Server (Supabase), přihlášení a synchronizace zůstávají nečinné, dokud o ně uživatel nepožádá.
+- Sledování jídla a útraty patří jinam (`../fitness-denik/`, `../jidlo-utrata/`).
+
 ## Příkazy
 
 ```
@@ -135,3 +155,11 @@ ověřit přes `react-dom/server` (`renderToStaticMarkup`) v `.test.ts`.
 - Výpočetní logika má testy dřív, než se k ní napíše UI.
 - Po dokončení úkolu spusť `npm run lint` a `npm run test` a nahlas výsledek.
 - Když narazíš na rozhodnutí, které dokument neřeší, zeptej se místo hádání.
+
+## Git
+
+- Vlastní repo, větev `main`, remote `origin` (GitHub `mattzour-sketch/kucharka`). Push jen
+  na výslovnou žádost uživatele.
+- Commit zprávy píše projekt česky (drž se historie repa).
+- `.env*` (klíče Supabase), `node_modules`, `dist`, `dev-dist`, `coverage` jsou v `.gitignore`.
+- `.claude/` je necommitnuté. LF všude (`.gitattributes`: `* text=auto eol=lf`).
