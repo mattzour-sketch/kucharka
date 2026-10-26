@@ -2,9 +2,10 @@ import { useRef, useState } from 'react';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { cardClass } from '../../components/ui/cardClass';
+import Segmented from '../../components/ui/Segmented';
 import { canShareTextFile, downloadTextFile, shareTextFile } from '../../lib/download';
 import { formatCzechDateTime, formatRelativeDays, todayIso } from '../../lib/date';
-import { backupContentCounts, restoreItemsAdded } from '../../lib/backup';
+import { backupContentCounts, restoreItemsAdded, type RestoreMode } from '../../lib/backup';
 import { writeLastBackupAt } from '../../lib/backupStatus';
 import { czechPlural } from '../../lib/plural';
 import { useBackupReminder } from './useBackupReminder';
@@ -12,6 +13,12 @@ import { applyRestore, exportBackupJson, prepareRestore, type RestorePreview } f
 
 const pluralRecipes = (n: number) => `${n} ${czechPlural(n, ['recept', 'recepty', 'receptů'])}`;
 const pluralItems = (n: number) => `${n} ${czechPlural(n, ['položku', 'položky', 'položek'])}`;
+const whichYouHave = (n: number) => (n === 1 ? 'který' : 'které');
+
+const RESTORE_MODES = [
+  { value: 'keepNewer', label: 'Novější nechat' },
+  { value: 'overwriteAll', label: 'Přepsat vše' },
+] as const;
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -25,6 +32,7 @@ export default function BackupSection() {
   const { lastBackupAt, due } = useBackupReminder();
   const [notice, setNotice] = useState<Notice>(null);
   const [preview, setPreview] = useState<RestorePreview | null>(null);
+  const [mode, setMode] = useState<RestoreMode>('keepNewer');
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [canShare] = useState(canShareTextFile);
@@ -61,6 +69,7 @@ export default function BackupSection() {
     try {
       const text = await file.text();
       setPreview(await prepareRestore(text, file.size));
+      setMode('keepNewer');
       setNotice(null);
     } catch (error) {
       setNotice({ tone: 'error', text: error instanceof Error ? error.message : 'Soubor nejde načíst.' });
@@ -73,11 +82,12 @@ export default function BackupSection() {
     try {
       const { added, overwritten } = preview.impact.recipes;
       const itemsAdded = restoreItemsAdded(preview.impact);
-      await applyRestore(preview);
+      const { kept } = await applyRestore(preview, mode);
       // Shrnutí toho, co obnova reálně udělala (spočítané proti DB, ne holý počet ze zálohy).
       const changes: string[] = [];
       if (added > 0) changes.push(`přidala ${pluralRecipes(added)}`);
-      if (overwritten > 0) changes.push(`přepsala ${pluralRecipes(overwritten)}`);
+      if (overwritten - kept > 0) changes.push(`přepsala ${pluralRecipes(overwritten - kept)}`);
+      if (kept > 0) changes.push(`nechala ${pluralRecipes(kept)}, ${whichYouHave(kept)} máš novější`);
       if (itemsAdded > 0) changes.push(`přidala ${pluralItems(itemsAdded)} vaření a nákupu`);
       setNotice({
         tone: 'info',
@@ -153,34 +163,36 @@ export default function BackupSection() {
         onConfirm={() => void confirmRestore()}
         onCancel={() => setPreview(null)}
       >
-        {preview ? <RestorePreviewBody preview={preview} /> : null}
+        {preview ? <RestorePreviewBody preview={preview} mode={mode} onModeChange={setMode} /> : null}
       </ConfirmDialog>
     </section>
   );
 }
 
 /** Náhled dopadu obnovy: co udělá s mými daty (hrdina dialogu) + co záloha obsahuje. */
-function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
+function RestorePreviewBody({
+  preview,
+  mode,
+  onModeChange,
+}: {
+  preview: RestorePreview;
+  mode: RestoreMode;
+  onModeChange: (mode: RestoreMode) => void;
+}) {
   const { parsed, impact } = preview;
   const { added, overwritten, newerInDb } = impact.recipes;
   // Obsah zálohy bez smazaných položek a receptů v koši.
   const counts = backupContentCounts(parsed.data);
   const itemsAdded = restoreItemsAdded(impact);
+  const kept = mode === 'keepNewer' ? newerInDb : 0;
+  const rewritten = overwritten - kept;
 
   const effects: string[] = [];
   if (added > 0) effects.push(`Přidá ${pluralRecipes(added)}.`);
-  if (overwritten > 0) {
-    effects.push(`Přepíše ${pluralRecipes(overwritten)}, ${overwritten === 1 ? 'který' : 'které'} už máš.`);
-  }
+  if (rewritten > 0) effects.push(`Přepíše ${pluralRecipes(rewritten)}, ${whichYouHave(rewritten)} už máš.`);
+  if (kept > 0) effects.push(`Nechá ${pluralRecipes(kept)}, ${whichYouHave(kept)} máš novější.`);
   if (itemsAdded > 0) {
     effects.push(`Přidá ${pluralItems(itemsAdded)} do historie vaření a nákupu.`);
-  }
-
-  const cautions: string[] = [];
-  if (newerInDb > 0) {
-    cautions.push(
-      `${pluralRecipes(newerInDb)} máš novější než záloha — obnova ${newerInDb === 1 ? 'ho' : 'je'} přepíše.`,
-    );
   }
 
   return (
@@ -203,14 +215,25 @@ function RestorePreviewBody({ preview }: { preview: RestorePreview }) {
         )}
       </div>
 
-      {cautions.length > 0 ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-          <p className="font-medium">Pozor</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            {cautions.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+      {newerInDb > 0 ? (
+        <div
+          className={
+            mode === 'overwriteAll'
+              ? 'rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200'
+              : 'rounded-lg border border-stone-200 p-3 dark:border-stone-700'
+          }
+        >
+          <p>{pluralRecipes(newerInDb)} máš novější než záloha.</p>
+          <Segmented
+            className="mt-2"
+            options={RESTORE_MODES}
+            value={mode}
+            onChange={onModeChange}
+            ariaLabel="Novější recepty"
+          />
+          {mode === 'overwriteAll' ? (
+            <p className="mt-2">Úpravy z doby po záloze se ztratí.</p>
+          ) : null}
         </div>
       ) : null}
 

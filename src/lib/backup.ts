@@ -159,24 +159,54 @@ function countRevived(backup: { id: string }[], currentIds: Set<string>): number
 }
 
 export function computeRestoreImpact(backup: BackupData, current: RestoreCurrent): RestoreImpact {
-  const currentRecipeUpdatedAt = new Map(current.recipes.map((recipe) => [recipe.id, recipe.updatedAt]));
-  let added = 0;
-  let overwritten = 0;
-  let newerInDb = 0;
-  for (const recipe of backup.recipes) {
-    const dbUpdatedAt = currentRecipeUpdatedAt.get(recipe.id);
-    if (dbUpdatedAt === undefined) {
-      added += 1;
-    } else {
-      overwritten += 1;
-      // ISO timestampy jdou porovnat lexikograficky.
-      if (dbUpdatedAt > recipe.updatedAt) newerInDb += 1;
-    }
-  }
+  const currentIds = new Set(current.recipes.map((recipe) => recipe.id));
+  const added = backup.recipes.filter((recipe) => !currentIds.has(recipe.id)).length;
   return {
-    recipes: { added, overwritten, newerInDb },
+    recipes: {
+      added,
+      overwritten: backup.recipes.length - added,
+      newerInDb: newerLocalRecipeIds(backup.recipes, current.recipes).size,
+    },
     cookLogsRevived: countRevived(backup.cookLogs, new Set(current.cookLogIds)),
     shoppingItemsRevived: countRevived(backup.shoppingItems, new Set(current.shoppingItemIds)),
+  };
+}
+
+/** Recepty, které má uživatel v DB novější (`updatedAt`) než záloha. */
+export function newerLocalRecipeIds(
+  backupRecipes: readonly Pick<Recipe, 'id' | 'updatedAt'>[],
+  currentRecipes: readonly Pick<Recipe, 'id' | 'updatedAt'>[],
+): Set<string> {
+  const currentUpdatedAt = new Map(currentRecipes.map((recipe) => [recipe.id, recipe.updatedAt]));
+  const newer = new Set<string>();
+  for (const recipe of backupRecipes) {
+    const dbUpdatedAt = currentUpdatedAt.get(recipe.id);
+    // ISO timestampy jdou porovnat lexikograficky; stejný čas = není novější.
+    if (dbUpdatedAt !== undefined && dbUpdatedAt > recipe.updatedAt) newer.add(recipe.id);
+  }
+  return newer;
+}
+
+/**
+ * Jak naložit s recepty, které mám novější než záloha (rozhodnutí uživatele 2026-10-24):
+ * výchozí `keepNewer` je nechá, `overwriteAll` je vědomě přepíše stavem ze zálohy.
+ */
+export type RestoreMode = 'keepNewer' | 'overwriteAll';
+
+/**
+ * Data k zápisu bez receptů z `keepRecipeIds`. Ponechaný recept zůstane celý v lokálním
+ * stavu – i jeho suroviny, poznámky a fotky (míchat novější recept se starými surovinami
+ * by dalo nesmysl). Historie vaření a nákup se obnovují dál beze změny.
+ */
+export function withoutKeptRecipes(data: BackupData, keepRecipeIds: ReadonlySet<string>): BackupData {
+  if (keepRecipeIds.size === 0) return data;
+  const restored = <T extends { recipeId: string }>(rows: T[]) => rows.filter((row) => !keepRecipeIds.has(row.recipeId));
+  return {
+    ...data,
+    recipes: data.recipes.filter((recipe) => !keepRecipeIds.has(recipe.id)),
+    recipeItems: restored(data.recipeItems),
+    recipeNotes: restored(data.recipeNotes),
+    photos: restored(data.photos),
   };
 }
 

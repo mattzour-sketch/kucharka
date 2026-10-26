@@ -2,12 +2,15 @@ import { db, type RecipePhoto } from '../../db';
 import {
   computeRestoreImpact,
   keepLocalDeletions,
+  newerLocalRecipeIds,
   parseBackup,
   serializeBackup,
   type BackupData,
   type ParsedBackup,
   type PhotoBackup,
   type RestoreImpact,
+  type RestoreMode,
+  withoutKeptRecipes,
 } from '../../lib/backup';
 import { writeLastBackupAt } from '../../lib/backupStatus';
 
@@ -111,13 +114,14 @@ export async function prepareRestore(json: string, fileSize: number): Promise<Re
 
 /**
  * 2. fáze obnovy: zapíše data (merge/upsert podle id – nikdy nemaže). Volá se až po
- * potvrzení náhledu uživatelem. „Naposledy zálohováno" se nastaví na `exportedAt`
- * zálohy (data jsou ke dni té zálohy), ne na teď.
+ * potvrzení náhledu uživatelem. V režimu `keepNewer` vynechá recepty, které mám novější
+ * než záloha (spočítané znovu uvnitř transakce, ne z náhledu). „Naposledy zálohováno"
+ * se nastaví na `exportedAt` zálohy (data jsou ke dni té zálohy), ne na teď.
  */
-export async function applyRestore(preview: RestorePreview): Promise<{ recipes: number }> {
-  const { data, exportedAt } = preview.parsed;
+export async function applyRestore(preview: RestorePreview, mode: RestoreMode): Promise<{ kept: number }> {
+  const { data: backupData, exportedAt } = preview.parsed;
   const photos: RecipePhoto[] = await Promise.all(
-    data.photos.map(async (photo) => ({
+    backupData.photos.map(async (photo) => ({
       id: photo.id,
       recipeId: photo.recipeId,
       blob: await dataUrlToBlob(photo.dataUrl),
@@ -127,7 +131,12 @@ export async function applyRestore(preview: RestorePreview): Promise<{ recipes: 
 
   // Rozsah transakce = všechny tabulky (jeden zdroj místo ručního seznamu, který by se
   // mohl rozejít s bulkPut níž). Širší zámek u jednorázové obnovy nevadí.
+  let kept = 0;
   await db.transaction('rw', db.tables, async () => {
+    const keepRecipeIds =
+      mode === 'keepNewer' ? newerLocalRecipeIds(backupData.recipes, await db.recipes.toArray()) : new Set<string>();
+    kept = keepRecipeIds.size;
+    const data = withoutKeptRecipes(backupData, keepRecipeIds);
     // Poznámka smazaná po záloze zůstane smazaná (rozhodnutí uživatele 2026-10-04).
     const localDeletedNotes = new Map(
       (await db.recipeNotes.toArray())
@@ -146,11 +155,11 @@ export async function applyRestore(preview: RestorePreview): Promise<{ recipes: 
       db.weightEntries.bulkPut(data.weightEntries),
       db.cookLogs.bulkPut(data.cookLogs),
       db.shoppingItems.bulkPut(data.shoppingItems),
-      db.recipePhotos.bulkPut(photos),
+      db.recipePhotos.bulkPut(photos.filter((photo) => !keepRecipeIds.has(photo.recipeId))),
     ]);
   });
 
   // Obnova ≠ záloha: nastavíme datum té zálohy, ať po přenosu nesvítí „nezálohováno".
   if (exportedAt) writeLastBackupAt(exportedAt);
-  return { recipes: data.recipes.length };
+  return { kept };
 }

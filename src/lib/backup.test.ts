@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { CookLog, Recipe, RecipeNote, ShoppingItem } from '../db';
+import type { CookLog, Recipe, RecipeItem, RecipeNote, ShoppingItem } from '../db';
 import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
   backupContentCounts,
   keepLocalDeletions,
   computeRestoreImpact,
+  newerLocalRecipeIds,
   parseBackup,
   serializeBackup,
+  withoutKeptRecipes,
   type BackupData,
 } from './backup';
 
@@ -197,5 +199,59 @@ describe('backupContentCounts – náhled obnovy', () => {
       foodPortions: 1,
       photos: 1,
     });
+  });
+});
+
+describe('obnova – novější recepty nechat (bod 5)', () => {
+  const item = (id: string, recipeId: string): RecipeItem => ({
+    id,
+    recipeId,
+    rawText: 'mouka 500 g',
+    isSkipped: false,
+    sortOrder: 0,
+  });
+
+  it('newerLocalRecipeIds: jen recepty, které mám v DB přísně novější', () => {
+    const backup = [
+      makeRecipe('starsi-v-db', '2026-08-10T10:00:00.000Z'),
+      makeRecipe('novejsi-v-db', '2026-08-10T10:00:00.000Z'),
+      makeRecipe('stejny', '2026-08-10T10:00:00.000Z'),
+      makeRecipe('jen-v-zaloze', '2026-08-10T10:00:00.000Z'),
+    ];
+    const current = [
+      makeRecipe('starsi-v-db', '2026-08-01T10:00:00.000Z'),
+      makeRecipe('novejsi-v-db', '2026-08-20T10:00:00.000Z'),
+      makeRecipe('stejny', '2026-08-10T10:00:00.000Z'),
+    ];
+    expect([...newerLocalRecipeIds(backup, current)]).toEqual(['novejsi-v-db']);
+  });
+
+  it('withoutKeptRecipes vynechá ponechaný recept i s jeho surovinami, poznámkami a fotkami', () => {
+    const note = (id: string, recipeId: string): RecipeNote => ({ id, recipeId, notedOn: '2026-08-02', body: 'x' });
+    const data: BackupData = {
+      ...emptyData(),
+      recipes: [makeRecipe('nechat', '2026-08-01T00:00:00.000Z'), makeRecipe('obnovit', '2026-08-01T00:00:00.000Z')],
+      recipeItems: [item('i1', 'nechat'), item('i2', 'obnovit')],
+      recipeNotes: [note('n1', 'nechat'), note('n2', 'obnovit')],
+      photos: [
+        { id: 'p1', recipeId: 'nechat', dataUrl: 'data:,', createdAt: '2026-08-02T18:00:00.000Z' },
+        { id: 'p2', recipeId: 'obnovit', dataUrl: 'data:,', createdAt: '2026-08-02T18:00:00.000Z' },
+      ],
+      cookLogs: [makeCookLog('c1')],
+      shoppingItems: [makeShoppingItem('s1')],
+    };
+    const result = withoutKeptRecipes(data, new Set(['nechat']));
+    expect(result.recipes.map((r) => r.id)).toEqual(['obnovit']);
+    expect(result.recipeItems.map((r) => r.id)).toEqual(['i2']);
+    expect(result.recipeNotes.map((r) => r.id)).toEqual(['n2']);
+    expect(result.photos.map((r) => r.id)).toEqual(['p2']);
+    // Historie vaření a nákup se obnovují dál.
+    expect(result.cookLogs).toHaveLength(1);
+    expect(result.shoppingItems).toHaveLength(1);
+  });
+
+  it('prázdná sada ponechaných = data beze změny („Přepsat vše")', () => {
+    const data: BackupData = { ...emptyData(), recipes: [makeRecipe('r1', '2026-08-01T00:00:00.000Z')] };
+    expect(withoutKeptRecipes(data, new Set())).toBe(data);
   });
 });
