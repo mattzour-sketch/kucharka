@@ -8,7 +8,10 @@ export interface UndoRequest {
 }
 
 export interface UndoContextValue {
-  showUndo: (request: UndoRequest) => void;
+  /** Ukáže lištu. Vrací „zavři ji, pokud je to pořád tahle" (jinou lištu nezavře). */
+  showUndo: (request: UndoRequest) => () => void;
+  /** Kolik px odspodu zabírá něco pevného (lišta časovačů); lišta „Vrátit zpět" sedne nad to. */
+  setBottomInset: (px: number) => void;
 }
 
 export const UndoContext = createContext<UndoContextValue | null>(null);

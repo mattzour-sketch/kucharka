@@ -17,22 +17,70 @@ function unitToSeconds(unit: string): number {
   return 0;
 }
 
+/** Pořadí jednotky pro spojování „1 h 30 min 10 s": h = 0, min = 1, s = 2. */
+function unitRank(unit: string): number {
+  const seconds = unitToSeconds(unit);
+  if (seconds === 3600) return 0;
+  if (seconds === 60) return 1;
+  return 2;
+}
+
 // pořadí v alternaci: delší tvary dřív (minut před min, hodin před h);
 // UC031: i anglické tvary (hours/hrs, mins, seconds/secs).
+// Konec `(?![a-z])` místo `\b`: za jednotkou smí hned být číslice („1h30min"),
+// diakritika za ní se chová jako dřív („5 minutách" = „5 minut").
 const DURATION_RE =
-  /(\d+(?:[.,]\d+)?)\s*(hodin[a-z]*|hod|hours?|hrs?|h|minut[a-z]*|mins?|m|sekund[a-z]*|sek|seconds?|secs?|s)\b/gi;
+  /(\d+(?:[.,]\d+)?)\s*(hodin[a-z]*|hod|hours?|hrs?|h|minut[a-z]*|mins?|m|sekund[a-z]*|sek|seconds?|secs?|s)(?![a-z])/gi;
+
+// Sousední časy se spojí, jen když mezi nimi jsou mezery nebo nic („1 h 30 min", „1h30min").
+// Spojka („1 h a 30 min"), čárka ani jiné slovo je nespojí.
+const JOIN_GAP_RE = /^\s*$/;
+
+interface DurationMatch {
+  start: number;
+  end: number;
+  seconds: number;
+  rank: number;
+}
 
 export function splitStepByDurations(step: string): DurationSegment[] {
-  const segments: DurationSegment[] = [];
-  let last = 0;
+  const groups: DurationMatch[][] = [];
   for (const match of step.matchAll(DURATION_RE)) {
     const start = match.index ?? 0;
-    const whole = match[0];
     const seconds = Math.round(Number(match[1].replace(',', '.')) * unitToSeconds(match[2]));
+    // Nulový čas není klikací; zůstane textem, a tím spojení přeruší.
     if (seconds <= 0) continue;
+    const current: DurationMatch = {
+      start,
+      end: start + match[0].length,
+      seconds,
+      rank: unitRank(match[2]),
+    };
+    const group = groups[groups.length - 1];
+    const previous = group?.[group.length - 1];
+    // Spojit jen v pořadí h → min → s, každou jednotku nejvýš jednou.
+    if (
+      previous &&
+      current.rank > previous.rank &&
+      JOIN_GAP_RE.test(step.slice(previous.end, start))
+    ) {
+      group.push(current);
+    } else {
+      groups.push([current]);
+    }
+  }
+
+  const segments: DurationSegment[] = [];
+  let last = 0;
+  for (const group of groups) {
+    const start = group[0].start;
+    const end = group[group.length - 1].end;
     if (start > last) segments.push({ text: step.slice(last, start), seconds: null });
-    segments.push({ text: whole, seconds });
-    last = start + whole.length;
+    segments.push({
+      text: step.slice(start, end),
+      seconds: group.reduce((sum, m) => sum + m.seconds, 0),
+    });
+    last = end;
   }
   if (last < step.length) segments.push({ text: step.slice(last), seconds: null });
   if (segments.length === 0) segments.push({ text: step, seconds: null });

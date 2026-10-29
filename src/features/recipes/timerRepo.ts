@@ -1,6 +1,6 @@
 import { db, type Timer } from '../../db';
 import { newId } from '../../lib/id';
-import { isStaleTimer } from '../../lib/timers';
+import { isTimerGone, snoozedEndsAt } from '../../lib/timers';
 
 /** Časovače vaření (§7). Ukládá se cílový čas, ne zbývající sekundy. */
 
@@ -22,10 +22,26 @@ export async function removeTimer(id: string): Promise<void> {
   await db.timers.delete(id);
 }
 
-/** Zapomenuté časovače z minulého vaření (doběhly před hodinami) tiše smaže. */
-export async function removeStaleTimers(now: number = Date.now()): Promise<void> {
-  const stale = (await db.timers.toArray()).filter((timer) => isStaleTimer(timer.endsAt, now));
-  if (stale.length > 0) await db.timers.bulkDelete(stale.map((timer) => timer.id));
+/** Zastavení doběhlého časovače: přestane zvonit, ale chvíli zůstane v liště (viz `isTimerGone`). */
+export async function silenceTimer(id: string, now: number = Date.now()): Promise<void> {
+  await db.timers.update(id, { silencedAt: new Date(now).toISOString() });
+}
+
+/** „+5 min": tentýž záznam znovu běží 5 minut od teď (zvonění i ztlumení se zruší). */
+export async function snoozeTimer(id: string, now: number = Date.now()): Promise<void> {
+  await db.timers.update(id, { endsAt: snoozedEndsAt(now), silencedAt: null });
+}
+
+/**
+ * Zapomenuté časovače z minulého vaření a zastavené po lhůtě tiše smaže. Čtení i mazání
+ * v jedné transakci: časovač, který mezitím dostal „+5 min", se nesmaže.
+ * (`silenceTimer`/`snoozeTimer` jsou jedno `update`, to je atomické samo.)
+ */
+export async function removeGoneTimers(now: number = Date.now()): Promise<void> {
+  await db.transaction('rw', db.timers, async () => {
+    const gone = (await db.timers.toArray()).filter((timer) => isTimerGone(timer, now));
+    if (gone.length > 0) await db.timers.bulkDelete(gone.map((timer) => timer.id));
+  });
 }
 
 /** Zrušení časovačů při Hotovo; vrácené záznamy jdou přes `restoreTimers` vrátit zpět. */

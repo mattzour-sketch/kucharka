@@ -200,6 +200,11 @@ export interface Timer {
   label: string;
   endsAt: IsoTimestamp;
   createdAt: IsoTimestamp;
+  /**
+   * Kdy se doběhlý časovač zastavil: dál je v liště jako tiché „Hotovo" (s „+5 min")
+   * a po chvíli zmizí. Neindexované, bez nové verze `stores()`; starší záznamy ho nemají.
+   */
+  silencedAt?: IsoTimestamp | null;
 }
 
 /** Surovina v záznamu vaření (snímek – jak se reálně vařilo). */

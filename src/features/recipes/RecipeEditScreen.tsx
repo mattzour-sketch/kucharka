@@ -7,6 +7,8 @@ import { parseDecimal } from '../../lib/num';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
+import { useSplitOffer } from './useSplitOffer';
+import FieldLabelWithSplit from './SplitOffer';
 import {
   createRecipeWithContent,
   getRecipeItems,
@@ -71,6 +73,8 @@ export default function RecipeEditScreen() {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const ingredientsRef = useAutoGrow(ingredients);
   const instructionsRef = useAutoGrow(instructions);
+  const ingredientsSplit = useSplitOffer('ingredients', ingredients, setIngredients);
+  const instructionsSplit = useSplitOffer('steps', instructions, setInstructions);
 
   const idRef = useRef<string | null>(routeId ?? null);
   const loadedRef = useRef(!routeId); // nový recept je „načtený" hned
@@ -328,13 +332,16 @@ export default function RecipeEditScreen() {
           </span>
         </div>
 
-        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+        <FieldLabelWithSplit splitLabel={ingredientsSplit.label} onSplit={ingredientsSplit.apply}>
           Suroviny
-        </label>
+        </FieldLabelWithSplit>
         <textarea
           ref={ingredientsRef}
           value={ingredients}
-          onChange={(event) => setIngredients(event.target.value)}
+          onChange={(event) => {
+            ingredientsSplit.noteEdit();
+            setIngredients(event.target.value);
+          }}
           autoFocus={!isEdit}
           placeholder={
             'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n800 g brambor\n2 vejce\n100 g hladké mouky'
@@ -342,13 +349,16 @@ export default function RecipeEditScreen() {
           className="mt-1 min-h-[20dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />
 
-        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
+        <FieldLabelWithSplit splitLabel={instructionsSplit.label} onSplit={instructionsSplit.apply}>
           Postup
-        </label>
+        </FieldLabelWithSplit>
         <textarea
           ref={instructionsRef}
           value={instructions}
-          onChange={(event) => setInstructions(event.target.value)}
+          onChange={(event) => {
+            instructionsSplit.noteEdit();
+            setInstructions(event.target.value);
+          }}
           placeholder={'jeden krok na řádek…\n\nBrambory nastrouhat najemno.\nOsmažit na sádle na prudkém ohni.'}
           className="mt-1 min-h-[22dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
         />

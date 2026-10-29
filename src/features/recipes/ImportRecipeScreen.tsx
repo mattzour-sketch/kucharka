@@ -24,6 +24,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
 import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
+import { useSplitOffer } from './useSplitOffer';
+import FieldLabelWithSplit from './SplitOffer';
 
 const IG_HINT = 'Instagram: podrž spodní lištu (Circle to Search), označ text v reelu → Kopírovat.';
 const URL_MESSAGE = `Odkaz neotevřu – vlož text. ${IG_HINT}`;
@@ -113,6 +115,15 @@ export default function ImportRecipeScreen() {
   const nameRef = useRef<HTMLInputElement>(null);
   const ingredientsRef = useAutoGrow(preview?.ingredients ?? '');
   const instructionsRef = useAutoGrow(preview?.instructions ?? '');
+  // Rozdělení diktátu se v náhledu počítá jako ruční úprava (isPreviewEdited, souhrn).
+  const updateIngredients = useCallback((fn: (current: string) => string) => {
+    setPreview((prev) => (prev ? { ...prev, ingredients: fn(prev.ingredients) } : prev));
+  }, []);
+  const updateInstructions = useCallback((fn: (current: string) => string) => {
+    setPreview((prev) => (prev ? { ...prev, instructions: fn(prev.instructions) } : prev));
+  }, []);
+  const ingredientsSplit = useSplitOffer('ingredients', preview?.ingredients ?? '', updateIngredients);
+  const instructionsSplit = useSplitOffer('steps', preview?.instructions ?? '', updateInstructions);
   /** Koncept se úspěšně načetl → smí se průběžně zapisovat. Po chybě načtení zůstává false. */
   const loadedRef = useRef(false);
   /** Po uložení už koncept nezapisovat (jinak by ho doběhnutý debounce vzkřísil). */
@@ -486,31 +497,39 @@ export default function ImportRecipeScreen() {
                 </span>
               </div>
 
-              <label
+              <FieldLabelWithSplit
                 htmlFor="ingredients"
-                className="mt-4 block text-xs font-semibold uppercase tracking-wide text-stone-400"
+                splitLabel={ingredientsSplit.label}
+                onSplit={ingredientsSplit.apply}
               >
                 Suroviny
-              </label>
+              </FieldLabelWithSplit>
               <textarea
                 id="ingredients"
                 ref={ingredientsRef}
                 value={preview.ingredients}
-                onChange={(event) => updateField('ingredients', event.target.value)}
+                onChange={(event) => {
+                  ingredientsSplit.noteEdit();
+                  updateField('ingredients', event.target.value);
+                }}
                 className={areaClass}
               />
 
-              <label
+              <FieldLabelWithSplit
                 htmlFor="instructions"
-                className="mt-4 block text-xs font-semibold uppercase tracking-wide text-stone-400"
+                splitLabel={instructionsSplit.label}
+                onSplit={instructionsSplit.apply}
               >
                 Postup
-              </label>
+              </FieldLabelWithSplit>
               <textarea
                 id="instructions"
                 ref={instructionsRef}
                 value={preview.instructions}
-                onChange={(event) => updateField('instructions', event.target.value)}
+                onChange={(event) => {
+                  instructionsSplit.noteEdit();
+                  updateField('instructions', event.target.value);
+                }}
                 className={areaClass}
               />
 

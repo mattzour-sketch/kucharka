@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { isStaleTimer, STALE_TIMER_MS, stepTimerLabel } from './timers';
+import {
+  isStaleTimer,
+  isTimerGone,
+  SILENCED_TIMER_MS,
+  SNOOZE_MS,
+  snoozedEndsAt,
+  STALE_TIMER_MS,
+  stepTimerLabel,
+  timerState,
+} from './timers';
 
 describe('isStaleTimer', () => {
   const now = Date.parse('2026-10-23T18:00:00Z');
@@ -12,6 +21,60 @@ describe('isStaleTimer', () => {
   it('doběhlý před víc než 3 hodinami je zastaralý', () => {
     expect(isStaleTimer(new Date(now - STALE_TIMER_MS - 1000).toISOString(), now)).toBe(true);
     expect(isStaleTimer('2026-10-22T19:00:00Z', now)).toBe(true);
+  });
+});
+
+describe('timerState', () => {
+  const now = Date.parse('2026-10-29T18:00:00Z');
+
+  it('běžící, doběhlý (zvoní) a ztlumený', () => {
+    expect(timerState({ endsAt: '2026-10-29T18:05:00Z' }, now)).toBe('running');
+    expect(timerState({ endsAt: '2026-10-29T17:59:00Z' }, now)).toBe('ringing');
+    expect(timerState({ endsAt: '2026-10-29T17:59:00Z', silencedAt: null }, now)).toBe('ringing');
+    expect(
+      timerState({ endsAt: '2026-10-29T17:59:00Z', silencedAt: '2026-10-29T17:59:30Z' }, now),
+    ).toBe('silenced');
+  });
+
+  it('přesně v cílovém čase už zvoní', () => {
+    expect(timerState({ endsAt: new Date(now).toISOString() }, now)).toBe('ringing');
+  });
+
+  it('běžící časovač je běžící, i kdyby měl ztlumení z dřívějška', () => {
+    expect(
+      timerState({ endsAt: '2026-10-29T18:05:00Z', silencedAt: '2026-10-29T17:50:00Z' }, now),
+    ).toBe('running');
+  });
+});
+
+describe('isTimerGone', () => {
+  const now = Date.parse('2026-10-29T18:00:00Z');
+  const endsAt = '2026-10-29T17:50:00Z';
+
+  it('ztlumený zůstane 2 minuty od ztlumení, pak zmizí', () => {
+    const silencedJustNow = new Date(now - SILENCED_TIMER_MS + 1000).toISOString();
+    const silencedLongAgo = new Date(now - SILENCED_TIMER_MS).toISOString();
+    expect(isTimerGone({ endsAt, silencedAt: silencedJustNow }, now)).toBe(false);
+    expect(isTimerGone({ endsAt, silencedAt: silencedLongAgo }, now)).toBe(true);
+  });
+
+  it('zvonící ani běžící nezmizí sám (kromě zastaralého)', () => {
+    expect(isTimerGone({ endsAt }, now)).toBe(false);
+    expect(isTimerGone({ endsAt: '2026-10-29T18:30:00Z' }, now)).toBe(false);
+    expect(isTimerGone({ endsAt: '2026-10-29T14:00:00Z' }, now)).toBe(true);
+  });
+});
+
+describe('snoozedEndsAt', () => {
+  it('doběhlý před 3 min → konec = teď + 5 min, nezávisle na původním konci', () => {
+    const now = Date.parse('2026-10-29T18:03:00Z');
+    expect(snoozedEndsAt(now)).toBe('2026-10-29T18:08:00.000Z');
+    expect(Date.parse(snoozedEndsAt(now)) - now).toBe(SNOOZE_MS);
+  });
+
+  it('prodloužený časovač zase běží', () => {
+    const now = Date.parse('2026-10-29T18:03:00Z');
+    expect(timerState({ endsAt: snoozedEndsAt(now), silencedAt: null }, now)).toBe('running');
   });
 });
 

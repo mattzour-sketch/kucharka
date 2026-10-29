@@ -17,7 +17,7 @@ import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { matchStepIngredients } from '../../lib/stepIngredients';
 import { primeAlarm } from '../../lib/alarm';
-import { isStaleTimer, stepTimerLabel } from '../../lib/timers';
+import { isStaleTimer, isTimerGone, stepTimerLabel, timerState } from '../../lib/timers';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getAllRecipeItems, getRecipeItems } from './recipesRepo';
 import {
@@ -141,6 +141,12 @@ export default function CookingModeScreen() {
   // Časovače jsou společné všem receptům; Hotovo je zruší (jdou vrátit s historií).
   const activeTimers = (useLiveQuery(() => getTimers(), []) ?? []).filter(
     (timer) => !isStaleTimer(timer.endsAt, Date.now()),
+  );
+  // Do hlášky „Zruší se i časovač" jen ty, které ještě běží nebo zvoní; ztlumené za chvíli
+  // zmizí samy. Zrušit (a vrátit) se při Hotovo dál všechny `activeTimers`.
+  const timerHintNow = Date.now();
+  const hintTimers = activeTimers.filter(
+    (timer) => timerState(timer, timerHintNow) !== 'silenced' && !isTimerGone(timer, timerHintNow),
   );
   const { showUndo } = useUndo();
   useWakeLock();
@@ -912,11 +918,11 @@ export default function CookingModeScreen() {
                 placeholder="Poznámka (nepovinné) – např. „vyšlo na 3 porce“"
                 className="mt-2 min-h-[12dvh] w-full resize-none rounded-xl border border-stone-200 dark:border-stone-700 p-3 text-sm outline-none focus:border-brand"
               />
-              {activeTimers.length > 0 ? (
+              {hintTimers.length > 0 ? (
                 <p className="mt-1 text-xs text-stone-500">
-                  {activeTimers.length === 1
-                    ? `Zruší se i časovač ${activeTimers[0].label}.`
-                    : `Zruší se i časovače (${activeTimers.length}).`}
+                  {hintTimers.length === 1
+                    ? `Zruší se i časovač ${hintTimers[0].label}.`
+                    : `Zruší se i časovače (${hintTimers.length}).`}
                 </p>
               ) : null}
               <div className="mt-2 flex gap-2">

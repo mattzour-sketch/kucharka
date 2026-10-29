@@ -196,6 +196,8 @@ describe('parseTimeLine', () => {
   it.each([
     ['Prep time: 10 minutes', [{ kind: 'prep', minutes: 10 }]],
     ['Prep: 1 hr 15 mins', [{ kind: 'prep', minutes: 75 }]],
+    ['Prep: 1 h 30 min', [{ kind: 'prep', minutes: 90 }]],
+    ['Doba přípravy: 1 h 30 min', [{ kind: 'prep', minutes: 90 }]],
     ['Doba přípravy: 20 min', [{ kind: 'prep', minutes: 20 }]],
     ['Příprava: 20 min', [{ kind: 'prep', minutes: 20 }]],
     ['Cook time: 25 min', [{ kind: 'cook', minutes: 25 }]],

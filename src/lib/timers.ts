@@ -10,6 +10,38 @@ export function isStaleTimer(endsAt: string, now: number): boolean {
   return now - Date.parse(endsAt) > STALE_TIMER_MS;
 }
 
+/** „+5 min" u doběhlého časovače – počítá se od ťuknutí, ne od původního konce. */
+export const SNOOZE_MS = 5 * 60 * 1000;
+/** Jak dlouho zůstane zastavený (ztlumený) časovač v liště, než sám zmizí. */
+export const SILENCED_TIMER_MS = 2 * 60 * 1000;
+
+/** Časové údaje časovače (podmnožina záznamu `Timer`, ať logika nezávisí na Dexie). */
+export interface TimerTiming {
+  endsAt: string;
+  /** Kdy se doběhlý časovač zastavil (ztlumil); null/chybí = nezastavený. */
+  silencedAt?: string | null;
+}
+
+/** running = odpočítává, ringing = doběhl a zvoní, silenced = doběhl a je zastavený (tichý). */
+export type TimerState = 'running' | 'ringing' | 'silenced';
+
+export function timerState(timer: TimerTiming, now: number): TimerState {
+  if (Date.parse(timer.endsAt) > now) return 'running';
+  return timer.silencedAt ? 'silenced' : 'ringing';
+}
+
+/** Má časovač zmizet? Zastaralý (z minulého vaření), nebo ztlumený déle než `SILENCED_TIMER_MS`. */
+export function isTimerGone(timer: TimerTiming, now: number): boolean {
+  if (isStaleTimer(timer.endsAt, now)) return true;
+  if (timerState(timer, now) !== 'silenced' || !timer.silencedAt) return false;
+  return now - Date.parse(timer.silencedAt) >= SILENCED_TIMER_MS;
+}
+
+/** Nový cílový čas po „+5 min": 5 minut od teď. */
+export function snoozedEndsAt(now: number): string {
+  return new Date(now + SNOOZE_MS).toISOString();
+}
+
 const SNIPPET_WORDS = 4;
 const SNIPPET_CHARS = 28;
 
