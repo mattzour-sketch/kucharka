@@ -51,11 +51,29 @@ const NEGLIGIBLE_WORDS = new Set([
   'pinch',
 ]);
 
-/** Surovina s ≈ 0 kcal (sůl, pepř, voda, špetka, „podle chuti") – přeskočí se. */
+/**
+ * Sušené bylinky a koření (začátek slova bez diakritiky). Přeskočí se jen BEZ čísla
+ * („majoránka"); „2 lžíce skořice" se napojuje dál. Paprika ani zázvor tu nejsou –
+ * bez čísla to může být zelenina.
+ */
+const SPICE_STEMS = [
+  'majoran', 'kmin', 'oregan', 'bazal', 'tymian', 'rozmaryn', 'petrzelk', 'pazitk', 'kopr',
+  'skoric', 'muskat', 'bobkov', 'koreni', 'kurkum', 'saturejk', 'libeck', 'estragon', 'oregano',
+  'basil', 'thyme', 'rosemary', 'cumin', 'cinnamon', 'nutmeg', 'parsley', 'chives', 'dill',
+];
+
+/** Surovina s ≈ 0 kcal (sůl, pepř, voda, špetka, „podle chuti", koření bez čísla) – přeskočí se. */
 export function isNegligible(rawText: string): boolean {
   const normalized = normalizeForSearch(rawText);
   if (/\bpodle chuti\b|\bto taste\b/.test(normalized)) return true;
-  return normalized.split(/[^a-z0-9]+/).some((word) => NEGLIGIBLE_WORDS.has(word));
+  const words = normalized.split(/[^a-z0-9]+/);
+  if (words.some((word) => NEGLIGIBLE_WORDS.has(word))) return true;
+  return !/\d/.test(normalized) && words.some(isSpiceWord);
+}
+
+function isSpiceWord(word: string): boolean {
+  // „kopřivy" nejsou kopr.
+  return !word.startsWith('kopriv') && SPICE_STEMS.some((stem) => word.startsWith(stem));
 }
 
 const SPOON_RE = /^(?:lzic[ei]?|tbsp|tablespoons?)$/;

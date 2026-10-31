@@ -35,23 +35,6 @@ export default function SettingsScreen() {
       <ScreenHeader width="narrow" title="Víc" />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
-        <section className={cardClass()}>
-          <h2 className="font-medium">Vzhled</h2>
-          <p className="mt-1 text-sm text-stone-500">Motiv aplikace. „Systém" se řídí telefonem.</p>
-          <div className="mt-2">
-            <Segmented
-              value={theme}
-              onChange={changeTheme}
-              ariaLabel="Motiv"
-              options={[
-                { value: 'system', label: 'Systém' },
-                { value: 'light', label: 'Světlý' },
-                { value: 'dark', label: 'Tmavý' },
-              ]}
-            />
-          </div>
-        </section>
-
         <BackupSection />
 
         <Link
@@ -91,6 +74,23 @@ export default function SettingsScreen() {
           <span className="font-medium">Koš</span>
           <span className="text-stone-400">›</span>
         </Link>
+
+        <section className={cardClass({ className: 'mt-3' })}>
+          <h2 className="font-medium">Vzhled</h2>
+          <p className="mt-1 text-sm text-stone-500">Motiv aplikace. „Systém" se řídí telefonem.</p>
+          <div className="mt-2">
+            <Segmented
+              value={theme}
+              onChange={changeTheme}
+              ariaLabel="Motiv"
+              options={[
+                { value: 'system', label: 'Systém' },
+                { value: 'light', label: 'Světlý' },
+                { value: 'dark', label: 'Tmavý' },
+              ]}
+            />
+          </div>
+        </section>
 
         <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
           <h2 className="font-medium">Úložiště</h2>

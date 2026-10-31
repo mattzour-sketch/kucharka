@@ -84,6 +84,54 @@ Martin schválil všechny. Bez změny `stores()` a bez závislosti.
 
 ---
 
+## Procházka 2026-10-31 ✅ HOTOVO (všech 12, 2026-10-31)
+
+Procházka v náhledu na mobilu s prázdnou databází: diktovaný recept (bramboráky, čárky bez
+Enterů), vaření s časovačem a Hotovo, Kalorie po načtení potravin, Vložit s popiskem ve stylu IG
+(banánový chlebíček), hledání, Víc. Martin schválil všech 12. Žádný bod nemění `stores()` ani
+nepřidává závislost. Rozsah času u **Doby** při importu bere dál horní mez (`maxSeconds`).
+
+**Zachycení a Vložit**
+1. **Diktovaný postup zůstane jedním obřím krokem.** „Brambory nastrouhat a vymačkat, přidat
+   vejce, mouku…, smažit na sádle…“ nemá tečky, takže se „Rozdělit na N kroků“ nenabídne (chce
+   ≥ 3 věty). Návrh: nabídnout dělení i u čárky, za kterou začíná sloveso v infinitivu nebo
+   rozkazu (`přidat`, `smažit`, `přidej`). Dál jen nabídka na ťuknutí, logika v `lib/lineSplit.ts` + test.
+2. **Vložit bere vatu z IG jako surovinu.** „Uložte si na později!“ skončí jako první surovina.
+   Návrh: parser pozná výzvy typu uložte/ulož si, sdílej, sleduj, dej like a do náhledu je nedá.
+   Originál zůstává v poznámce „Originál“. Nový vzorek do `igSamples.ts`.
+3. **Úvodní řádek se stane nadpisem sekce.** „Na formu 25 cm budeš potřebovat:“ se zobrazí jako
+   sekce „NA FORMU 25 CM BUDEŠ POTŘEBOVAT“. Návrh: jediná sekce na začátku nebude nadpis. Řádek
+   s užitečnou informací (forma 25 cm) půjde na začátek postupu.
+
+**Vaření**
+4. **Číslování kroků je dvakrát.** Kolečko „1“ a za ním „1. Banány rozmačkej…“. Návrh: ve vaření
+   při zobrazení skrýt úvodní „1.“ / „1)“. Text receptu se nemění (pravidlo 2).
+5. **Rozsah času.** U „50–55 minut“ je klikací jen „55 minut“. Návrh: klikací celé „50–55 minut“,
+   časovač na dolní mez (50), ať se kontroluje včas. Týká se jen času, ne množství surovin.
+
+**Kalorie a historie**
+6. **Koření bez množství blokuje úplnost.** „majoránka“ zůstane „chybí gramy“ a recept je napořád
+   „orientační“. Návrh: sušené bylinky a koření **bez čísla** přeskočit jako sůl (majoránka, kmín,
+   oregano, bazalka, tymián, skořice…). S číslem („2 lžíce papriky“) se dál napojují.
+7. **Kusové suroviny bez kcal.** Na Kaloriích má „800 g brambor“ vedle sebe 616 kcal, ale
+   „2 vejce“ jen „110 g“. Návrh: u kusů ukázat kcal stejně jako u gramů.
+8. **Historie vaření opakuje celý recept.** Záznam bez odchylek vypíše všech 7 surovin a nabídne
+   „Uvařit znovu takhle“, které nic jiného neudělá. Návrh: bez odchylek „podle receptu“ a žádné
+   tlačítko. S odchylkami jen změněné řádky (vynecháno, nahrazeno, jiné množství).
+
+**Seznam, detail, Víc**
+9. **Úryvek na kartě se slévá.** „800 g brambor 2 vejce 100 g hladké mouky 3 stroužky…“ nemá
+   oddělovače. Návrh: oddělit „ · “. Při hledání ukázat úryvek s řádkem, kde se našlo.
+10. **Data jako „dnes / včera“.** „zapsáno 31. 10. 2026 · uvařeno 31. 10. 2026“ a „upraveno …“.
+    Návrh: u čerstvých dat „dnes“, „včera“, „před 3 dny“ (funkce pro zálohu v `lib/date.ts` už je).
+11. **Víc: záloha až pod Vzhledem.** Tečka u Víc upozorňuje na zálohu, ale nahoře je přepínač
+    motivu. Návrh: Záloha dat jako první sekce.
+
+**Drobnost**
+12. Odškrtávací kolečka ve vaření nemají popisek (`aria-label` „Hotovo: 800 g brambor“).
+
+---
+
 ## UC027 — Našeptávač potravin už při psaní receptu ⏸ PARKOVIŠTĚ
 
 > Pozn. 2026-09-08: Po přečtení `RecipeEditScreen` zaparkováno. Obrazovka psaní jsou dvě prostá
@@ -137,5 +185,5 @@ Zapsáno jako parkoviště, ne brzký kandidát.
 Velké stories jsou hotové. UC021 Týdenní plán je zahozený. V backlogu zůstávají jen dvě parkoviště:
 **UC026 Chytřejší přenos** (OCR/hlas/URL — nová závislost, napřed se zeptat; text z jiných appek
 už řeší Sdílení do appky) a **UC027** (koliduje s architekturou zachycení). Další práce jsou drobná
-vylepšení z dogfoodingu a procházek appkou, ne nové stories. Body z procházky 2026-10-29 jsou
-hotové; další kandidáti vzejdou z příští procházky appkou.
+vylepšení z dogfoodingu a procházek appkou, ne nové stories. Procházky 2026-10-29 i 2026-10-31
+jsou hotové; další kandidáti vzejdou z příští procházky appkou.

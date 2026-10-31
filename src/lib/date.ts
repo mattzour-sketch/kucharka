@@ -24,6 +24,28 @@ export function formatCzechDate(iso: string): string {
   return `${day}. ${month}. ${year}`;
 }
 
+/** Počet dní mezi dvěma lokálními daty „YYYY-MM-DD" (kladné = `iso` je v minulosti). */
+function daysBetweenIsoDates(iso: string, today: string): number {
+  const toUtcDay = (value: string) => {
+    const [year, month, day] = value.split('-').map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((toUtcDay(today) - toUtcDay(iso)) / 86_400_000);
+}
+
+/**
+ * Den pro zobrazení u receptu: „dnes", „včera", „před 3 dny" (do týdne), jinak „2. 8. 2026".
+ * Počítá se z lokálních dat, ne z UTC (pravidlo 8). Čistá funkce.
+ */
+export function formatRecentDate(iso: string, today: string = todayIso()): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return formatCzechDate(iso);
+  const days = daysBetweenIsoDates(iso, today);
+  if (days === 0) return 'dnes';
+  if (days === 1) return 'včera';
+  if (days > 1 && days < 7) return `před ${days} dny`;
+  return formatCzechDate(iso);
+}
+
 /** ISO timestamp → „13. 9. 2026 14:30" v lokálním čase (datum zálohy ve shrnutí, UC030). */
 export function formatCzechDateTime(iso: string): string {
   const d = new Date(iso);

@@ -335,3 +335,41 @@ describe('isBareUrl', () => {
     expect(isBareUrl(text)).toBe(false);
   });
 });
+
+describe('český popisek z IG: výzvy a „budeš potřebovat"', () => {
+  const text = `Nejlepší banánový chlebíček 🍌🍞
+Uložte si na později!
+
+Na formu 25 cm budeš potřebovat:
+3 přezrálé banány
+2 vejce
+80 g másla
+
+Postup:
+1. Banány rozmačkej vidličkou.
+2. Peč na 175 °C 50–55 minut.
+
+#banana #recept`;
+
+  it('výzva vypadne, „Na formu 25 cm" není nadpis surovin, ale začátek postupu', () => {
+    const parsed = parseRecipeText(text);
+    expect(parsed.name).toBe('Nejlepší banánový chlebíček 🍌🍞');
+    expect(parsed.ingredients).toEqual(['3 přezrálé banány', '2 vejce', '80 g másla']);
+    expect(parsed.instructions).toBe(
+      'Na formu 25 cm\n1. Banány rozmačkej vidličkou.\n2. Peč na 175 °C 50–55 minut.',
+    );
+  });
+
+  it('samotné „Budeš potřebovat:" je jen značka surovin', () => {
+    const parsed = parseRecipeText('Bábovka\nBudeš potřebovat:\n200 g mouky\nPostup:\nPeč.');
+    expect(parsed.ingredients).toEqual(['200 g mouky']);
+    expect(parsed.instructions).toBe('Peč.');
+  });
+
+  it('dlouhá věta s „budeš potřebovat" značkou není', () => {
+    const parsed = parseRecipeText(
+      'Bábovka\n200 g mouky\nNa tohle budeš potřebovat hodně trpělivosti a velkou mísu:\nPostup:\nPeč.',
+    );
+    expect(parsed.ingredients).toContain('200 g mouky');
+  });
+});

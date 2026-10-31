@@ -1,10 +1,11 @@
 import { isIngredientHeading } from './ingredientSection';
 import { czechPlural } from './plural';
 import { splitIngredientLines } from './recipeText';
+import { normalizeForSearch } from './search';
 
 /**
  * Ruční rozdělení diktátu z jednoho řádku: suroviny podle čárek, středníků a odrážek,
- * postup podle vět. Jen nabídka, rozdělí se až ťuknutím (pravidlo 2: mění se jen
+ * postup podle vět (bez teček podle čárek před slovesem). Jen nabídka, rozdělí se až ťuknutím (pravidlo 2: mění se jen
  * oddělovač na zalomení řádku, slova zůstanou znak po znaku). Čistá logika, O(n) bez
  * regexů s backtrackingem, ať nezdrží psaní ani u dlouhého vloženého textu.
  */
@@ -133,13 +134,73 @@ export function splitSentences(line: string): string[] {
   return sentences;
 }
 
+/** Slovesa a spojky, které po čárce začínají další krok (bez diakritiky, celé slovo). */
+const STEP_START_WORDS = new Set([
+  'dej', 'dat', 'nech', 'nechte', 'vloz', 'vlozte', 'slij', 'vlij', 'osol', 'pak', 'potom',
+  'pote', 'nakonec', 'nasledne', 'mezitim',
+]);
+/** Kmeny sloves vaření (začátek slova bez diakritiky). Příčestí odfiltruje koncovka. */
+const STEP_VERB_STEMS = [
+  'prid', 'smaz', 'osmaz', 'orest', 'restuj', 'restov', 'uvar', 'povar', 'pect', 'upect',
+  'opect', 'zapect', 'pecem', 'nechat', 'nechej', 'zamich', 'promich', 'vmich', 'smich', 'nakraj',
+  'pokraj', 'zalij', 'zalit', 'prelij', 'prelit', 'opepr', 'vlozit', 'vlozim', 'podavej', 'podavat',
+  'rozpal', 'rozehr', 'nastrouh', 'vymack', 'rozmack', 'posyp', 'ozdob', 'ochut', 'dochut',
+  'scedit', 'sced', 'vyndej', 'vyndat', 'vyjm', 'vyklop', 'vysleh', 'usleh', 'dusit', 'dusim',
+  'podus', 'zadus', 'vypn', 'stahn', 'odstav', 'prikryj', 'prikryt', 'zakryj', 'zakryt', 'obrat',
+  'otoc', 'vyval', 'vytvar', 'tvaruj', 'namoc', 'zahrej', 'ohrej', 'zahrat', 'ohrat', 'privest',
+  'prived', 'zahust', 'zapraz', 'vlit', 'oloup', 'nasek', 'vychlad', 'zchlad', 'nalij', 'nalit',
+  'rozpust', 'rozval',
+];
+/**
+ * Koncovky přídavných jmen z příčestí („nakrájenou cibuli", „rozpuštěné máslo", „prolité")
+ * – nejsou krok. Před n/t je samohláska, takže „přidejte" ani „vypni" sem nespadnou.
+ */
+const PARTICIPLE_END_RE = /[aeiouy][nt](?:y|a|e|i|ou|ym|ych|em|eho|emu)$/;
+const LETTER_RE = /\p{L}/u;
+
+function isStepStartWord(word: string): boolean {
+  const normalized = normalizeForSearch(word);
+  if (STEP_START_WORDS.has(normalized)) return true;
+  if (PARTICIPLE_END_RE.test(normalized)) return false;
+  return STEP_VERB_STEMS.some((stem) => normalized.startsWith(stem));
+}
+
+/**
+ * Úseky diktovaného kroku bez teček: dělí se u čárky mimo závorky, za kterou začíná
+ * sloveso vaření nebo „pak / potom / nakonec". Čárka (oddělovač) zmizí, slova zůstanou.
+ */
+export function splitClauses(line: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let partStart = 0;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ch === ',') {
+      let wordStart = i + 1;
+      while (isSpace(line[wordStart])) wordStart += 1;
+      let wordEnd = wordStart;
+      while (wordEnd < line.length && LETTER_RE.test(line[wordEnd])) wordEnd += 1;
+      if (wordEnd > wordStart && isStepStartWord(line.slice(wordStart, wordEnd))) {
+        parts.push(line.slice(partStart, i));
+        partStart = i + 1;
+      }
+    }
+  }
+  parts.push(line.slice(partStart));
+  return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+}
+
 export function proposeStepSplit(text: string): SplitProposal | null {
   let changed = false;
   const lines = text.split('\n').map((line) => {
     const sentences = splitSentences(line);
-    if (sentences.length < MIN_STEP_SENTENCES) return line;
+    // Jedna věta = diktát bez teček → zkusí se čárky před slovesem.
+    const steps = sentences.length === 1 ? splitClauses(line) : sentences;
+    if (steps.length < MIN_STEP_SENTENCES) return line;
     changed = true;
-    return sentences.join('\n');
+    return steps.join('\n');
   });
   if (!changed) return null;
   const next = lines.join('\n');

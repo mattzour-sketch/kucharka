@@ -40,7 +40,7 @@ type ClassifiedLine =
   | { kind: 'text'; text: string }
   /** Čistý údaj doby („Prep time: 10 min"): v sekci postupu zůstane krokem, jinde vypadne. */
   | { kind: 'time'; text: string }
-  | { kind: 'marker'; section: SectionKind; inline: string };
+  | { kind: 'marker'; section: SectionKind; inline: string; note?: string };
 
 const NAME_MAX_LENGTH = 80;
 
@@ -135,7 +135,7 @@ export function parseRecipeText(text: string): ParsedRecipe {
     const marker = matchSectionMarker(line);
     if (marker) {
       if (marker.servings !== undefined) servings ??= marker.servings;
-      classified.push({ kind: 'marker', section: marker.section, inline: marker.inline });
+      classified.push({ kind: 'marker', section: marker.section, inline: marker.inline, note: marker.note });
       continue;
     }
     classified.push({ kind: 'text', text: line });
@@ -304,6 +304,8 @@ function parseBySections(classified: ClassifiedLine[]): Omit<ParsedRecipe, 'serv
   const preamble: string[] = [];
   const ingredientLines: string[] = [];
   const instructionLines: string[] = [];
+  // „Na formu 25 cm" z „… budeš potřebovat:" – není nadpis surovin, jde na začátek postupu.
+  const notes: string[] = [];
 
   function push(line: string) {
     if (section === 'preamble') preamble.push(line);
@@ -315,6 +317,7 @@ function parseBySections(classified: ClassifiedLine[]): Omit<ParsedRecipe, 'serv
   for (const line of classified) {
     if (line.kind === 'marker') {
       section = line.section;
+      if (line.note) notes.push(line.note);
       if (line.inline) push(line.inline);
     } else if (line.kind === 'time') {
       // Údaj doby v postupu je krok autora – zůstává; jinde je to metadato.
@@ -324,7 +327,7 @@ function parseBySections(classified: ClassifiedLine[]): Omit<ParsedRecipe, 'serv
     }
   }
 
-  const instructions = buildInstructions(instructionLines);
+  const instructions = buildInstructions([...notes, ...instructionLines]);
   const hasIngredientMarker = classified.some(
     (line) => line.kind === 'marker' && line.section === 'ingredients',
   );

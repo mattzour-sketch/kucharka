@@ -136,6 +136,14 @@ describe('isPromoLine', () => {
     'Recipe by @chef.anna',
     'Tag a friend who needs this',
     'Share this with someone',
+    'Uložte si na později!',
+    'Ulož si recept 🔖',
+    'Sdílej s kamarádem, který to potřebuje',
+    'Sleduj mě pro další recepty',
+    'Dej like, ať vím, že chceš víc',
+    'Označ kamaráda, se kterým to uvaříš',
+    'Napiš do komentářů RECEPT',
+    'Celý recept v bio',
   ])('ano: %s', (line) => {
     expect(isPromoLine(line)).toBe(true);
   });
@@ -148,6 +156,9 @@ describe('isPromoLine', () => {
     'Step 4: Follow the same steps with the icing.',
     '1️⃣ Save this dough overnight.',
     'Mix the ingredients well.',
+    'Uložte si těsto přes noc do lednice.',
+    'Sledujte, aby se omáčka nepřipálila.',
+    'Dej péct na 180 °C.',
   ])('ne: %s', (line) => {
     expect(isPromoLine(line)).toBe(false);
   });

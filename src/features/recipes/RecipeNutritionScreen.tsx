@@ -462,15 +462,11 @@ export default function RecipeNutritionScreen() {
                 const guess = resolveAmountFromText(item.rawText, food, portionsByFood.get(food.id) ?? []);
                 return guess.estimated && guess.amountG === item.amountG;
               })();
-            // U „g" ukaž kcal (jako dřív); u „ks"/míry ukaž dopočtenou gramáž,
-            // ať je vidět, z čeho číslo vzniklo („2 lžíce" → 30 g).
-            const readout = isGramUnit
-              ? contribution != null
-                ? `${isEstimate ? '≈ ' : ''}${formatNumber(contribution)} kcal`
-                : ''
-              : item.amountG != null
-                ? `${formatNumber(item.amountG)} g`
-                : '';
+            // Vždy kcal; u „ks"/míry nad nimi i dopočtenou gramáž, ať je vidět,
+            // z čeho číslo vzniklo („2 vejce" → 110 g · 157 kcal).
+            const kcalReadout =
+              contribution != null ? `${isEstimate ? '≈ ' : ''}${formatNumber(contribution)} kcal` : '';
+            const gramsReadout = !isGramUnit && item.amountG != null ? `${formatNumber(item.amountG)} g` : '';
             // Podrecept: název + příspěvek (nebo „bez kalorií" u nespočitatelného/nedostupného).
             const subRecipe = item.subRecipeId ? recipeMap.get(item.subRecipeId) : undefined;
             const subPer100 = item.subRecipeId ? (subRecipePer100.get(item.subRecipeId) ?? null) : null;
@@ -518,7 +514,10 @@ export default function RecipeNutritionScreen() {
                         value={value}
                         onChange={(next) => commitValue(item.id, next, options)}
                       />
-                      <span className="w-14 text-right text-xs text-stone-400">{readout}</span>
+                      <span className="flex w-16 flex-col text-right text-xs text-stone-400">
+                        {gramsReadout ? <span>{gramsReadout}</span> : null}
+                        {kcalReadout ? <span>{kcalReadout}</span> : null}
+                      </span>
                       <IconButton
                         size="sm"
                         onClick={() => unlinkItem(item)}

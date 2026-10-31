@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Recipe } from '../../db';
-import { formatCzechDate, toLocalIsoDate } from '../../lib/date';
+import { formatRecentDate, toLocalIsoDate } from '../../lib/date';
 import { formatPrepTime } from '../../lib/prepTime';
 import { recipeSnippet } from '../../lib/recipeText';
 import { updatedLabel } from '../../lib/recipeDates';
@@ -53,6 +53,7 @@ export default function RecipeCard({
   dimmed = false,
   cookedAt,
   showUpdated = false,
+  query = '',
 }: {
   recipe: Recipe;
   cover?: Blob | null;
@@ -62,8 +63,10 @@ export default function RecipeCard({
   cookedAt?: string | null;
   /** Ukázat „upraveno …" místo data zapsání (řazení Upravené). */
   showUpdated?: boolean;
+  /** Hledaný text – úryvek začne řádky, kde se našel. */
+  query?: string;
 }) {
-  const preview = recipeSnippet(recipe.rawCapture);
+  const preview = recipeSnippet(recipe.rawCapture, undefined, query);
   const coverUrl = useObjectUrl(cover);
   const prepTime = recipe.prepMinutes ? formatPrepTime(recipe.prepMinutes) : null;
 
@@ -74,9 +77,9 @@ export default function RecipeCard({
         {cookedAt === undefined
           ? showUpdated
             ? updatedLabel(recipe.updatedAt)
-            : formatCzechDate(recipe.capturedOn)
+            : formatRecentDate(recipe.capturedOn)
           : cookedAt
-            ? `uvařeno ${formatCzechDate(toLocalIsoDate(new Date(cookedAt)))}`
+            ? `uvařeno ${formatRecentDate(toLocalIsoDate(new Date(cookedAt)))}`
             : 'neuvařeno'}
         {prepTime && !coverUrl ? ` · ⏱ ${prepTime}` : ''}
       </p>

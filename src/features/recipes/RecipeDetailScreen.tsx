@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookLog } from '../../db';
-import { formatCzechDate } from '../../lib/date';
+import { formatCzechDate, formatRecentDate } from '../../lib/date';
 import { recipeDateLine } from '../../lib/recipeDates';
+import { cookLogView } from '../../lib/cookLogView';
 import { formatNumber } from '../../lib/num';
 import { czechPlural } from '../../lib/plural';
 import { scaleQuantityText } from '../../lib/scale';
@@ -492,11 +493,13 @@ export default function RecipeDetailScreen() {
               ) : null}
             </div>
             <ul className="mt-2 flex flex-col gap-2">
-              {cookLogs.map((log) => (
+              {cookLogs.map((log) => {
+                const view = cookLogView(log.ingredients, log.portions, recipe.servings);
+                return (
                 <li key={log.id} className={cardClass({ padding: 'panel' })}>
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm font-medium">
-                      {formatCzechDate(log.cookedOn)} · {log.portions}{' '}
+                      {formatRecentDate(log.cookedOn)} · {log.portions}{' '}
                       {czechPlural(log.portions, ['porce', 'porce', 'porcí'])}
                     </span>
                     <IconButton
@@ -520,33 +523,38 @@ export default function RecipeDetailScreen() {
                         : ''}
                     </p>
                   ) : null}
-                  <ul className="mt-2 space-y-0.5 text-sm">
-                    {log.ingredients.map((ingredient, index) => (
-                      <li
-                        key={index}
-                        className={
-                          ingredient.off
-                            ? 'text-stone-400 line-through'
-                            : ingredient.replacedWith || ingredient.changed
-                              ? 'text-brand-dark dark:text-amber-400'
-                              : 'text-stone-600 dark:text-stone-300'
-                        }
-                      >
-                        {ingredient.text}
-                        {ingredient.replacedWith ? ` → ${ingredient.replacedWith}` : ''}
-                        {ingredient.off ? ' · vynecháno' : ''}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => void handleReplay(log)}
-                    className="mt-3 text-sm font-medium text-brand dark:text-amber-400"
-                  >
-                    Uvařit znovu takhle →
-                  </button>
+                  {view.deviations.length > 0 ? (
+                    <ul className="mt-2 space-y-0.5 text-sm">
+                      {view.deviations.map((ingredient, index) => (
+                        <li
+                          key={index}
+                          className={
+                            ingredient.off
+                              ? 'text-stone-400 line-through'
+                              : 'text-brand-dark dark:text-amber-400'
+                          }
+                        >
+                          {ingredient.text}
+                          {ingredient.replacedWith ? ` → ${ingredient.replacedWith}` : ''}
+                          {ingredient.off ? ' · vynecháno' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-stone-500">podle receptu</p>
+                  )}
+                  {view.canReplay ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleReplay(log)}
+                      className="mt-3 text-sm font-medium text-brand dark:text-amber-400"
+                    >
+                      Uvařit znovu takhle →
+                    </button>
+                  ) : null}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </section>
         ) : null}

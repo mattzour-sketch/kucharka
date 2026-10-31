@@ -50,6 +50,15 @@ describe('isNegligible', () => {
       expect(isNegligible(text), text).toBe(false);
     }
   });
+
+  it('bylinky a koření bez čísla přeskočí, s číslem ne', () => {
+    for (const text of ['majoránka', 'kmín', 'sušené oregano', 'čerstvá bazalka', 'mletá skořice na posypání', 'bobkový list', 'nové koření', 'pažitka na ozdobu']) {
+      expect(isNegligible(text), text).toBe(true);
+    }
+    for (const text of ['2 lžíce skořice', '1 lžička kmínu', 'paprika', 'zázvor', 'petržel', 'kopřivy']) {
+      expect(isNegligible(text), text).toBe(false);
+    }
+  });
 });
 
 describe('resolveAmountFromText', () => {

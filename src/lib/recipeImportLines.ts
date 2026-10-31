@@ -18,6 +18,8 @@ export interface SectionMarker {
   inline: string;
   /** Porce ze závorky („Ingredients (makes 8):", „Suroviny (na 4 porce):"). */
   servings?: number;
+  /** Údaj před „budeš potřebovat" („Na formu 25 cm budeš potřebovat:" → „Na formu 25 cm"). */
+  note?: string;
 }
 
 export type TimeKind = 'prep' | 'cook' | 'total';
@@ -50,7 +52,12 @@ export function normalizeMarkerText(line: string): string {
 }
 
 const INGREDIENT_MARKERS =
-  "ingredients?|ingredient list|what you(?:'?ll)? need|you'?ll need|suroviny|ingredience|potrebujeme|budete potrebovat";
+  "ingredients?|ingredient list|what you(?:'?ll)? need|you'?ll need|suroviny|ingredience|potrebujeme|potrebujes|potrebujete|budes potrebovat|budete potrebovat|co (?:budes|budete) potrebovat";
+
+// „Na formu 25 cm budeš potřebovat:" – značka surovin s údajem před ní (normalizovaně / v originále).
+const LEAD_NEED_RE = /^(.+?)\s+(?:budes|budete|potrebujes|potrebujete|potrebujeme)(?: potrebovat)?\s*[:：]?$/;
+const LEAD_NEED_ORIGINAL_RE = /\s+(?:budeš|budete|potřebuješ|potřebujete|potřebujeme)(?:\s+potřebovat)?\s*[:：]?\s*$/iu;
+const LEAD_NEED_MAX_LENGTH = 60;
 const INSTRUCTION_MARKERS =
   'instructions?|directions?|method|process|steps?|how to make(?: it)?|preparation|postup|priprava|instrukce|navod|jak na to';
 const OTHER_MARKERS =
@@ -65,8 +72,9 @@ const PAREN_SERVINGS_RE = /(?:serves|servings?|makes|yields?|porce|porci)\D{0,5}
 
 /** Řádek, který je CELÝ značkou (+ volitelně „(…)" a „: obsah"). „Mix the ingredients well." → null. */
 export function matchSectionMarker(line: string): SectionMarker | null {
-  const match = normalizeMarkerText(line).match(MARKER_RE);
-  if (!match) return null;
+  const normalized = normalizeMarkerText(line);
+  const match = normalized.match(MARKER_RE);
+  if (!match) return matchLeadNeed(line, normalized);
   const [, ingredients, instructions, , paren, inlineNormalized] = match;
   const hasInline = Boolean(inlineNormalized && inlineNormalized.trim());
   const section: SectionKind = ingredients ? 'ingredients' : instructions ? 'instructions' : 'other';
@@ -90,6 +98,17 @@ export function matchSectionMarker(line: string): SectionMarker | null {
   return result;
 }
 
+/**
+ * „Na formu 25 cm budeš potřebovat:" → značka surovin, údaj před ní jako `note` (původní text).
+ * Jen krátký řádek, který končí slovesem (+ dvojtečka) – „Budeš potřebovat hodně trpělivosti." ne.
+ */
+function matchLeadNeed(line: string, normalized: string): SectionMarker | null {
+  if (normalized.length > LEAD_NEED_MAX_LENGTH || !LEAD_NEED_RE.test(normalized)) return null;
+  const note = line.replace(LEAD_NEED_ORIGINAL_RE, '').replace(LEADING_NON_WORD_RE, '').trim();
+  if (!note || note === line.trim()) return null;
+  return { section: 'ingredients', inline: '', note };
+}
+
 /** Řádek tvořený jen `#slovy` („#vegan #protein"). Nadpis sekce „# Na těsto" NE. */
 export function isHashtagLine(line: string): boolean {
   const tokens = line.trim().split(/\s+/).filter(Boolean);
@@ -111,6 +130,14 @@ const PROMO_RES: RegExp[] = [
   /^tag (?:a|your|someone|me|us|them)\b/,
   /^share (?:this|with)\b/,
   /^double tap\b/,
+  // Česky: „Uložte si na později!", „Sdílej s kamarádem", „Sleduj mě pro další recepty"…
+  /^uloz(?:te)? si\s+(?:na pozdeji|na potom|recept|tenhle|tento|ho\b|to\b)/,
+  /^(?:sdilej(?:te)?|posli(?:te)?|preposli(?:te)?)\b/,
+  /^sleduj(?:te)?\s+(?:me|nas|muj|mi|@|pro|vic|dalsi)/,
+  /^dej(?:te)?\s+(?:like|lajk|srdick|vedet)/,
+  /^oznac(?:te)?\s+(?:kamarad|nekoho|toho|tu)/,
+  /^napis(?:te)?\s+(?:do koment|mi|v koment|komentar)/,
+  /\b(?:odkaz|link|recept) (?:je )?v (?:mem |mym )?bio\b/,
 ];
 
 /** Výzva / credit („Follow @x", „Save this…", „Comment X for…", „Link in bio", samotné „@x"). */
@@ -181,8 +208,12 @@ const AMBIGUOUS_KIND: Record<string, TimeKind> = {
   celkem: 'total',
 };
 
+/** Minuty doby; u rozsahu („10–15 min") horní mez, ať doba recept nepodceňuje. */
 function durationMinutes(text: string): number | null {
-  const seconds = splitStepByDurations(text).reduce((sum, segment) => sum + (segment.seconds ?? 0), 0);
+  const seconds = splitStepByDurations(text).reduce(
+    (sum, segment) => sum + (segment.maxSeconds ?? segment.seconds ?? 0),
+    0,
+  );
   return seconds > 0 ? seconds / 60 : null;
 }
 

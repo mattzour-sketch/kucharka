@@ -215,6 +215,38 @@ describe('proposeStepSplit', () => {
     expect(proposeStepSplit('')).toBeNull();
     expect(proposeStepSplit('  \n ')).toBeNull();
   });
+
+  it('diktát bez teček: dělí čárka před slovesem, výčet surovin zůstane', () => {
+    expect(
+      proposeStepSplit(
+        'Brambory nastrouhat najemno a vymačkat, přidat vejce, mouku, prolisovaný česnek, majoránku a sůl, smažit na sádle dozlatova',
+      ),
+    ).toEqual({
+      text: 'Brambory nastrouhat najemno a vymačkat\npřidat vejce, mouku, prolisovaný česnek, majoránku a sůl\nsmažit na sádle dozlatova',
+      count: 3,
+    });
+  });
+
+  it('diktát: rozkaz, 2. osoba množného čísla a „pak" také začínají krok', () => {
+    expect(
+      proposeStepSplit('Rozpal pánev, přidejte máslo, pak cibuli, osmahni ji dozlatova')?.text,
+    ).toBe('Rozpal pánev\npřidejte máslo\npak cibuli, osmahni ji dozlatova');
+  });
+
+  it('diktát: příčestí („nakrájenou", „rozpuštěné") krok nezačíná', () => {
+    expect(
+      proposeStepSplit('Do mísy dej mouku, rozpuštěné máslo, nakrájenou cibuli, přidané vejce'),
+    ).toBeNull();
+  });
+
+  it('diktát: dva úseky → bez nabídky; čárka v závorce nedělí', () => {
+    expect(proposeStepSplit('Rozpal pánev, přidej máslo')).toBeNull();
+    expect(proposeStepSplit('Vař (pak přidej sůl, pak pepř), dus 10 min')).toBeNull();
+  });
+
+  it('diktát: dvě věty se po čárkách nedělí (jen jedna věta = diktát)', () => {
+    expect(proposeStepSplit('Rozpal pánev, přidej máslo, smaž. Pak podávej.')).toBeNull();
+  });
 });
 
 describe('popisky nabídky', () => {

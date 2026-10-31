@@ -114,14 +114,34 @@ describe('duration', () => {
     },
   );
 
-  it('rozsah „12–15 minutes": klikací je horní mez (dnešní chování)', () => {
+  it('rozsah „12–15 minutes": klikací je celý, časovač na dolní mez', () => {
     const timed = splitStepByDurations('Bake for 12–15 minutes').filter((s) => s.seconds != null);
-    expect(timed).toEqual([{ text: '15 minutes', seconds: 900 }]);
+    expect(timed).toEqual([{ text: '12–15 minutes', seconds: 720, maxSeconds: 900 }]);
   });
 
-  it('rozsah „1–1,5 h": klikací je horní mez', () => {
+  it('rozsah „1–1,5 h": dolní mez 1 h', () => {
     const timed = splitStepByDurations('Péct 1–1,5 h').filter((s) => s.seconds != null);
-    expect(timed).toEqual([{ text: '1,5 h', seconds: 5400 }]);
+    expect(timed).toEqual([{ text: '1–1,5 h', seconds: 3600, maxSeconds: 5400 }]);
+  });
+
+  it.each([
+    ['Peč na 175 °C 50–55 minut.', '50–55 minut', 3000, 3300],
+    ['Peč 50 - 55 min', '50 - 55 min', 3000, 3300],
+    ['Vař 10 až 15 minut', '10 až 15 minut', 600, 900],
+    ['Bake 12 to 15 minutes', '12 to 15 minutes', 720, 900],
+  ])('rozsah: %s', (step, text, seconds, maxSeconds) => {
+    expect(splitStepByDurations(step).filter((s) => s.seconds != null)).toEqual([
+      { text, seconds, maxSeconds },
+    ]);
+  });
+
+  it('obrácený rozsah a teplota před časem rozsahem nejsou', () => {
+    expect(splitStepByDurations('Peč 55–50 min').filter((s) => s.seconds != null)).toEqual([
+      { text: '50 min', seconds: 3000 },
+    ]);
+    expect(splitStepByDurations('Peč na 180 °C 30 min').filter((s) => s.seconds != null)).toEqual([
+      { text: '30 min', seconds: 1800 },
+    ]);
   });
 
   it('formatCountdown', () => {

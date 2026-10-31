@@ -1,12 +1,15 @@
 /**
  * Časy v krocích receptu (§7). Z textu kroku vytáhne délky („20 min", „1 h",
- * „90 s") a rozdělí ho na segmenty, aby šly udělat klikací. Čistá logika.
+ * „90 s", rozsah „50–55 min" na dolní mez) a rozdělí ho na segmenty, aby šly udělat
+ * klikací. Čistá logika.
  */
 
 export interface DurationSegment {
   text: string;
   /** Sekundy, když je segment délka (→ klikací časovač); jinak null (běžný text). */
   seconds: number | null;
+  /** Jen u rozsahu („50–55 min"): horní mez v sekundách; `seconds` je dolní mez. */
+  maxSeconds?: number;
 }
 
 function unitToSeconds(unit: string): number {
@@ -40,20 +43,43 @@ interface DurationMatch {
   start: number;
   end: number;
   seconds: number;
+  /** Horní mez rozsahu (jinak stejné jako `seconds`). */
+  maxSeconds: number;
   rank: number;
+}
+
+// Dolní mez rozsahu těsně před časem („50–55 minut", „10 až 15 min", „12 to 15 minutes").
+const RANGE_LOW_RE = /(\d+(?:[.,]\d+)?)\s*(?:[-–—]|\s(?:až|az|to)\s)\s*$/i;
+
+function toNumber(text: string): number {
+  return Number(text.replace(',', '.'));
 }
 
 export function splitStepByDurations(step: string): DurationSegment[] {
   const groups: DurationMatch[][] = [];
   for (const match of step.matchAll(DURATION_RE)) {
-    const start = match.index ?? 0;
-    const seconds = Math.round(Number(match[1].replace(',', '.')) * unitToSeconds(match[2]));
+    let start = match.index ?? 0;
+    const unitSeconds = unitToSeconds(match[2]);
+    const maxSeconds = Math.round(toNumber(match[1]) * unitSeconds);
+    let seconds = maxSeconds;
     // Nulový čas není klikací; zůstane textem, a tím spojení přeruší.
     if (seconds <= 0) continue;
+    // Rozsah: klikací je celý „50–55 minut", časovač na dolní mez (kontrola včas).
+    const lastGroup = groups[groups.length - 1];
+    const searchFrom = lastGroup ? lastGroup[lastGroup.length - 1].end : 0;
+    const range = RANGE_LOW_RE.exec(step.slice(searchFrom, start));
+    if (range) {
+      const lowSeconds = Math.round(toNumber(range[1]) * unitSeconds);
+      if (lowSeconds > 0 && lowSeconds < seconds) {
+        start = searchFrom + range.index;
+        seconds = lowSeconds;
+      }
+    }
     const current: DurationMatch = {
       start,
-      end: start + match[0].length,
+      end: (match.index ?? 0) + match[0].length,
       seconds,
+      maxSeconds,
       rank: unitRank(match[2]),
     };
     const group = groups[groups.length - 1];
@@ -76,9 +102,12 @@ export function splitStepByDurations(step: string): DurationSegment[] {
     const start = group[0].start;
     const end = group[group.length - 1].end;
     if (start > last) segments.push({ text: step.slice(last, start), seconds: null });
+    const seconds = group.reduce((sum, m) => sum + m.seconds, 0);
+    const maxSeconds = group.reduce((sum, m) => sum + m.maxSeconds, 0);
     segments.push({
       text: step.slice(start, end),
-      seconds: group.reduce((sum, m) => sum + m.seconds, 0),
+      seconds,
+      ...(maxSeconds > seconds ? { maxSeconds } : {}),
     });
     last = end;
   }

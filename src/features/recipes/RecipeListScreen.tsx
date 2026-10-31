@@ -308,6 +308,7 @@ export default function RecipeListScreen() {
                       dimmed={favOnly && !recipe.isFavorite}
                       cookedAt={sort === 'cooked' ? (lastCooked.get(recipe.id) ?? null) : undefined}
                       showUpdated={sort === 'updated'}
+                      query={query}
                     />
                   </li>
                 ))}

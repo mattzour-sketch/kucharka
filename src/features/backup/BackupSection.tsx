@@ -102,7 +102,7 @@ export default function BackupSection() {
   }
 
   return (
-    <section className={cardClass({ className: 'mt-3' })}>
+    <section className={cardClass()}>
       <h2 className="font-medium">Záloha dat</h2>
       <p className="mt-1 text-sm text-stone-500">
         Data žijí jen v tomhle prohlížeči. Export je tvoje záloha a zároveň způsob, jak recepty

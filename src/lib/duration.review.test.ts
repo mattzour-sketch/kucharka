@@ -40,11 +40,8 @@ describe('duration – spojené časy (review)', () => {
     ]);
   });
 
-  it('rozsah za hodinou („1 h 10–15 min") se nespojí, klikací je horní mez', () => {
-    expect(timed('Péct 1 h 10–15 min')).toEqual([
-      { text: '1 h', seconds: 3600 },
-      { text: '15 min', seconds: 900 },
-    ]);
+  it('rozsah za hodinou („1 h 10–15 min") se spojí, časovač na dolní mez', () => {
+    expect(timed('Péct 1 h 10–15 min')).toEqual([{ text: '1 h 10–15 min', seconds: 4200, maxSeconds: 4500 }]);
   });
 
   it('tečka mezi časy spojení zabrání („1 h. 30 min")', () => {

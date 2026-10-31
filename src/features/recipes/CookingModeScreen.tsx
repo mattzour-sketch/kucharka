@@ -15,6 +15,7 @@ import { matchPortionInText } from '../../lib/portionMatch';
 import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredientSection';
 import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
+import { cookingSteps } from '../../lib/recipeText';
 import { matchStepIngredients } from '../../lib/stepIngredients';
 import { isStaleTimer, isTimerGone, stepTimerLabel, stepTimerSource, timerState } from '../../lib/timers';
 import { useWakeLock } from '../../hooks/useWakeLock';
@@ -424,10 +425,7 @@ export default function CookingModeScreen() {
     setStalePrompt(null);
   }
 
-  const steps = (recipe.instructions ?? '')
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const steps = cookingSteps(recipe.instructions);
 
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
   const targetPortions = targetServings ?? baseServings;
@@ -694,9 +692,12 @@ export default function CookingModeScreen() {
                         <button
                           type="button"
                           onClick={() => toggleCheck(item.id)}
+                          aria-pressed={isChecked}
+                          aria-label={override || baseText}
                           className="flex flex-1 items-center gap-3 py-3 text-left text-lg transition active:bg-stone-100 dark:active:bg-stone-800"
                         >
                           <span
+                            aria-hidden
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
                               isChecked
                                 ? 'border-brand bg-brand text-white'
@@ -715,7 +716,7 @@ export default function CookingModeScreen() {
                           </span>
                         </button>
                       )}
-                      <IconButton onClick={() => openEdit(item.id)} aria-label="Úprava suroviny">
+                      <IconButton onClick={() => openEdit(item.id)} aria-label={`Úprava suroviny ${baseText}`}>
                         ⋯
                       </IconButton>
                     </div>
