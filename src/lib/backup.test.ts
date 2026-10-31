@@ -128,7 +128,7 @@ describe('computeRestoreImpact', () => {
       shoppingItemIds: [],
     });
 
-    expect(impact.recipes).toEqual({ added: 1, overwritten: 1, newerInDb: 1 });
+    expect(impact.recipes).toEqual({ added: 1, overwritten: 1, unchanged: 0, newerInDb: 1 });
   });
 
   it('spočítá, kolik smazaných položek vaření a nákupu se vrátí', () => {
@@ -253,5 +253,25 @@ describe('obnova – novější recepty nechat (bod 5)', () => {
   it('prázdná sada ponechaných = data beze změny („Přepsat vše")', () => {
     const data: BackupData = { ...emptyData(), recipes: [makeRecipe('r1', '2026-08-01T00:00:00.000Z')] };
     expect(withoutKeptRecipes(data, new Set())).toBe(data);
+  });
+});
+
+describe('computeRestoreImpact – beze změny', () => {
+  it('recept se stejným updatedAt jako v DB se nepočítá jako přepsaný', () => {
+    const backup = emptyData();
+    backup.recipes.push(
+      makeRecipe('r1', '2026-08-01T00:00:00.000Z'), // stejný → beze změny
+      makeRecipe('r2', '2026-08-05T00:00:00.000Z'), // v záloze novější → přepíše
+      makeRecipe('r3', '2026-08-01T00:00:00.000Z'), // nový
+    );
+    const impact = computeRestoreImpact(backup, {
+      recipes: [
+        { id: 'r1', updatedAt: '2026-08-01T00:00:00.000Z' },
+        { id: 'r2', updatedAt: '2026-08-02T00:00:00.000Z' },
+      ],
+      cookLogIds: [],
+      shoppingItemIds: [],
+    });
+    expect(impact.recipes).toEqual({ added: 1, overwritten: 1, unchanged: 1, newerInDb: 0 });
   });
 });

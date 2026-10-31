@@ -66,18 +66,21 @@ závislost, tak před psaním jede `architect`; „ne" = přímočaré, develope
 
 ---
 
-## Procházka 2026-10-29 — nezačaté body 5–12
+## Procházka 2026-10-29 — body 5–12 ✅ HOTOVO (2026-10-31)
 
-Návrhy user-advocate, všechny malé, bez změny schématu a bez závislosti. Martin zatím vybral jen 1–4.
+Martin schválil všechny. Bez změny `stores()` a bez závislosti.
 
-5. Druhé ťuknutí na čas v kroku nezaloží stejný časovač znovu; v kroku se ukáže, kolik zbývá.
-6. Při prvním časovači věta „Zvoní, jen když je Kuchařka otevřená“; u doběhlého „doběhl před 12 min“.
-7. „Přidat fotku“ otevře rovnou foťák (`capture`) — dát volbu „Vyfotit“ / „Z galerie“.
-8. Obnova zálohy počítá i stejné recepty jako přepsané — ukázat „2 změněné · 46 beze změny“.
-9. „1 h“ v Době nebo „4–6“ v Porcích se uloží prázdné — přepočítat hodiny, jinak hned „nerozumím“.
-10. Pod názvem receptu „zapsáno … · uvařeno 4×, naposledy …“ místo holého data.
-11. Recept bez zadaných porcí: počítadlo na detailu škáluje od 1 — schovat ho.
-12. Řazení „Upravené“ ukazuje na kartě „upraveno …“; tmavé barvy pro hlášku o rozdělaném vaření a pruh postupu.
+5. Časovač z kroku si pamatuje původ (`Timer.source`, `stepTimerSource`); druhé ťuknutí nezaloží
+   duplikát a u času v kroku běží odpočet (`StepTimerButton`). Ztlumený stejného původu nahradí nový.
+6. Lišta časovačů: 15 s po spuštění „Zvoní, jen když je Kuchařka otevřená"; doběhlý „Doběhl před 12 min".
+7. Na dotykovém zařízení „📷 Vyfotit" (`capture`) a „🖼️ Z galerie"; na desktopu jen „Přidat fotku".
+8. Obnova zálohy počítá recept se stejným `updatedAt` jako „Beze změny", ne jako přepsaný.
+9. Doba bere „1 h", „1 h 30 min", „1:30" (po opuštění pole přepíše na minuty); nečitelná Doba
+   nebo Porce „4–6" hned ukáže „nerozumím" (`lib/fieldInput.ts`). Editor i Vložit.
+10. Pod názvem „zapsáno … · uvařeno 4×, naposledy …" (`lib/recipeDates.ts`).
+11. Recept bez porcí nemá na detailu počítadlo (zůstává „Pro kolik porcí?"). Vaření beze změny
+    („počítám od 1" je tam vědomě oznámené).
+12. Řazení Upravené ukazuje „upraveno …"; tmavé barvy hlášky o rozdělaném vaření a pruhu postupu.
 
 ---
 
@@ -134,5 +137,5 @@ Zapsáno jako parkoviště, ne brzký kandidát.
 Velké stories jsou hotové. UC021 Týdenní plán je zahozený. V backlogu zůstávají jen dvě parkoviště:
 **UC026 Chytřejší přenos** (OCR/hlas/URL — nová závislost, napřed se zeptat; text z jiných appek
 už řeší Sdílení do appky) a **UC027** (koliduje s architekturou zachycení). Další práce jsou drobná
-vylepšení z dogfoodingu a procházek appkou, ne nové stories. Nejbližší kandidáti: body 5–12 z
-procházky 2026-10-29 (sekce výše).
+vylepšení z dogfoodingu a procházek appkou, ne nové stories. Body z procházky 2026-10-29 jsou
+hotové; další kandidáti vzejdou z příští procházky appkou.

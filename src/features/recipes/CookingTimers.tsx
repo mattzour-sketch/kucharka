@@ -4,7 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Timer } from '../../db';
 import { formatCountdown } from '../../lib/duration';
 import { primeAlarm, startAlarm, stopAlarm } from '../../lib/alarm';
-import { isTimerGone, timerState, type TimerState } from '../../lib/timers';
+import {
+  activeTimerFor,
+  finishedAgoLabel,
+  hasNewTimer,
+  isTimerGone,
+  timerState,
+  type TimerState,
+} from '../../lib/timers';
 import {
   addTimer,
   getTimers,
@@ -13,6 +20,7 @@ import {
   restoreTimers,
   silenceTimer,
   snoozeTimer,
+  startStepTimer,
 } from './timerRepo';
 import Button from '../../components/ui/Button';
 import { useUndo } from '../../components/undoContext';
@@ -103,14 +111,18 @@ export default function TimerDock() {
     <ul className="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
       {timers.map((timer) => {
         const state = timerState(timer, now);
+        const ago = state === 'running' ? null : finishedAgoLabel(timer.endsAt, now);
         return (
           <li
             key={timer.id}
             className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 shadow-sm ${ROW_CLASS[state]}`}
           >
-            <p className={`min-w-0 truncate text-sm ${state === 'silenced' ? 'text-stone-400' : 'text-stone-500'}`}>
-              {timer.label}
-            </p>
+            <div className="min-w-0">
+              <p className={`truncate text-sm ${state === 'silenced' ? 'text-stone-400' : 'text-stone-500'}`}>
+                {timer.label}
+              </p>
+              {ago ? <p className="text-xs text-stone-400">Doběhl {ago}</p> : null}
+            </div>
             <div className="flex shrink-0 items-center gap-2">
               {state === 'running' ? (
                 <>
@@ -148,6 +160,12 @@ export default function TimerDock() {
           </li>
         );
       })}
+      {/* Web nemá notifikace na pozadí: u čerstvého časovače to krátce říct. */}
+      {hasNewTimer(timers, now) ? (
+        <li className="px-3 text-center text-xs text-stone-500 dark:text-stone-400">
+          Zvoní, jen když je Kuchařka otevřená
+        </li>
+      ) : null}
     </ul>
   );
 
@@ -165,6 +183,57 @@ export default function TimerDock() {
         {list}
       </section>
     </>
+  );
+}
+
+/**
+ * Klikací čas v kroku. Ťuknutí spustí časovač; když už tentýž běží nebo zvoní, druhý
+ * nevznikne a u času je vidět, kolik zbývá.
+ */
+export function StepTimerButton({
+  text,
+  seconds,
+  source,
+  label,
+  timers,
+}: {
+  text: string;
+  seconds: number;
+  source: string;
+  label: string;
+  timers: readonly Timer[];
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  const active = activeTimerFor(timers, source, now);
+  const isActive = Boolean(active);
+
+  // Tiká jen při běžícím časovači, ať celý krok nepřekresluje každé půl sekundy zbytečně.
+  useEffect(() => {
+    if (!isActive) return;
+    const interval = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  const remaining = active ? Date.parse(active.endsAt) - now : 0;
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        if (active) return;
+        primeAlarm();
+        setNow(Date.now());
+        void startStepTimer(source, label, seconds);
+      }}
+      className="rounded bg-brand/10 px-1 font-medium text-brand-dark dark:text-amber-400 underline decoration-dotted underline-offset-2"
+    >
+      {text}
+      {active ? (
+        <span className="ml-1.5 whitespace-nowrap text-base tabular-nums no-underline">
+          ⏱ {remaining > 0 ? formatCountdown(remaining) : 'zvoní'}
+        </span>
+      ) : null}
+    </button>
   );
 }
 

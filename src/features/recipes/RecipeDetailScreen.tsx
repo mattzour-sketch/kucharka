@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CookLog } from '../../db';
 import { formatCzechDate } from '../../lib/date';
+import { recipeDateLine } from '../../lib/recipeDates';
 import { formatNumber } from '../../lib/num';
 import { czechPlural } from '../../lib/plural';
 import { scaleQuantityText } from '../../lib/scale';
@@ -53,6 +54,15 @@ export default function RecipeDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  // Na desktopu je foťák k ničemu (`capture` se ignoruje): jen jedno „Přidat fotku".
+  const [isTouch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
+  const photoSources = isTouch
+    ? [
+        { key: 'camera', ref: cameraRef, icon: '📷', label: 'Vyfotit', short: 'Vyfotit' },
+        { key: 'gallery', ref: fileRef, icon: '🖼️', label: 'Z galerie', short: 'Galerie' },
+      ]
+    : [{ key: 'gallery', ref: fileRef, icon: '📷', label: 'Přidat fotku', short: 'Fotka' }];
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
   useBackToClose(viewingPhotoId !== null, () => setViewingPhotoId(null));
   const [targetServings, setTargetServings] = useState<number | null>(null);
@@ -109,6 +119,11 @@ export default function RecipeDetailScreen() {
     if (!id) return;
     const copyId = await duplicateRecipe(id);
     if (copyId) navigate(`/recept/${copyId}/upravit`);
+  }
+
+  function onPhotoInput(event: React.ChangeEvent<HTMLInputElement>) {
+    if (event.target.files) void handleAddPhotos(event.target.files);
+    event.target.value = '';
   }
 
   async function handleAddPhotos(files: FileList) {
@@ -249,7 +264,10 @@ export default function RecipeDetailScreen() {
       <main className="mx-auto max-w-2xl px-4 py-4">
         <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
         <p className="mt-1 text-sm text-stone-500">
-          {formatCzechDate(recipe.capturedOn)}
+          {recipeDateLine(
+            recipe.capturedOn,
+            cookLogs.map((log) => log.cookedOn),
+          )}
           {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}
         </p>
 
@@ -262,7 +280,7 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {/* Bez fotek jen malé tlačítko – velká prázdná dlaždice odsouvala suroviny dolů. */}
-        <div className={photos.length > 0 ? 'mt-4 flex gap-2 overflow-x-auto pb-1' : 'mt-3'}>
+        <div className={photos.length > 0 ? 'mt-4 flex gap-2 overflow-x-auto pb-1' : 'mt-3 flex flex-wrap gap-2'}>
           {photos.map((photo) => (
             <PhotoThumb
               key={photo.id}
@@ -270,36 +288,45 @@ export default function RecipeDetailScreen() {
               onClick={() => setViewingPhotoId(photo.id)}
             />
           ))}
-          {photos.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              aria-label="Přidat fotku"
-              className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
-            >
-              <span className="text-2xl leading-none">📷</span>
-              <span className="text-xs">Fotka</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 transition hover:border-brand hover:text-brand dark:border-stone-600 dark:text-stone-400 dark:hover:text-amber-400"
-            >
-              📷 Přidat fotku
-            </button>
+          {photoSources.map((source) =>
+            photos.length > 0 ? (
+              <button
+                key={source.key}
+                type="button"
+                onClick={() => source.ref.current?.click()}
+                aria-label={source.label}
+                className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
+              >
+                <span className="text-2xl leading-none">{source.icon}</span>
+                <span className="text-xs">{source.short}</span>
+              </button>
+            ) : (
+              <button
+                key={source.key}
+                type="button"
+                onClick={() => source.ref.current?.click()}
+                className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 transition hover:border-brand hover:text-brand dark:border-stone-600 dark:text-stone-400 dark:hover:text-amber-400"
+              >
+                {source.icon} {source.label}
+              </button>
+            ),
           )}
+          {/* Foťák zvlášť: s `capture` mobil otevře rovnou fotoaparát a galerii nenabídne. */}
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={onPhotoInput}
+          />
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
-            capture="environment"
             multiple
             className="hidden"
-            onChange={(event) => {
-              if (event.target.files) void handleAddPhotos(event.target.files);
-              event.target.value = '';
-            }}
+            onChange={onPhotoInput}
           />
         </div>
 
@@ -325,13 +352,16 @@ export default function RecipeDetailScreen() {
               <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Suroviny
               </h2>
-              <ServingsStepper
-                value={targetPortions}
-                base={recipe.servings && recipe.servings > 0 ? recipe.servings : undefined}
-                onStep={(delta) =>
-                  setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
-                }
-              />
+              {/* Bez zadaných porcí by počítadlo násobilo od 1 – nejdřív „Pro kolik porcí?" dole. */}
+              {recipe.servings ? (
+                <ServingsStepper
+                  value={targetPortions}
+                  base={recipe.servings}
+                  onStep={(delta) =>
+                    setTargetServings((prev) => Math.max(1, (prev ?? baseServings) + delta))
+                  }
+                />
+              ) : null}
             </div>
             <ul className="mt-2 space-y-1">
               {items.map((item) =>

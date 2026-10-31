@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeTimerFor,
+  finishedAgoLabel,
+  hasNewTimer,
   isStaleTimer,
   isTimerGone,
+  NEW_TIMER_HINT_MS,
   SILENCED_TIMER_MS,
   SNOOZE_MS,
   snoozedEndsAt,
+  stepTimerSource,
   STALE_TIMER_MS,
   stepTimerLabel,
   timerState,
@@ -99,5 +104,54 @@ describe('stepTimerLabel', () => {
 
   it('prázdný krok = jen číslo', () => {
     expect(stepTimerLabel(1, '   ')).toBe('Krok 2');
+  });
+});
+
+describe('activeTimerFor', () => {
+  const now = Date.parse('2026-10-31T18:00:00Z');
+  const source = stepTimerSource('r1', 2, 0);
+
+  it('najde běžící i zvonící časovač stejného původu', () => {
+    const running = { source, endsAt: '2026-10-31T18:10:00Z' };
+    const ringing = { source, endsAt: '2026-10-31T17:59:00Z' };
+    expect(activeTimerFor([running], source, now)).toBe(running);
+    expect(activeTimerFor([ringing], source, now)).toBe(ringing);
+  });
+
+  it('ztlumený, zastaralý, jiný krok ani časovač bez původu se nepočítá', () => {
+    expect(
+      activeTimerFor(
+        [
+          { source, endsAt: '2026-10-31T17:59:00Z', silencedAt: '2026-10-31T17:59:30Z' },
+          { source, endsAt: '2026-10-31T13:00:00Z' },
+          { source: stepTimerSource('r1', 2, 1), endsAt: '2026-10-31T18:10:00Z' },
+          { source: stepTimerSource('r2', 2, 0), endsAt: '2026-10-31T18:10:00Z' },
+          { endsAt: '2026-10-31T18:10:00Z' },
+        ],
+        source,
+        now,
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe('hasNewTimer', () => {
+  const now = Date.parse('2026-10-31T18:00:00Z');
+
+  it('čerstvě spuštěný ano, starší než 15 s ne', () => {
+    expect(hasNewTimer([{ createdAt: '2026-10-31T17:59:50Z' }], now)).toBe(true);
+    expect(hasNewTimer([{ createdAt: new Date(now - NEW_TIMER_HINT_MS).toISOString() }], now)).toBe(false);
+    expect(hasNewTimer([], now)).toBe(false);
+  });
+});
+
+describe('finishedAgoLabel', () => {
+  const now = Date.parse('2026-10-31T18:00:00Z');
+
+  it('do minuty nic, pak minuty a hodiny', () => {
+    expect(finishedAgoLabel('2026-10-31T17:59:30Z', now)).toBeNull();
+    expect(finishedAgoLabel('2026-10-31T17:48:00Z', now)).toBe('před 12 min');
+    expect(finishedAgoLabel('2026-10-31T16:55:00Z', now)).toBe('před 1 h 5 min');
+    expect(finishedAgoLabel('2026-10-31T16:00:00Z', now)).toBe('před 2 h');
   });
 });

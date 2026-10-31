@@ -205,6 +205,11 @@ export interface Timer {
    * a po chvíli zmizí. Neindexované, bez nové verze `stores()`; starší záznamy ho nemají.
    */
   silencedAt?: IsoTimestamp | null;
+  /**
+   * Odkud se časovač spustil (`stepTimerSource`: recept, krok, čas v kroku); ad-hoc a
+   * starší záznamy ho nemají. Neindexované, bez nové verze `stores()`.
+   */
+  source?: string | null;
 }
 
 /** Surovina v záznamu vaření (snímek – jak se reálně vařilo). */

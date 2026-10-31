@@ -1,6 +1,6 @@
 import { db, type Timer } from '../../db';
 import { newId } from '../../lib/id';
-import { isTimerGone, snoozedEndsAt } from '../../lib/timers';
+import { activeTimerFor, isTimerGone, snoozedEndsAt } from '../../lib/timers';
 
 /** Časovače vaření (§7). Ukládá se cílový čas, ne zbývající sekundy. */
 
@@ -8,13 +8,29 @@ export function getTimers(): Promise<Timer[]> {
   return db.timers.orderBy('endsAt').toArray();
 }
 
-export async function addTimer(label: string, seconds: number): Promise<void> {
+export async function addTimer(label: string, seconds: number, source: string | null = null): Promise<void> {
   const now = Date.now();
   await db.timers.add({
     id: newId(),
     label,
     endsAt: new Date(now + seconds * 1000).toISOString(),
     createdAt: new Date(now).toISOString(),
+    source,
+  });
+}
+
+/**
+ * Časovač z kroku. Když tentýž čas už běží nebo zvoní, druhý se nezaloží (dvojí ťuknutí
+ * mokrým prstem). Ztlumený „Hotovo" stejného původu nahradí nový.
+ */
+export async function startStepTimer(source: string, label: string, seconds: number): Promise<void> {
+  await db.transaction('rw', db.timers, async () => {
+    const now = Date.now();
+    const timers = await db.timers.toArray();
+    if (activeTimerFor(timers, source, now)) return;
+    const replaced = timers.filter((timer) => timer.source === source);
+    if (replaced.length > 0) await db.timers.bulkDelete(replaced.map((timer) => timer.id));
+    await addTimer(label, seconds, source);
   });
 }
 

@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { isSameName } from '../../lib/search';
 import { todayIso } from '../../lib/date';
-import { parseDecimal } from '../../lib/num';
+import { fieldValue, normalizedPrepText, parsePrepInput, parseServingsInput } from '../../lib/fieldInput';
 import { isBareUrl, parseRecipeText } from '../../lib/parseRecipe';
 import { sharedTextFromParams } from '../../lib/shareTarget';
 import { linkRecipeName } from '../../lib/links';
@@ -26,6 +26,7 @@ import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
 import { useSplitOffer } from './useSplitOffer';
 import FieldLabelWithSplit from './SplitOffer';
+import FieldInputHints from './FieldInputHints';
 
 const IG_HINT = 'Instagram: podrž spodní lištu (Circle to Search), označ text v reelu → Kopírovat.';
 const URL_MESSAGE = `Odkaz neotevřu – vlož text. ${IG_HINT}`;
@@ -356,8 +357,8 @@ export default function ImportRecipeScreen() {
 
   function handleSave() {
     if (!preview || saving) return;
-    const prepMinutes = parseDecimal(preview.prepMinutes);
-    const servings = parseDecimal(preview.servings);
+    const prepMinutes = fieldValue(parsePrepInput(preview.prepMinutes));
+    const servings = fieldValue(parseServingsInput(preview.servings));
     void saveAndOpen({
       content: {
         name: preview.name.trim() || fallbackImportName(preview.source),
@@ -366,7 +367,7 @@ export default function ImportRecipeScreen() {
         instructions: preview.instructions.trim() || null,
         rawCapture: combineRawCapture(preview.ingredients, preview.instructions),
         tags,
-        prepMinutes: prepMinutes != null && prepMinutes > 0 ? prepMinutes : null,
+        prepMinutes,
         source: preview.source.trim() || null,
       },
       servings,
@@ -489,6 +490,10 @@ export default function ImportRecipeScreen() {
                     id="prep"
                     value={preview.prepMinutes}
                     onChange={(event) => updateField('prepMinutes', event.target.value)}
+                    onBlur={() => {
+                      const normalized = normalizedPrepText(preview.prepMinutes);
+                      if (normalized !== preview.prepMinutes) updateField('prepMinutes', normalized);
+                    }}
                     inputMode="numeric"
                     placeholder="—"
                     className={`w-16 ${fieldClass}`}
@@ -496,6 +501,7 @@ export default function ImportRecipeScreen() {
                   <span>min</span>
                 </span>
               </div>
+              <FieldInputHints prep={preview.prepMinutes} servings={preview.servings} />
 
               <FieldLabelWithSplit
                 htmlFor="ingredients"

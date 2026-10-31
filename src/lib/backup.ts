@@ -133,14 +133,14 @@ export function parseBackup(json: string): ParsedBackup {
 
 /**
  * Plný dopad obnovy (bod 10): porovná zálohu s aktuální DB podle `id`.
- * - recepty: kolik přibude nových, kolik přepíše existující a z toho kolik má
- *   uživatel novější než záloha (`updatedAt`).
+ * - recepty: kolik přibude nových, kolik přepíše existující (jiné `updatedAt`), z toho
+ *   kolik má uživatel novější než záloha, a kolik je beze změny (stejné `updatedAt`).
  * - vaření/nákup: kolik položek ze zálohy v DB není → tolik merge „vrátí" (obě
  *   tabulky se mažou natvrdo, upsert je vzkřísí – přijatý důsledek merge režimu).
  * Čistá funkce – bere hotová pole, ať jde testovat bez Dexie.
  */
 export interface RestoreImpact {
-  recipes: { added: number; overwritten: number; newerInDb: number };
+  recipes: { added: number; overwritten: number; unchanged: number; newerInDb: number };
   cookLogsRevived: number;
   shoppingItemsRevived: number;
 }
@@ -159,12 +159,19 @@ function countRevived(backup: { id: string }[], currentIds: Set<string>): number
 }
 
 export function computeRestoreImpact(backup: BackupData, current: RestoreCurrent): RestoreImpact {
-  const currentIds = new Set(current.recipes.map((recipe) => recipe.id));
-  const added = backup.recipes.filter((recipe) => !currentIds.has(recipe.id)).length;
+  const currentUpdatedAt = new Map(current.recipes.map((recipe) => [recipe.id, recipe.updatedAt]));
+  let added = 0;
+  let unchanged = 0;
+  for (const recipe of backup.recipes) {
+    const dbUpdatedAt = currentUpdatedAt.get(recipe.id);
+    if (dbUpdatedAt === undefined) added += 1;
+    else if (dbUpdatedAt === recipe.updatedAt) unchanged += 1;
+  }
   return {
     recipes: {
       added,
-      overwritten: backup.recipes.length - added,
+      overwritten: backup.recipes.length - added - unchanged,
+      unchanged,
       newerInDb: newerLocalRecipeIds(backup.recipes, current.recipes).size,
     },
     cookLogsRevived: countRevived(backup.cookLogs, new Set(current.cookLogIds)),

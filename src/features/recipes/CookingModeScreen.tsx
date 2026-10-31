@@ -16,8 +16,7 @@ import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredien
 import { addPortion } from '../foods/foodPortionsRepo';
 import { splitStepByDurations } from '../../lib/duration';
 import { matchStepIngredients } from '../../lib/stepIngredients';
-import { primeAlarm } from '../../lib/alarm';
-import { isStaleTimer, isTimerGone, stepTimerLabel, timerState } from '../../lib/timers';
+import { isStaleTimer, isTimerGone, stepTimerLabel, stepTimerSource, timerState } from '../../lib/timers';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { getAllRecipeItems, getRecipeItems } from './recipesRepo';
 import {
@@ -26,14 +25,14 @@ import {
   saveCookSession,
   type CookSessionState,
 } from './cookSessionRepo';
-import { addTimer, getTimers, removeTimers, restoreTimers } from './timerRepo';
+import { getTimers, removeTimers, restoreTimers } from './timerRepo';
 import { getRecipeNotes } from './recipeNotesRepo';
 import { partitionNotes } from '../../lib/originalNote';
 import { addCookLog, deleteCookLog, getCookLogs } from './cookLogRepo';
 import { useUndo } from '../../components/undoContext';
 import { applyReplacements, nutritionFromData, perPortionFromResult } from '../nutrition/recipeNutrition';
 import FoodPicker from '../foods/FoodPicker';
-import { AdhocTimerForm } from './CookingTimers';
+import { AdhocTimerForm, StepTimerButton } from './CookingTimers';
 import ServingsStepper from './ServingsStepper';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
@@ -563,8 +562,8 @@ export default function CookingModeScreen() {
         ) : null}
 
         {stalePrompt ? (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm text-amber-800">
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
               Rozdělané vaření
               {staleUpdatedAt ? ` z ${formatCzechDate(toLocalIsoDate(new Date(staleUpdatedAt)))}` : ''}
               {staleDoneCount > 0 ? `, odškrtnuto ${staleDoneCount}` : ''}. Pokračovat, nebo začít
@@ -591,7 +590,7 @@ export default function CookingModeScreen() {
             >
               {allDone ? 'Hotovo 🎉' : `Hotovo ${progressPct} %`}
             </p>
-            <div className="h-2 overflow-hidden rounded-full bg-stone-200">
+            <div className="h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700">
               <div
                 className="h-full rounded-full bg-brand transition-all duration-300"
                 style={{ width: `${progressPct}%` }}
@@ -872,20 +871,15 @@ export default function CookingModeScreen() {
                       if (segment.seconds == null) {
                         return <span key={segIndex}>{segment.text}</span>;
                       }
-                      const seconds = segment.seconds;
                       return (
-                        <button
+                        <StepTimerButton
                           key={segIndex}
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            primeAlarm();
-                            void addTimer(stepTimerLabel(index, step), seconds);
-                          }}
-                          className="rounded bg-brand/10 px-1 font-medium text-brand-dark dark:text-amber-400 underline decoration-dotted underline-offset-2"
-                        >
-                          {segment.text}
-                        </button>
+                          text={segment.text}
+                          seconds={segment.seconds}
+                          source={stepTimerSource(id ?? '', index, segIndex)}
+                          label={stepTimerLabel(index, step)}
+                          timers={activeTimers}
+                        />
                       );
                     })}
                   </span>

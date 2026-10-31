@@ -3,12 +3,13 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe, type RecipeItem } from '../../db';
 import { todayIso } from '../../lib/date';
-import { parseDecimal } from '../../lib/num';
+import { fieldValue, normalizedPrepText, parsePrepInput, parseServingsInput } from '../../lib/fieldInput';
 import { combineRawCapture, splitIngredientLines } from '../../lib/recipeText';
 import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
 import { useSplitOffer } from './useSplitOffer';
 import FieldLabelWithSplit from './SplitOffer';
+import FieldInputHints from './FieldInputHints';
 import {
   createRecipeWithContent,
   getRecipeItems,
@@ -21,11 +22,6 @@ import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
-
-/** Porce jen kladné – 0 nebo nesmysl = nezadané. */
-function positiveOrNull(value: number | null): number | null {
-  return value != null && value > 0 ? value : null;
-}
 
 function snapshotOf(
   name: string,
@@ -130,8 +126,8 @@ export default function RecipeEditScreen() {
       instructions: instructions.trim() || null,
       rawCapture: combineRawCapture(ingredients, instructions),
       tags,
-      prepMinutes: parseDecimal(prepMinutes),
-      servings: positiveOrNull(parseDecimal(servings)),
+      prepMinutes: fieldValue(parsePrepInput(prepMinutes)),
+      servings: fieldValue(parseServingsInput(servings)),
     };
   }
 
@@ -313,6 +309,7 @@ export default function RecipeEditScreen() {
               id="prep"
               value={prepMinutes}
               onChange={(event) => setPrepMinutes(event.target.value)}
+              onBlur={() => setPrepMinutes((text) => normalizedPrepText(text))}
               inputMode="numeric"
               placeholder="—"
               className="w-14 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
@@ -331,6 +328,7 @@ export default function RecipeEditScreen() {
             />
           </span>
         </div>
+        <FieldInputHints prep={prepMinutes} servings={servings} />
 
         <FieldLabelWithSplit splitLabel={ingredientsSplit.label} onSplit={ingredientsSplit.apply}>
           Suroviny

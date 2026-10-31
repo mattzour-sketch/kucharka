@@ -307,6 +307,7 @@ export default function RecipeListScreen() {
                       onToggleFavorite={handleToggleFavorite}
                       dimmed={favOnly && !recipe.isFavorite}
                       cookedAt={sort === 'cooked' ? (lastCooked.get(recipe.id) ?? null) : undefined}
+                      showUpdated={sort === 'updated'}
                     />
                   </li>
                 ))}

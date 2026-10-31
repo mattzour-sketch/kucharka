@@ -3,6 +3,7 @@ import type { Recipe } from '../../db';
 import { formatCzechDate, toLocalIsoDate } from '../../lib/date';
 import { formatPrepTime } from '../../lib/prepTime';
 import { recipeSnippet } from '../../lib/recipeText';
+import { updatedLabel } from '../../lib/recipeDates';
 import { setRecipeFavorite } from './recipesRepo';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { cardClass } from '../../components/ui/cardClass';
@@ -51,6 +52,7 @@ export default function RecipeCard({
   onToggleFavorite,
   dimmed = false,
   cookedAt,
+  showUpdated = false,
 }: {
   recipe: Recipe;
   cover?: Blob | null;
@@ -58,6 +60,8 @@ export default function RecipeCard({
   dimmed?: boolean;
   /** ISO timestamp posledního vaření; `null` = neuvařeno; `undefined` = ukázat datum zapsání. */
   cookedAt?: string | null;
+  /** Ukázat „upraveno …" místo data zapsání (řazení Upravené). */
+  showUpdated?: boolean;
 }) {
   const preview = recipeSnippet(recipe.rawCapture);
   const coverUrl = useObjectUrl(cover);
@@ -68,7 +72,9 @@ export default function RecipeCard({
       <h2 className="truncate font-medium">{recipe.name || '(bez názvu)'}</h2>
       <p className="mt-0.5 text-xs text-stone-400">
         {cookedAt === undefined
-          ? formatCzechDate(recipe.capturedOn)
+          ? showUpdated
+            ? updatedLabel(recipe.updatedAt)
+            : formatCzechDate(recipe.capturedOn)
           : cookedAt
             ? `uvařeno ${formatCzechDate(toLocalIsoDate(new Date(cookedAt)))}`
             : 'neuvařeno'}

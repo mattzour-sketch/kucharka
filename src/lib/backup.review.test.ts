@@ -62,7 +62,7 @@ function makeShoppingItem(id: string): ShoppingItem {
 }
 
 describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
-  it('stejné updatedAt → přepíše, ale NEhlásí „mám novější" (přísné >, ne >=)', () => {
+  it('stejné updatedAt → beze změny, NEhlásí „mám novější" (přísné >, ne >=)', () => {
     const backup = emptyData();
     backup.recipes.push(makeRecipe('r1', '2026-08-05T00:00:00.000Z'));
 
@@ -72,7 +72,7 @@ describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
       shoppingItemIds: [],
     });
 
-    expect(impact.recipes).toEqual({ added: 0, overwritten: 1, newerInDb: 0 });
+    expect(impact.recipes).toEqual({ added: 0, overwritten: 0, unchanged: 1, newerInDb: 0 });
   });
 
   it('záloha novější než DB → přepíše bez varování (newerInDb=0)', () => {
@@ -85,13 +85,13 @@ describe('computeRestoreImpact – hrany porovnání updatedAt', () => {
       shoppingItemIds: [],
     });
 
-    expect(impact.recipes).toEqual({ added: 0, overwritten: 1, newerInDb: 0 });
+    expect(impact.recipes).toEqual({ added: 0, overwritten: 1, unchanged: 0, newerInDb: 0 });
   });
 
   it('prázdná záloha i prázdná DB → samé nuly', () => {
     const impact = computeRestoreImpact(emptyData(), { recipes: [], cookLogIds: [], shoppingItemIds: [] });
     expect(impact).toEqual({
-      recipes: { added: 0, overwritten: 0, newerInDb: 0 },
+      recipes: { added: 0, overwritten: 0, unchanged: 0, newerInDb: 0 },
       cookLogsRevived: 0,
       shoppingItemsRevived: 0,
     });

@@ -180,7 +180,7 @@ function RestorePreviewBody({
   onModeChange: (mode: RestoreMode) => void;
 }) {
   const { parsed, impact } = preview;
-  const { added, overwritten, newerInDb } = impact.recipes;
+  const { added, overwritten, unchanged, newerInDb } = impact.recipes;
   // Obsah zálohy bez smazaných položek a receptů v koši.
   const counts = backupContentCounts(parsed.data);
   const itemsAdded = restoreItemsAdded(impact);
@@ -213,6 +213,9 @@ function RestorePreviewBody({
         ) : (
           <p className="mt-1">Data v záloze odpovídají tomu, co máš — nic nepřepíše ani nepřidá.</p>
         )}
+        {effects.length > 0 && unchanged > 0 ? (
+          <p className="mt-1">Beze změny: {pluralRecipes(unchanged)}.</p>
+        ) : null}
       </div>
 
       {newerInDb > 0 ? (
