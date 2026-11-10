@@ -9,6 +9,8 @@ import ScreenHeader from '../../components/ui/ScreenHeader';
 import Logo from '../../components/ui/Logo';
 import Button from '../../components/ui/Button';
 import FilterChip from '../../components/ui/FilterChip';
+import SearchField from '../../components/ui/SearchField';
+import Icon from '../../components/ui/Icon';
 import EmptyState from '../../components/ui/EmptyState';
 import { RecipeGridSkeleton } from '../../components/ui/Loading';
 import { isQuick } from '../../lib/prepTime';
@@ -157,7 +159,7 @@ export default function RecipeListScreen() {
         width="wide"
         title={
           <span className="flex items-center gap-2">
-            <Logo className="h-6 w-6 text-brand dark:text-amber-400" />
+            <Logo className="h-6 w-6 text-brand dark:text-brand-light" />
             Kuchařka
           </span>
         }
@@ -167,38 +169,19 @@ export default function RecipeListScreen() {
               Vložit
             </Button>
             <Button role="primary" to="/novy">
-              + Nový recept
+              <Icon name="plus" className="-ml-0.5 h-4 w-4" />
+              Nový recept
             </Button>
           </>
         }
         below={
           recipes.length > 0 ? (
-            <div className="flex items-center gap-2 rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 focus-within:border-brand">
-              <span className="text-stone-400" aria-hidden>
-                🔍
-              </span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="hledat recept, surovinu, postup…"
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
-                  aria-label="Vymazat hledání"
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
+            <SearchField value={query} onChange={setQuery} placeholder="hledat recept, surovinu, postup…" />
           ) : undefined
         }
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-4">
+      <main className="mx-auto max-w-5xl px-4 py-3">
         {loading ? (
           <RecipeGridSkeleton />
         ) : recipes.length === 0 ? (
@@ -210,7 +193,8 @@ export default function RecipeListScreen() {
               // Na novém zařízení se většinou začíná obnovou zálohy (ve „Víc").
               <div className="flex flex-wrap justify-center gap-2">
                 <Button role="primary" to="/novy">
-                  + Nový recept
+                  <Icon name="plus" className="-ml-0.5 h-4 w-4" />
+                  Nový recept
                 </Button>
                 <Button role="secondary" to="/vic">
                   Obnovit ze zálohy
@@ -226,7 +210,7 @@ export default function RecipeListScreen() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortKey)}
-                className="rounded-full border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-2.5 py-1 text-xs font-medium text-stone-700 dark:text-stone-200 outline-none focus:border-brand"
+                className="h-9 rounded-full bg-stone-900/[0.06] pl-3 pr-1.5 text-sm font-medium text-stone-700 outline-none focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-stone-800 dark:text-stone-200 dark:focus-visible:ring-brand-light/60"
                 aria-label="Řazení"
               >
                 {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
@@ -237,7 +221,8 @@ export default function RecipeListScreen() {
               </select>
               {hasActiveFilter ? (
                 <FilterChip active={false} onClick={clearFilters}>
-                  ✕ Zrušit
+                  <Icon name="close" className="-ml-0.5 h-4 w-4" />
+                  Zrušit
                 </FilterChip>
               ) : null}
               <FilterChip
@@ -249,7 +234,8 @@ export default function RecipeListScreen() {
                 }}
                 aria-label="Co dnes? (náhodný recept)"
               >
-                🎲 Co dnes?
+                <Icon name="dice" className="-ml-0.5 h-4 w-4" />
+                Co dnes?
               </FilterChip>
               <FilterChip
                 active={favOnly}
@@ -257,22 +243,25 @@ export default function RecipeListScreen() {
                 onClick={toggleFavOnly}
                 aria-pressed={favOnly}
               >
-                ★ Oblíbené
+                <Icon name="star" filled={favOnly} className="-ml-0.5 h-4 w-4" />
+                Oblíbené
               </FilterChip>
               <FilterChip
                 active={quickOnly}
                 onClick={() => setQuickOnly(!quickOnly)}
                 aria-pressed={quickOnly}
               >
-                ⚡ Rychlé
+                <Icon name="bolt" filled={quickOnly} className="-ml-0.5 h-4 w-4" />
+                Rychlé
               </FilterChip>
               {neverCookedOnly ? (
                 <FilterChip active onClick={() => updateParams({ neuvarene: null })} aria-pressed>
-                  Neuvařené ×
+                  Neuvařené
+                  <Icon name="close" className="-mr-1 h-4 w-4" />
                 </FilterChip>
               ) : null}
               {orderedTags.length > 0 ? (
-                <span className="h-4 w-px bg-stone-200 dark:bg-stone-700" aria-hidden />
+                <span className="h-5 w-px bg-stone-200 dark:bg-stone-700" aria-hidden />
               ) : null}
               {orderedTags.map((tag) => (
                 <FilterChip
@@ -292,13 +281,14 @@ export default function RecipeListScreen() {
                 action={
                   query.trim() ? (
                     <Button role="primary" to={`/novy?nazev=${encodeURIComponent(capitalize(query.trim()))}`}>
-                      + Nový recept „{capitalize(query.trim())}“
+                      <Icon name="plus" className="-ml-0.5 h-4 w-4" />
+                      Nový recept „{capitalize(query.trim())}“
                     </Button>
                   ) : undefined
                 }
               />
             ) : (
-              <ul className="mt-3 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((recipe) => (
                   <li key={recipe.id}>
                     <RecipeCard

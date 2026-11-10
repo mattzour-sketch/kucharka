@@ -70,10 +70,10 @@ export default function FoodPickList({
             <span className="min-w-0">
               <span className="block truncate font-medium">{food.name}</span>
               {food.brand ? (
-                <span className="block truncate text-xs text-stone-500">{food.brand}</span>
+                <span className="block truncate text-xs text-stone-500 dark:text-stone-400">{food.brand}</span>
               ) : null}
             </span>
-            <span className="shrink-0 text-sm text-stone-500">
+            <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
               {formatNumber(food.energyKcal)} kcal / 100 {food.basis}
             </span>
           </button>

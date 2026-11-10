@@ -23,7 +23,7 @@ export default function Segmented<T extends string>({
   return (
     <div
       className={cx(
-        'inline-flex rounded-full border border-stone-200 p-0.5 text-xs font-medium dark:border-stone-700',
+        'inline-flex rounded-[10px] bg-stone-900/[0.07] p-0.5 text-xs font-semibold dark:bg-white/10',
         className,
       )}
       role="group"
@@ -38,9 +38,9 @@ export default function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             aria-pressed={selected}
             className={cx(
-              'rounded-full px-2.5 py-1 transition',
+              'min-h-8 rounded-lg px-3 py-1 transition',
               selected
-                ? 'bg-brand text-white'
+                ? 'bg-white text-stone-900 shadow-sm dark:bg-stone-600 dark:text-white'
                 : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200',
             )}
           >

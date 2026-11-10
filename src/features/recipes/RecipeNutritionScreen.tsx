@@ -37,6 +37,9 @@ import AddPortionInline from '../../components/ui/AddPortionInline';
 import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
 import { ReadingSkeleton } from '../../components/ui/Loading';
+import { FIELD, FIELD_SM, LABEL, LINK } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
+import Icon from '../../components/ui/Icon';
 
 /** Podrecept se zadává jen v gramech (UC016, rozhodnutí 1). */
 const GRAMS_ONLY: AmountUnitOption[] = [{ id: 'g', kind: 'g', label: 'g', gramsPerUnit: 1 }];
@@ -51,26 +54,26 @@ function TargetKcalHint({ totalKcal, finalWeight }: { totalKcal: number; finalWe
   const parsed = parseDecimal(target);
   const result = parsed != null ? portionsForTargetKcal(totalKcal, finalWeight, parsed) : null;
   return (
-    <div className="mt-4 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-3 text-sm">
+    <div className={cardClass({ padding: 'row', className: 'mt-4 text-sm' })}>
       <label className="flex flex-wrap items-center gap-2">
-        <span className="text-stone-500">Cíl na porci</span>
+        <span className={LABEL}>Cíl na porci</span>
         <input
           value={target}
           onChange={(event) => setTarget(event.target.value)}
           inputMode="decimal"
           placeholder="kcal"
-          className="w-20 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right outline-none focus:border-brand"
+          className={cx(FIELD_SM, 'h-9 w-20 px-2 text-right font-semibold tabular-nums')}
         />
-        <span className="text-stone-500">kcal</span>
+        <span className="text-stone-500 dark:text-stone-400">kcal</span>
       </label>
       {result ? (
         <p className="mt-2 text-stone-600 dark:text-stone-300">
-          ≈ <span className="font-medium">{formatNumber(result.portions, 1)}</span> porcí · ≈{' '}
-          <span className="font-medium">{formatNumber(result.gramsPerPortion)}</span> g/porce
-          <span className="ml-1 text-xs text-stone-400">(orientačně)</span>
+          ≈ <span className="font-bold tabular-nums">{formatNumber(result.portions, 1)}</span> porcí · ≈{' '}
+          <span className="font-bold tabular-nums">{formatNumber(result.gramsPerPortion)}</span> g/porce
+          <span className="ml-1 text-xs text-stone-500 dark:text-stone-400">(orientačně)</span>
         </p>
       ) : (
-        <p className="mt-2 text-xs text-stone-400">
+        <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
           Zadej cílové kcal na porci — spočítám počet porcí i gramáž.
         </p>
       )}
@@ -388,14 +391,14 @@ export default function RecipeNutritionScreen() {
                 <button
                   type="button"
                   onClick={() => scrollToItem(gapItems[0].id)}
-                  className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300"
+                  className="mt-1 flex min-h-9 items-center text-left text-sm font-semibold text-amber-700 dark:text-amber-300"
                 >
                   Chybí: {gapParts.join(' · ')} ↓
                 </button>
               ) : null}
             </>
           ) : (
-            <p className="text-center text-sm text-stone-400">
+            <p className="text-center text-sm text-stone-500 dark:text-stone-400">
               Napoj suroviny na potraviny a doplň gramáž, ať se spočítají kalorie.
             </p>
           )}
@@ -403,7 +406,7 @@ export default function RecipeNutritionScreen() {
 
         <div className="flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2">
-            <span className="text-stone-500">Porcí</span>
+            <span className={LABEL}>Porcí</span>
             <input
               value={servings}
               onChange={(event) => {
@@ -412,11 +415,11 @@ export default function RecipeNutritionScreen() {
               }}
               inputMode="decimal"
               placeholder="—"
-              className="w-16 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand"
+              className={cx(FIELD, 'h-10 w-16 px-3 font-semibold tabular-nums')}
             />
           </label>
           <label className="flex items-center gap-2">
-            <span className="text-stone-500">Hmotnost po uvaření (g)</span>
+            <span className={LABEL}>Hmotnost po uvaření (g)</span>
             <input
               value={cookedWeight}
               onChange={(event) => {
@@ -425,7 +428,7 @@ export default function RecipeNutritionScreen() {
               }}
               inputMode="decimal"
               placeholder="—"
-              className="w-24 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand"
+              className={cx(FIELD, 'h-10 w-24 px-3 font-semibold tabular-nums')}
             />
           </label>
         </div>
@@ -435,7 +438,7 @@ export default function RecipeNutritionScreen() {
             <Button role="primary" fullWidth onClick={() => void seedFoodsAndLink(id)}>
               Přidat základní potraviny ({basicFoodCount()})
             </Button>
-            <p className="mt-1.5 text-center text-xs text-stone-400">Databáze potravin je prázdná.</p>
+            <p className="mt-1.5 text-center text-xs text-stone-500 dark:text-stone-400">Databáze potravin je prázdná.</p>
           </div>
         ) : pendingAutoLinks > 0 ? (
           <div className="mt-4">
@@ -492,15 +495,15 @@ export default function RecipeNutritionScreen() {
                 id={`item-${item.id}`}
                 className={cardClass({ padding: 'row', tone: missingGrams ? 'warn' : 'default' })}
               >
-                <p className="font-medium">{item.rawText}</p>
+                <p className="font-semibold">{item.rawText}</p>
 
                 {item.isSkipped ? (
-                  <div className="mt-1 flex items-center justify-between text-sm text-stone-400">
+                  <div className="flex items-center justify-between text-sm text-stone-500 dark:text-stone-400">
                     <span>přeskočeno</span>
                     <button
                       type="button"
                       onClick={() => void updateRecipeItemLink(item.id, { isSkipped: false })}
-                      className="font-medium text-brand dark:text-amber-400"
+                      className={cx(LINK, 'flex min-h-9 items-center')}
                     >
                       vrátit
                     </button>
@@ -514,7 +517,7 @@ export default function RecipeNutritionScreen() {
                         value={value}
                         onChange={(next) => commitValue(item.id, next, options)}
                       />
-                      <span className="flex w-16 flex-col text-right text-xs text-stone-400">
+                      <span className="flex w-16 flex-col text-right text-xs tabular-nums text-stone-500 dark:text-stone-400">
                         {gramsReadout ? <span>{gramsReadout}</span> : null}
                         {kcalReadout ? <span>{kcalReadout}</span> : null}
                       </span>
@@ -523,7 +526,7 @@ export default function RecipeNutritionScreen() {
                         onClick={() => unlinkItem(item)}
                         aria-label="Odpojit potravinu"
                       >
-                        ×
+                        <Icon name="close" className="h-4 w-4" />
                       </IconButton>
                     </div>
                     {addMeasureItemId === item.id ? (
@@ -543,7 +546,7 @@ export default function RecipeNutritionScreen() {
                         <button
                           type="button"
                           onClick={() => setAddMeasureItemId(item.id)}
-                          className="text-xs font-medium text-brand dark:text-amber-400"
+                          className={cx(LINK, 'flex min-h-8 items-center text-sm')}
                         >
                           + míra
                         </button>
@@ -555,20 +558,20 @@ export default function RecipeNutritionScreen() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="min-w-0 flex-1 truncate text-stone-600 dark:text-stone-300">
                         → {subRecipe ? subRecipe.name : 'recept nedostupný'}
-                        <span className="ml-1 text-xs text-stone-400">recept</span>
+                        <span className="ml-1 text-xs text-stone-500 dark:text-stone-400">recept</span>
                       </span>
                       <AmountPicker
                         options={GRAMS_ONLY}
                         value={value}
                         onChange={(next) => commitValue(item.id, next, GRAMS_ONLY)}
                       />
-                      <span className="w-16 text-right text-xs text-stone-400">{subReadout}</span>
+                      <span className="w-16 text-right text-xs tabular-nums text-stone-500 dark:text-stone-400">{subReadout}</span>
                       <IconButton
                         size="sm"
                         onClick={() => unlinkItem(item)}
                         aria-label="Odpojit podrecept"
                       >
-                        ×
+                        <Icon name="close" className="h-4 w-4" />
                       </IconButton>
                     </div>
                     {missingGrams ? (
@@ -577,10 +580,10 @@ export default function RecipeNutritionScreen() {
                       </p>
                     ) : null}
                     {subRecipe && subPer100 == null ? (
-                      <p className="mt-1 text-xs text-stone-400">
+                      <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                         {subRecipe.name} nemá napojené suroviny —{' '}
                         <Link
-                          className="font-medium text-brand dark:text-amber-400"
+                          className={LINK}
                           to={`/recept/${item.subRecipeId}/kalorie`}
                         >
                           doplnit

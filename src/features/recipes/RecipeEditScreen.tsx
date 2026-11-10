@@ -22,6 +22,8 @@ import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
+import { FIELD, LABEL } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 function snapshotOf(
   name: string,
@@ -41,6 +43,10 @@ function snapshotOf(
  * IndexedDB (SPEC 6.2). Uložit jde kdykoliv, povinný je jen název – ten se
  * v nouzi odvodí z textu.
  */
+/** Malé pole v řádku pod názvem (Datum, Doba, Porcí): popisek a hodnota v jedné plošce. */
+const META_FIELD =
+  'flex h-10 items-center gap-2 rounded-lg bg-stone-900/[0.06] px-3 ring-brand/50 transition focus-within:ring-2 dark:bg-white/[0.08] dark:ring-brand-light/60';
+
 export default function RecipeEditScreen() {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
@@ -290,20 +296,20 @@ export default function RecipeEditScreen() {
           }}
           enterKeyHint="next"
           placeholder="Název receptu"
-          className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+          className="w-full border-b border-stone-200 bg-transparent py-2 text-2xl font-bold tracking-tight outline-none placeholder:font-semibold placeholder:text-stone-400 focus:border-brand dark:border-stone-700 dark:placeholder:text-stone-500 dark:focus:border-brand-light"
         />
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-500">
-          <span className="flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
+          <span className={META_FIELD}>
             <label htmlFor="capturedOn">Datum</label>
             <input
               id="capturedOn"
               type="date"
               value={capturedOn}
               onChange={(event) => setCapturedOn(event.target.value)}
-              className="bg-transparent py-1.5 outline-none"
+              className="bg-transparent font-medium text-stone-900 outline-none dark:text-stone-100"
             />
           </span>
-          <span className="flex items-center gap-2">
+          <span className={META_FIELD}>
             <label htmlFor="prep">Doba</label>
             <input
               id="prep"
@@ -312,11 +318,11 @@ export default function RecipeEditScreen() {
               onBlur={() => setPrepMinutes((text) => normalizedPrepText(text))}
               inputMode="numeric"
               placeholder="—"
-              className="w-14 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
+              className="h-full w-14 bg-transparent text-right font-medium tabular-nums text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
             />
             <span>min</span>
           </span>
-          <span className="flex items-center gap-2">
+          <span className={META_FIELD}>
             <label htmlFor="servings">Porcí</label>
             <input
               id="servings"
@@ -324,7 +330,7 @@ export default function RecipeEditScreen() {
               onChange={(event) => setServings(event.target.value)}
               inputMode="decimal"
               placeholder="—"
-              className="w-10 bg-transparent py-1.5 text-right outline-none placeholder:text-stone-400"
+              className="h-full w-10 bg-transparent text-right font-medium tabular-nums text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
             />
           </span>
         </div>
@@ -344,7 +350,7 @@ export default function RecipeEditScreen() {
           placeholder={
             'jedna surovina na řádek…\n\n# Na těsto (nadpis sekce)\n800 g brambor\n2 vejce\n100 g hladké mouky'
           }
-          className="mt-1 min-h-[20dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className={cx(FIELD, 'min-h-[20dvh] resize-none overflow-hidden p-4 text-[17px] leading-relaxed')}
         />
 
         <FieldLabelWithSplit splitLabel={instructionsSplit.label} onSplit={instructionsSplit.apply}>
@@ -358,17 +364,15 @@ export default function RecipeEditScreen() {
             setInstructions(event.target.value);
           }}
           placeholder={'jeden krok na řádek…\n\nBrambory nastrouhat najemno.\nOsmažit na sádle na prudkém ohni.'}
-          className="mt-1 min-h-[22dvh] resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+          className={cx(FIELD, 'min-h-[22dvh] resize-none overflow-hidden p-4 text-[17px] leading-relaxed')}
         />
 
-        <label className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">
-          Štítky
-        </label>
-        <div className="mt-1">
+        <label className={cx(LABEL, 'mt-4')}>Štítky</label>
+        <div className="mt-1.5">
           <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />
         </div>
 
-        <p className="py-3 text-center text-xs text-stone-400">
+        <p className="py-3 text-center text-xs text-stone-500 dark:text-stone-400">
           Ukládá se průběžně. Uložit jde kdykoliv, obě pole jsou nepovinná.
         </p>
       </div>

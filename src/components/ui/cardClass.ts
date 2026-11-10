@@ -19,14 +19,13 @@ interface CardClassOptions {
 export function cardClass(options: CardClassOptions = {}): string {
   const { padding = 'panel', interactive = false, tone = 'default', className } = options;
   return cx(
-    'rounded-2xl border bg-white dark:bg-stone-900',
-    tone === 'warn'
-      ? 'border-amber-300 dark:border-amber-800'
-      : 'border-stone-200 dark:border-stone-800',
+    // Plocha místo obrysu: karta je tónovaná dlaždice na bílé stránce (v tmavém o stupeň světlejší).
+    'rounded-2xl bg-stone-100 dark:bg-stone-900',
+    tone === 'warn' && 'ring-1 ring-inset ring-amber-400 dark:ring-amber-700',
     padding === 'panel' && 'p-4',
     padding === 'row' && 'p-3',
     interactive &&
-      'transition hover:border-stone-300 hover:shadow-sm dark:hover:border-stone-700 active:scale-[0.99] motion-reduce:active:scale-100 motion-reduce:transition-none',
+      'transition hover:bg-stone-200/70 dark:hover:bg-stone-800 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 dark:focus-visible:ring-brand-light/60 motion-reduce:active:scale-100 motion-reduce:transition-none',
     className,
   );
 }

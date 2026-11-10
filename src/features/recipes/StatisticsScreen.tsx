@@ -9,6 +9,8 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
 import { ReadingSkeleton } from '../../components/ui/Loading';
+import { SECTION_TITLE, LINK } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 /** Statistiky vaření (§10) – přehled z historie. Dostupné z „Víc". */
 export default function StatisticsScreen() {
@@ -52,7 +54,7 @@ export default function StatisticsScreen() {
             </div>
 
             <section className="mt-6">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+              <h2 className={SECTION_TITLE}>
                 Nejčastěji vařené
               </h2>
               <ul className="mt-2 flex flex-col gap-2">
@@ -60,12 +62,12 @@ export default function StatisticsScreen() {
                   const row = (
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{item.name}</p>
-                        <p className="text-xs text-stone-400">
+                        <p className="truncate font-semibold">{item.name}</p>
+                        <p className="text-xs text-stone-500 dark:text-stone-400">
                           naposledy {formatCzechDate(item.lastCookedOn)}
                         </p>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold text-brand-dark dark:text-amber-400">
+                      <span className="shrink-0 text-base font-bold tabular-nums">
                         {item.count}×
                       </span>
                     </div>
@@ -75,7 +77,7 @@ export default function StatisticsScreen() {
                       {item.exists ? (
                         <Link
                           to={`/recept/${item.recipeId}`}
-                          className={cardClass({ padding: 'row', interactive: true })}
+                          className={cardClass({ padding: 'row', interactive: true, className: 'block' })}
                         >
                           {row}
                         </Link>
@@ -91,7 +93,7 @@ export default function StatisticsScreen() {
             {stats.neverCookedCount > 0 ? (
               <Link
                 to="/?neuvarene=1"
-                className="mt-4 block text-sm font-medium text-brand-dark dark:text-amber-400"
+                className={cx(LINK, 'mt-3 flex min-h-10 items-center text-sm')}
               >
                 Neuvařené recepty: {stats.neverCookedCount} →
               </Link>
@@ -106,8 +108,8 @@ export default function StatisticsScreen() {
 function Tile({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <p className="text-xs text-stone-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+      <p className="text-xs font-medium text-stone-500 dark:text-stone-400">{label}</p>
+      <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">{value}</p>
     </Card>
   );
 }

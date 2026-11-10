@@ -26,7 +26,10 @@ import TagInput from './TagInput';
 import { useTagSuggestions } from './useTagSuggestions';
 import { useSplitOffer } from './useSplitOffer';
 import FieldLabelWithSplit from './SplitOffer';
+import { cardClass } from '../../components/ui/cardClass';
 import FieldInputHints from './FieldInputHints';
+import { FIELD, FIELD_SM, SECTION_TITLE, LABEL } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 const IG_HINT = 'Instagram: podrž spodní lištu (Circle to Search), označ text v reelu → Kopírovat.';
 const URL_MESSAGE = `Odkaz neotevřu – vlož text. ${IG_HINT}`;
@@ -43,20 +46,22 @@ interface DraftState {
 /** Návod k vložení (rozbalovací, ať nezdržuje). Sdílení do appky umí jen Android s nainstalovanou appkou. */
 function ImportHelp() {
   return (
-    <details className="mt-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-3 py-2 text-sm text-stone-600 dark:text-stone-300">
-      <summary className="cursor-pointer text-stone-500">Jak na recept z Instagramu</summary>
-      <p className="mt-2 font-medium">Text z reelu</p>
+    <details className="mt-4 rounded-2xl bg-stone-100 px-4 py-1 text-sm text-stone-700 dark:bg-stone-900 dark:text-stone-300 [&[open]]:pb-4">
+      <summary className="flex min-h-10 cursor-pointer items-center font-semibold text-stone-700 dark:text-stone-200">
+        Jak na recept z Instagramu
+      </summary>
+      <p className="mt-2 font-semibold text-stone-900 dark:text-stone-100">Text z reelu</p>
       <ol className="mt-1 list-decimal space-y-1 pl-5">
         <li>Zastav reel, případně rozbal popisek.</li>
         <li>Podrž spodní lištu (Circle to Search), označ text → Kopírovat.</li>
         <li>Tady „Vložit ze schránky" → zkontroluj náhled → Uložit.</li>
       </ol>
-      <p className="mt-3 font-medium">Jen odkaz</p>
+      <p className="mt-3 font-semibold text-stone-900 dark:text-stone-100">Jen odkaz</p>
       <ol className="mt-1 list-decimal space-y-1 pl-5">
         <li>V Instagramu Sdílet → Kuchařka, nebo Kopírovat odkaz a vložit sem.</li>
         <li>„Uložit odkaz na později" → recept s klikacím odkazem, text doplníš přes Upravit.</li>
       </ol>
-      <p className="mt-3 font-medium">Dobré vědět</p>
+      <p className="mt-3 font-semibold text-stone-900 dark:text-stone-100">Dobré vědět</p>
       <ul className="mt-1 list-disc space-y-1 pl-5">
         <li>Text z WhatsAppu, Keepu nebo webu: Sdílet → Kuchařka.</li>
         <li>Sdílení do Kuchařky jde jen na Androidu s nainstalovanou appkou. Na iPhonu podrž text na snímku obrazovky → Kopírovat.</li>
@@ -67,11 +72,9 @@ function ImportHelp() {
   );
 }
 
-const fieldClass =
-  'rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 outline-none focus:border-brand';
+const fieldClass = cx(FIELD_SM, 'h-10 px-3 text-right font-medium tabular-nums');
 // Pole náhledu rostou s obsahem (useAutoGrow) – žádný scroll uvnitř pole.
-const areaClass =
-  'mt-1 min-h-24 w-full resize-none overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 leading-relaxed outline-none focus:border-brand';
+const areaClass = cx(FIELD, 'min-h-24 w-full resize-none overflow-hidden p-4 text-[17px] leading-relaxed');
 
 /**
  * Vložení receptu ze schránky (§11, UC031). Rozebere text na název/porce/dobu/
@@ -394,7 +397,7 @@ export default function ImportRecipeScreen() {
       {loaded ? (
         <main className="mx-auto max-w-2xl px-4 py-4">
           {restored ? (
-            <div className="mb-3 flex items-center justify-between gap-3 text-sm text-stone-500">
+            <div className="mb-3 flex items-center justify-between gap-3 text-sm text-stone-500 dark:text-stone-400">
               <span>{preview ? 'Obnoven rozdělaný náhled.' : 'Obnoven vložený text.'}</span>
               <Button role="ghost" onClick={() => void handleDiscard()}>
                 Zahodit
@@ -407,10 +410,14 @@ export default function ImportRecipeScreen() {
               type="button"
               onClick={() => setSourceOpen(true)}
               aria-expanded={false}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-stone-200 dark:border-stone-700 px-4 py-3 text-left text-sm text-stone-500"
+              className={cardClass({
+                padding: 'none',
+                interactive: true,
+                className: 'flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-sm',
+              })}
             >
-              <span>Vložený text</span>
-              <span className="shrink-0">Zobrazit ▾</span>
+              <span className="font-semibold">Vložený text</span>
+              <span className="shrink-0 text-stone-500 dark:text-stone-400">Zobrazit ▾</span>
             </button>
           ) : (
             <>
@@ -420,7 +427,7 @@ export default function ImportRecipeScreen() {
                 onPaste={handlePasteIntoField}
                 autoFocus={!restored}
                 placeholder="Sem vlož zkopírovaný recept…"
-                className="min-h-[18dvh] w-full resize-none rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 text-sm leading-relaxed outline-none placeholder:text-stone-300 focus:border-brand"
+                className={cx(FIELD, 'min-h-[18dvh] w-full resize-none p-4 text-base leading-relaxed')}
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button role="secondary" onClick={() => void handlePasteFromClipboard()}>
@@ -438,7 +445,7 @@ export default function ImportRecipeScreen() {
               </div>
             </>
           )}
-          {message ? <p className="mt-2 text-sm text-stone-500">{message}</p> : null}
+          {message ? <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">{message}</p> : null}
           {bareLink !== null && message === URL_MESSAGE ? (
             <div className="mt-2">
               <Button role="secondary" disabled={saving} onClick={handleSaveLink}>
@@ -449,11 +456,9 @@ export default function ImportRecipeScreen() {
           {!preview ? <ImportHelp /> : null}
 
           {preview ? (
-            <div className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Náhled – uprav, co parser netrefil
-              </p>
-              <p className="mt-1 text-sm text-stone-500">
+            <div className="mt-6 border-t border-stone-200/80 pt-5 dark:border-stone-800">
+              <p className={SECTION_TITLE}>Náhled – uprav, co parser netrefil</p>
+              <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
                 {previewSummary(preview.ingredients, preview.instructions)}
               </p>
               <input
@@ -462,17 +467,17 @@ export default function ImportRecipeScreen() {
                 onChange={(event) => updateField('name', event.target.value)}
                 placeholder={`Název – jinak „${fallbackImportName(preview.source)}"`}
                 aria-label="Název receptu"
-                className="mt-3 w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+                className="mt-3 w-full border-b border-stone-200 bg-transparent py-2 text-2xl font-bold tracking-tight outline-none placeholder:font-semibold placeholder:text-stone-400 focus:border-brand dark:border-stone-700 dark:placeholder:text-stone-500 dark:focus:border-brand-light"
               />
               {sameNameRecipe ? (
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                <p className="mt-1 text-sm font-medium text-amber-700 dark:text-amber-300">
                   Už máš:{' '}
                   <Link to={`/recept/${sameNameRecipe.id}`} className="font-medium underline">
                     {sameNameRecipe.name}
                   </Link>
                 </p>
               ) : null}
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-stone-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-stone-500 dark:text-stone-400">
                 <span className="flex items-center gap-2">
                   <label htmlFor="servings">Porcí</label>
                   <input
@@ -539,8 +544,8 @@ export default function ImportRecipeScreen() {
                 className={areaClass}
               />
 
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-stone-400">Štítky</p>
-              <div className="mt-1">
+              <p className={cx(LABEL, 'mt-4')}>Štítky</p>
+              <div className="mt-1.5">
                 <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />
               </div>
             </div>

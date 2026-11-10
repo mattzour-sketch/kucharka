@@ -62,7 +62,7 @@ export default function RecipePickList({
               })}
             >
               <span className="min-w-0 block truncate font-medium">{recipe.name}</span>
-              <span className="shrink-0 text-sm text-stone-500">
+              <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
                 {per100 ? `${formatNumber(per100.kcal)} kcal / 100 g` : 'bez kalorií'}
               </span>
             </button>

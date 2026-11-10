@@ -14,6 +14,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { RowsSkeleton } from '../../components/ui/Loading';
 import { cardClass } from '../../components/ui/cardClass';
+import { SECTION_TITLE } from '../../components/ui/styles';
 
 /** „smazáno 12. 10. 2026" (deletedAt je ISO timestamp, den v lokálním čase). */
 function deletedLabel(deletedAt: string | null | undefined): string {
@@ -55,7 +56,7 @@ export default function TrashScreen() {
           <>
             {recipeList.length > 0 ? (
               <section>
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                <h2 className={SECTION_TITLE}>
                   Recepty
                 </h2>
                 <ul className="mt-2 flex flex-col gap-2">
@@ -68,8 +69,8 @@ export default function TrashScreen() {
                       })}
                     >
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{recipe.name || '(bez názvu)'}</span>
-                        <span className="block text-xs text-stone-400">{deletedLabel(recipe.deletedAt)}</span>
+                        <span className="block truncate font-semibold">{recipe.name || '(bez názvu)'}</span>
+                        <span className="block text-xs text-stone-500 dark:text-stone-400">{deletedLabel(recipe.deletedAt)}</span>
                       </span>
                       <Button role="secondary" onClick={() => void restoreRecipe(recipe.id)}>
                         Obnovit
@@ -81,8 +82,8 @@ export default function TrashScreen() {
             ) : null}
 
             {foodList.length > 0 ? (
-              <section className="mt-6">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+              <section className="mt-8">
+                <h2 className={SECTION_TITLE}>
                   Potraviny
                 </h2>
                 <ul className="mt-2 flex flex-col gap-2">
@@ -95,8 +96,8 @@ export default function TrashScreen() {
                       })}
                     >
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{food.name}</span>
-                        <span className="block text-xs text-stone-400">{deletedLabel(food.deletedAt)}</span>
+                        <span className="block truncate font-semibold">{food.name}</span>
+                        <span className="block text-xs text-stone-500 dark:text-stone-400">{deletedLabel(food.deletedAt)}</span>
                       </span>
                       <Button role="secondary" onClick={() => void restoreFood(food.id)}>
                         Obnovit

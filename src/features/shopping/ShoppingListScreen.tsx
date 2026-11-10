@@ -17,6 +17,9 @@ import IconButton from '../../components/ui/IconButton';
 import EmptyState from '../../components/ui/EmptyState';
 import { RowsSkeleton } from '../../components/ui/Loading';
 import { cardClass } from '../../components/ui/cardClass';
+import Icon from '../../components/ui/Icon';
+import { FIELD } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 /**
  * Nákupní seznam (lokální, odškrtávací). Suroviny sem chodí z receptů. Otevírá se z „Víc“
@@ -64,7 +67,7 @@ export default function ShoppingListScreen() {
         title="Nákup"
         actions={
           !loading && list.length > 0 ? (
-            <span className="text-sm text-stone-400">
+            <span className="text-sm tabular-nums text-stone-500 dark:text-stone-400">
               {list.length} {czechPlural(list.length, ['položka', 'položky', 'položek'])}
               {checkedCount > 0 ? ` · ${checkedCount} nakoupeno` : ''}
             </span>
@@ -81,7 +84,7 @@ export default function ShoppingListScreen() {
               if (event.key === 'Enter') submitDraft();
             }}
             placeholder="přidat položku…"
-            className="min-w-0 flex-1 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
+            className={cx(FIELD, 'h-11 min-w-0 flex-1 px-3 text-base')}
           />
           <Button role="primary" onClick={submitDraft}>
             Přidat
@@ -95,18 +98,18 @@ export default function ShoppingListScreen() {
         ) : list.length === 0 ? (
           <EmptyState
             title="Nákupní seznam je prázdný"
-            description="Přidej položku, nebo pošli suroviny z receptu (🛒 v detailu receptu)."
+            description="Přidej položku, nebo pošli suroviny z receptu („Do nákupu“ v detailu receptu)."
           />
         ) : (
           <>
             <ul
               className={cardClass({
                 padding: 'none',
-                className: 'mt-4 flex flex-col divide-y divide-stone-100 overflow-hidden',
+                className: 'mt-4 flex flex-col divide-y divide-stone-900/[0.07] overflow-hidden dark:divide-white/10',
               })}
             >
               {sorted.map((item) => (
-                <li key={item.id} className="flex items-center gap-3 px-3 py-2.5">
+                <li key={item.id} className="flex min-h-14 items-center gap-2 py-1.5 pl-4 pr-2">
                   <button
                     type="button"
                     onClick={() => void setShoppingChecked(item.id, !item.checked)}
@@ -114,20 +117,20 @@ export default function ShoppingListScreen() {
                     aria-pressed={item.checked}
                   >
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
                         item.checked
-                          ? 'border-brand bg-brand text-white'
-                          : 'border-stone-300 dark:border-stone-600 text-transparent'
+                          ? 'border-brand bg-brand text-white dark:border-brand-bright dark:bg-brand-bright'
+                          : 'border-stone-400 text-transparent dark:border-stone-500'
                       }`}
                     >
-                      ✓
+                      <Icon name="check" className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className={item.checked ? 'text-stone-400 line-through' : ''}>
+                      <span className={item.checked ? 'text-stone-400 line-through dark:text-stone-500' : ''}>
                         {item.text}
                       </span>
                       {item.source ? (
-                        <span className="ml-2 text-xs text-stone-400">· {item.source}</span>
+                        <span className="ml-2 text-xs text-stone-500 dark:text-stone-400">· {item.source}</span>
                       ) : null}
                     </span>
                   </button>
@@ -136,7 +139,7 @@ export default function ShoppingListScreen() {
                     onClick={() => void deleteShoppingItem(item.id)}
                     aria-label="Odebrat položku"
                   >
-                    ×
+                    <Icon name="close" className="h-4 w-4" />
                   </IconButton>
                 </li>
               ))}

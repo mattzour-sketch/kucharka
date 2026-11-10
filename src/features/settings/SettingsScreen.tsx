@@ -6,11 +6,27 @@ import { estimateStorage, isStoragePersisted } from '../../lib/storage';
 import BackupSection from '../backup/BackupSection';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Segmented from '../../components/ui/Segmented';
+import Icon, { type IconName } from '../../components/ui/Icon';
 import { cardClass } from '../../components/ui/cardClass';
 import { readThemePref, setThemePref, type ThemePref } from '../../lib/theme';
 
 function formatMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Řádek seskupeného seznamu odkazů: ikona, název, volitelný počet a šipka. */
+function NavRow({ to, icon, label, value }: { to: string; icon: IconName; label: string; value?: string }) {
+  return (
+    <Link
+      to={to}
+      className="flex min-h-14 items-center gap-3 px-4 transition hover:bg-stone-900/[0.04] focus-visible:bg-stone-900/[0.07] focus-visible:outline-none active:bg-stone-900/[0.07] dark:hover:bg-white/5 dark:focus-visible:bg-white/10 dark:active:bg-white/10"
+    >
+      <Icon name={icon} className="text-stone-500 dark:text-stone-400" />
+      <span className="flex-1 font-semibold">{label}</span>
+      {value ? <span className="text-sm tabular-nums text-stone-500 dark:text-stone-400">{value}</span> : null}
+      <Icon name="forward" className="h-4 w-4 text-stone-400 dark:text-stone-500" />
+    </Link>
+  );
 }
 
 export default function SettingsScreen() {
@@ -37,47 +53,22 @@ export default function SettingsScreen() {
       <main className="mx-auto max-w-2xl px-4 py-4">
         <BackupSection />
 
-        <Link
-          to="/nakup"
+        {/* Odkazy na další obrazovky jako jeden seskupený seznam, ne tři samostatné karty. */}
+        <nav
+          aria-label="Další obrazovky"
           className={cardClass({
-            padding: 'panel',
-            interactive: true,
-            className: 'mt-3 flex items-center justify-between',
+            padding: 'none',
+            className: 'mt-3 divide-y divide-stone-900/[0.07] overflow-hidden dark:divide-white/10',
           })}
         >
-          <span className="font-medium">🛒 Nákupní seznam</span>
-          <span className="text-stone-400">
-            {shoppingLeft ? `${shoppingLeft} ›` : '›'}
-          </span>
-        </Link>
-
-        <Link
-          to="/statistiky"
-          className={cardClass({
-            padding: 'panel',
-            interactive: true,
-            className: 'mt-3 flex items-center justify-between',
-          })}
-        >
-          <span className="font-medium">Statistiky vaření</span>
-          <span className="text-stone-400">›</span>
-        </Link>
-
-        <Link
-          to="/kos"
-          className={cardClass({
-            padding: 'panel',
-            interactive: true,
-            className: 'mt-3 flex items-center justify-between',
-          })}
-        >
-          <span className="font-medium">Koš</span>
-          <span className="text-stone-400">›</span>
-        </Link>
+          <NavRow to="/nakup" icon="cart" label="Nákupní seznam" value={shoppingLeft ? String(shoppingLeft) : undefined} />
+          <NavRow to="/statistiky" icon="chart" label="Statistiky vaření" />
+          <NavRow to="/kos" icon="trash" label="Koš" />
+        </nav>
 
         <section className={cardClass({ className: 'mt-3' })}>
-          <h2 className="font-medium">Vzhled</h2>
-          <p className="mt-1 text-sm text-stone-500">Motiv aplikace. „Systém" se řídí telefonem.</p>
+          <h2 className="font-bold">Vzhled</h2>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Motiv aplikace. „Systém" se řídí telefonem.</p>
           <div className="mt-2">
             <Segmented
               value={theme}
@@ -93,8 +84,8 @@ export default function SettingsScreen() {
         </section>
 
         <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
-          <h2 className="font-medium">Úložiště</h2>
-          <dl className="mt-2 space-y-1 text-stone-600 dark:text-stone-300">
+          <h2 className="text-base font-bold">Úložiště</h2>
+          <dl className="mt-2 space-y-1 tabular-nums text-stone-700 dark:text-stone-300">
             <div className="flex justify-between">
               <dt>Receptů</dt>
               <dd>{recipeCount ?? '…'}</dd>
@@ -111,15 +102,15 @@ export default function SettingsScreen() {
             ) : null}
           </dl>
           {persisted === false ? (
-            <p className="mt-2 text-xs text-stone-400">
+            <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
               Prohlížeč trvalé úložiště většinou povolí až po přidání aplikace na plochu.
             </p>
           ) : null}
         </section>
 
         <section className={cardClass({ padding: 'panel', className: 'mt-3 text-sm' })}>
-          <h2 className="font-medium">O aplikaci</h2>
-          <p className="mt-1 text-stone-500">
+          <h2 className="text-base font-bold">O aplikaci</h2>
+          <p className="mt-1 text-stone-500 dark:text-stone-400">
             Osobní kuchařka. Funguje offline, bez serveru a bez účtu. Data jsou jen v tomhle prohlížeči.
           </p>
         </section>

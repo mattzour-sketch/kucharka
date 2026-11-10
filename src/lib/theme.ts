@@ -13,7 +13,7 @@ export type ThemePref = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'kucharka-theme';
-const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#b45309', dark: '#1c1917' };
+const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#ffffff', dark: '#0c0a09' };
 
 /** Výsledný motiv z předvolby a systémové preference. Čistá funkce. */
 export function resolveTheme(pref: ThemePref, systemPrefersDark: boolean): ResolvedTheme {

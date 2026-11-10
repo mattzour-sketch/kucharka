@@ -11,6 +11,8 @@ import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import { RowsSkeleton } from '../../components/ui/Loading';
 import { cardClass } from '../../components/ui/cardClass';
+import Icon from '../../components/ui/Icon';
+import SearchField from '../../components/ui/SearchField';
 
 /** Seznam a hledání potravin (F-01). Potraviny slouží k napojení surovin receptů. */
 export default function FoodsScreen() {
@@ -47,21 +49,17 @@ export default function FoodsScreen() {
         title="Potraviny"
         actions={
           <Button role="primary" to="/potraviny/nova">
-            + Nová
+            <Icon name="plus" className="-ml-0.5 h-4 w-4" />
+            Nová
           </Button>
         }
         below={
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="hledat potravinu…"
-            className="w-full rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-4 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-brand"
-          />
+          <SearchField value={query} onChange={setQuery} placeholder="hledat potravinu…" />
         }
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-4">
-        {message ? <p className="mb-3 text-sm text-brand-dark dark:text-amber-400">{message}</p> : null}
+      <main className="mx-auto max-w-5xl px-4 py-3">
+        {message ? <p className="mb-3 text-sm font-medium text-stone-700 dark:text-stone-300">{message}</p> : null}
 
         {loading ? (
           <RowsSkeleton />
@@ -94,14 +92,14 @@ export default function FoodsScreen() {
                     })}
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{food.name}</p>
+                      <p className="truncate font-semibold">{food.name}</p>
                       {food.brand ? (
-                        <p className="truncate text-xs text-stone-500">{food.brand}</p>
+                        <p className="truncate text-xs text-stone-500 dark:text-stone-400">{food.brand}</p>
                       ) : null}
                     </div>
                     <div className="shrink-0 text-right text-sm">
-                      <span className="font-medium">{formatNumber(food.energyKcal)} kcal</span>
-                      <span className="block text-xs text-stone-400">na 100 {food.basis}</span>
+                      <span className="font-bold tabular-nums">{formatNumber(food.energyKcal)} kcal</span>
+                      <span className="block text-xs text-stone-500 dark:text-stone-400">na 100 {food.basis}</span>
                     </div>
                   </Link>
                 </li>
@@ -110,7 +108,7 @@ export default function FoodsScreen() {
             <button
               type="button"
               onClick={() => void handleSeed()}
-              className="mx-auto mt-4 block text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-200"
+              className="mx-auto mt-4 flex min-h-10 items-center text-sm font-semibold text-stone-600 transition hover:text-stone-900 dark:text-stone-300 dark:hover:text-white"
             >
               + Doplnit základní potraviny
             </button>

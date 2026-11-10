@@ -4,6 +4,8 @@ import { parseDecimal } from '../../lib/num';
 import { createFood } from './foodsRepo';
 import Button from '../../components/ui/Button';
 import Segmented from '../../components/ui/Segmented';
+import { FIELD, LABEL } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 /**
  * Rychlé inline založení potraviny přímo z výběru (FoodPicker): jen název + energie
@@ -52,12 +54,12 @@ export default function QuickFoodForm({
         onChange={(event) => setName(event.target.value)}
         autoFocus={initialName.trim() === ''}
         placeholder="Název"
-        className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+        className="w-full border-b border-stone-200 bg-transparent py-2 text-xl font-bold tracking-tight outline-none placeholder:font-semibold placeholder:text-stone-400 focus:border-brand dark:border-stone-700 dark:placeholder:text-stone-500 dark:focus:border-brand-light"
       />
 
       <div className="flex items-end gap-3">
         <label className="min-w-0 flex-1">
-          <span className="text-xs text-stone-500">Energie (kcal na 100 {basis})</span>
+          <span className={LABEL}>Energie (kcal na 100 {basis})</span>
           <input
             value={kcal}
             onChange={(event) => setKcal(event.target.value)}
@@ -67,7 +69,7 @@ export default function QuickFoodForm({
             autoFocus={initialName.trim() !== ''}
             inputMode="decimal"
             placeholder="0"
-            className="mt-1 w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
+            className={cx(FIELD, 'mt-1 h-11 w-full px-3 text-base tabular-nums')}
           />
         </label>
         <div className="pb-1">
@@ -83,7 +85,7 @@ export default function QuickFoodForm({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p> : null}
 
       <div className="flex items-center gap-2">
         <Button role="primary" onClick={() => void handleCreate()}>

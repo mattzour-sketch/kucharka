@@ -11,7 +11,7 @@ export default function LinkedText({ text }: { text: string }) {
             href={part.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="break-all text-brand underline dark:text-amber-400"
+            className="break-all text-brand underline dark:text-brand-light"
           >
             {part.text}
           </a>

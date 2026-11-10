@@ -2,19 +2,24 @@ import type { MouseEventHandler, ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router-dom';
 import { cx } from './cx';
 
-/** Uzavřená sada rolí tlačítek. Rádius i velikost jsou pevné na roli. */
+/**
+ * Uzavřená sada rolí tlačítek. Rádius i velikost jsou pevné na roli. Tlačítka jsou plné
+ * plochy bez obrysu: primary = značková barva (jedno na obrazovku), secondary = neutrální
+ * průsvitná výplň (sedí na bílé stránce i na kartě), ghost/destructive = jen text.
+ */
 export type ButtonRole = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'tint';
 
 const BASE =
-  'inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-40 disabled:pointer-events-none motion-reduce:active:scale-100 motion-reduce:transition-none';
+  'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl font-semibold transition active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-brand-light/60 dark:focus-visible:ring-offset-stone-950 disabled:opacity-40 disabled:pointer-events-none motion-reduce:active:scale-100 motion-reduce:transition-none';
 
 const ROLE: Record<ButtonRole, string> = {
-  primary: 'bg-brand text-white shadow-sm hover:bg-brand-dark px-4 py-2 text-sm',
+  primary:
+    'bg-brand text-white hover:bg-brand-dark dark:bg-brand-bright dark:hover:bg-brand px-4 py-2 text-sm',
   secondary:
-    'border border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-800 px-4 py-2 text-sm',
-  ghost: 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800 px-4 py-2 text-sm',
+    'bg-stone-900/[0.07] text-stone-800 hover:bg-stone-900/[0.12] dark:bg-white/10 dark:text-stone-100 dark:hover:bg-white/[0.16] px-4 py-2 text-sm',
+  ghost: 'text-stone-600 hover:bg-stone-900/[0.06] dark:text-stone-300 dark:hover:bg-white/10 px-4 py-2 text-sm',
   destructive: 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 px-4 py-2 text-sm',
-  tint: 'bg-brand/10 text-brand-dark hover:bg-brand/20 dark:bg-brand/20 dark:text-amber-300 dark:hover:bg-brand/30 px-3 py-1.5 text-sm',
+  tint: 'bg-brand/10 text-brand-dark hover:bg-brand/[0.16] dark:bg-brand-bright/20 dark:text-brand-light dark:hover:bg-brand-bright/30 px-3 py-1.5 text-sm',
 };
 
 interface ButtonProps {

@@ -7,8 +7,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Nativní prvky (rozbalovací seznam, výběr data, posuvník) v tmavém režimu tmavě. */
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
+    @apply bg-white text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
   }
 }
 

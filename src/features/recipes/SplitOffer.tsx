@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Button from '../../components/ui/Button';
+import { LABEL } from '../../components/ui/styles';
 
 /**
  * Řádek popisku pole (Suroviny / Postup) s nenápadnou nabídkou rozdělení vpravo.
@@ -20,7 +21,7 @@ export default function FieldLabelWithSplit({
     <div className="mt-2 flex h-9 items-center justify-between gap-2">
       <label
         htmlFor={htmlFor}
-        className="text-xs font-semibold uppercase tracking-wide text-stone-400"
+        className={LABEL}
       >
         {children}
       </label>

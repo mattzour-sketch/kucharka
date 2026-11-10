@@ -1,5 +1,6 @@
 import { cx } from './cx';
 import { convertAmountUnit, type AmountUnitOption, type AmountValue } from '../../lib/amount';
+import { FIELD_SM } from './styles';
 
 /**
  * Sdílený výběr množství suroviny (UC017): číselné pole + řízení jednotky.
@@ -33,7 +34,7 @@ export default function AmountPicker({
       onChange={(event) => onChange({ ...value, raw: event.target.value })}
       inputMode="decimal"
       placeholder={current?.label ?? 'g'}
-      className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right outline-none focus:border-brand"
+      className={cx(FIELD_SM, 'h-9 w-16 px-2 text-right font-semibold tabular-nums')}
       aria-label="Množství"
     />
   );
@@ -45,7 +46,7 @@ export default function AmountPicker({
         <select
           value={currentId}
           onChange={(event) => onChange(convertAmountUnit(value, options, event.target.value))}
-          className="max-w-[6.5rem] shrink-0 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 py-1 pl-1.5 pr-1 text-xs font-medium text-stone-600 dark:text-stone-300 outline-none focus:border-brand"
+          className={cx(FIELD_SM, 'h-9 max-w-[6.5rem] shrink-0 pl-1.5 pr-1 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-200')}
           aria-label="Jednotka"
         >
           {options.map((option) => (
@@ -67,7 +68,7 @@ export default function AmountPicker({
         <button
           type="button"
           onClick={() => onChange(convertAmountUnit(value, options, toId))}
-          className="w-8 shrink-0 rounded-lg border border-stone-200 dark:border-stone-700 py-1 text-xs font-medium text-stone-600 dark:text-stone-300"
+          className={cx(FIELD_SM, 'h-9 w-9 shrink-0 text-xs font-semibold text-stone-700 dark:text-stone-200')}
           aria-label="Přepnout jednotku g/ks"
         >
           {current?.label ?? 'g'}
@@ -79,7 +80,7 @@ export default function AmountPicker({
   return (
     <>
       {numberField}
-      <span className={cx('w-8 text-center text-xs text-stone-400')}>g</span>
+      <span className="w-9 text-center text-xs text-stone-500 dark:text-stone-400">g</span>
     </>
   );
 }

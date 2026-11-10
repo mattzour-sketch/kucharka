@@ -103,13 +103,13 @@ export default function BackupSection() {
 
   return (
     <section className={cardClass()}>
-      <h2 className="font-medium">Záloha dat</h2>
-      <p className="mt-1 text-sm text-stone-500">
+      <h2 className="text-base font-bold">Záloha dat</h2>
+      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
         Data žijí jen v tomhle prohlížeči. Export je tvoje záloha a zároveň způsob, jak recepty
         přenést jinam.
       </p>
 
-      <p className="mt-2 flex items-center gap-1.5 text-sm text-stone-500">
+      <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-300">
         {due ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden /> : null}
         <span>
           {lastBackupAt
@@ -147,8 +147,8 @@ export default function BackupSection() {
         <p
           className={
             notice.tone === 'error'
-              ? 'mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300'
-              : 'mt-3 rounded-lg bg-stone-100 p-3 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-300'
+              ? 'mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300'
+              : 'mt-3 rounded-xl bg-stone-900/[0.06] p-3 text-sm text-stone-700 dark:bg-white/10 dark:text-stone-300'
           }
         >
           {notice.text}
@@ -197,13 +197,13 @@ function RestorePreviewBody({
 
   return (
     <div className="space-y-3">
-      <p className="text-stone-500">
+      <p className="text-stone-500 dark:text-stone-400">
         {parsed.exportedAt ? `Záloha z ${formatCzechDateTime(parsed.exportedAt)}` : 'Záloha (datum neznámé)'} ·{' '}
         {formatFileSize(preview.fileSize)}
       </p>
 
       <div>
-        <p className="font-medium text-stone-700 dark:text-stone-200">Co obnova udělá</p>
+        <p className="font-semibold text-stone-900 dark:text-stone-100">Co obnova udělá</p>
         {effects.length > 0 ? (
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
             {effects.map((line) => (
@@ -222,8 +222,8 @@ function RestorePreviewBody({
         <div
           className={
             mode === 'overwriteAll'
-              ? 'rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200'
-              : 'rounded-lg border border-stone-200 p-3 dark:border-stone-700'
+              ? 'rounded-xl bg-amber-100 p-3 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
+              : 'rounded-xl bg-stone-900/[0.05] p-3 dark:bg-white/[0.06]'
           }
         >
           <p>{pluralRecipes(newerInDb)} máš novější než záloha.</p>
@@ -240,7 +240,7 @@ function RestorePreviewBody({
         </div>
       ) : null}
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-stone-200 pt-3 text-stone-500 dark:border-stone-700">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-stone-200/80 pt-3 tabular-nums text-stone-500 dark:border-stone-800 dark:text-stone-400">
         <Row label="Recepty" value={counts.recipes} />
         <Row label="Suroviny" value={counts.recipeItems} />
         <Row label="Poznámky" value={counts.recipeNotes} />

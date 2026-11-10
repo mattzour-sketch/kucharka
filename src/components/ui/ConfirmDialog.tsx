@@ -96,9 +96,9 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white p-5 shadow-xl outline-none dark:border-stone-700 dark:bg-stone-900"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-xl outline-none dark:bg-stone-900 dark:ring-1 dark:ring-white/10"
       >
-        <h2 id={titleId} className="text-lg font-semibold">
+        <h2 id={titleId} className="text-lg font-bold tracking-tight">
           {title}
         </h2>
         <div className="mt-3 text-sm text-stone-600 dark:text-stone-300">{children}</div>

@@ -9,7 +9,7 @@ export default function FieldInputHints({ prep, servings }: { prep: string; serv
   }
   if (lines.length === 0) return null;
   return (
-    <div className="mt-1 space-y-0.5 text-sm text-amber-700 dark:text-amber-300">
+    <div className="mt-1 space-y-0.5 text-sm font-medium text-amber-700 dark:text-amber-300">
       {lines.map((line) => (
         <p key={line}>{line}</p>
       ))}

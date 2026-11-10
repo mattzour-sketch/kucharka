@@ -1,5 +1,8 @@
 # Vizuální konzistence UI (konzistenční pas)
 
+> **Historický dokument.** Barvy a tvary nahradil nový vzhled z 2026-11 –
+> platná pravidla jsou v `docs/design/vizual-2026-11.md`. Pojistky ze závěru platí dál.
+
 ## Kontext
 
 Aplikace je funkčně bohatá, ale vizuálně působí jako „poskládaný prototyp": obrazovky vznikaly

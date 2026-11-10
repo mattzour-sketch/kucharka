@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UndoContext, type UndoRequest } from './undoContext';
+import Icon from './ui/Icon';
 
 /**
  * Globální lišta „Vrátit zpět" po smazání. Je nad routerem, takže přežije i
@@ -82,13 +83,13 @@ export function UndoProvider({ children }: { children: ReactNode }) {
           className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4"
           style={{ bottom: `${bottom}px` }}
         >
-          <div className="pointer-events-auto flex w-full max-w-sm items-center justify-between gap-3 rounded-full bg-stone-800 px-4 py-2.5 text-sm text-white shadow-lg">
+          <div className="pointer-events-auto flex w-full max-w-sm items-center justify-between gap-3 rounded-2xl bg-stone-900 py-1.5 pl-4 pr-1.5 text-sm text-white shadow-lg dark:bg-stone-800 dark:ring-1 dark:ring-white/10">
             <span className="min-w-0 truncate">{request.message}</span>
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => void handleUndo()}
-                className="rounded-full px-2 py-1 font-semibold text-amber-300 transition hover:text-amber-200"
+                className="flex min-h-9 items-center rounded-lg px-2 font-semibold text-brand-light transition hover:bg-white/10"
               >
                 Vrátit zpět
               </button>
@@ -96,9 +97,9 @@ export function UndoProvider({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={clear}
                 aria-label="Zavřít"
-                className="px-1 text-lg leading-none text-stone-400 transition hover:text-stone-200"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-400 transition hover:bg-white/10 hover:text-stone-200"
               >
-                ×
+                <Icon name="close" className="h-4 w-4" />
               </button>
             </div>
           </div>

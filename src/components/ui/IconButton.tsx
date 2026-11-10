@@ -7,11 +7,11 @@ type IconSize = 'md' | 'sm';
 type IconTone = 'neutral' | 'favorite' | 'danger';
 
 const BASE =
-  'inline-flex shrink-0 items-center justify-center rounded-lg transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-reduce:active:scale-100 motion-reduce:transition-none';
+  'inline-flex shrink-0 items-center justify-center rounded-full transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 dark:focus-visible:ring-brand-light/60 motion-reduce:active:scale-100 motion-reduce:transition-none';
 
 const SIZE: Record<IconSize, string> = {
-  md: 'h-9 w-9 text-lg',
-  sm: 'h-7 w-7 text-base',
+  md: 'h-10 w-10 text-lg',
+  sm: 'h-8 w-8 text-base',
 };
 
 interface IconButtonProps {
@@ -30,10 +30,10 @@ function toneClass(tone: IconTone, active: boolean): string {
   if (tone === 'favorite') {
     return active
       ? 'text-amber-500'
-      : 'text-stone-300 hover:text-stone-500 dark:text-stone-600 dark:hover:text-stone-400';
+      : 'text-stone-400 hover:bg-stone-900/[0.06] hover:text-stone-600 dark:text-stone-500 dark:hover:bg-white/10 dark:hover:text-stone-300';
   }
   if (tone === 'danger') return 'text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40';
-  return 'text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-800/60';
+  return 'text-stone-600 hover:bg-stone-900/[0.06] dark:text-stone-300 dark:hover:bg-white/10';
 }
 
 export default function IconButton({

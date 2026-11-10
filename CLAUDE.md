@@ -47,7 +47,8 @@ Kód je ve třech vrstvách kvůli testovatelnosti — logika se dá ověřit be
   připravené na pozdější dolepení serveru.
 - **UI — `src/features/<oblast>/`** (recipes, foods, shopping, settings, backup, trash) nad
   sdílenými prvky ve `src/components/ui/` (`Button` s uzavřenou sadou rolí, `cardClass`,
-  `ScreenHeader`, `FilterChip`, `Segmented`, `ConfirmDialog`, `cx`). Routing v `src/App.tsx`;
+  `ScreenHeader`, `FilterChip`, `Segmented`, `ConfirmDialog`, `SearchField`, `Icon` = jediná sada
+  ikon, `styles.ts` = třídy polí/nadpisů/odkazů, `cx`). Routing v `src/App.tsx`;
   obrazovky se spodní lištou jsou pod `TabLayout`, ostatní jsou samostatné routy.
 
 Věci rozprostřené přes víc souborů, kde se snadno šlápne vedle:
@@ -55,6 +56,10 @@ Věci rozprostřené přes víc souborů, kde se snadno šlápne vedle:
 - **Tmavý režim** (`darkMode: 'class'`): inline skript v `index.html` + `lib/theme.ts` nastaví
   třídu `dark` na `<html>` z localStorage synchronně PŘED Reactem (proti bliknutí). Barvy jsou
   aditivní `dark:` varianty, ne CSS proměnné.
+- **Vzhled** má platná pravidla v `docs/design/vizual-2026-11.md`: značková barva je inkoustová
+  modrá (`brand`, v tmavém `brand-bright`/`brand-light`), jantar jen pro oblíbené a varování,
+  plochy místo obrysů, ikony jen přes `Icon` (žádné emoji ani znaky jako ovládací prvky).
+  Barva lišty prohlížeče je na třech místech: `index.html`, `lib/theme.ts`, manifest ve `vite.config.ts`.
 - **Záloha je jediný most mezi zařízeními** — žádný server ani sync. JSON export/import
   (`features/backup/`) je pojistka i přenos; obnova je merge (upsert podle id, nemaže).
   Suroviny i poznámky se mažou jen přes `deletedAt` – čti je přes `getRecipeItems` /

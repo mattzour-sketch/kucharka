@@ -33,7 +33,7 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-2 focus-within:border-brand">
+      <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl bg-stone-900/[0.06] p-2 ring-brand/50 transition focus-within:ring-2 dark:bg-white/[0.08] dark:ring-brand-light/60">
         {value.map((tag) => (
           <Tag
             key={tag}
@@ -49,7 +49,7 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
           onKeyDown={onKeyDown}
           onBlur={() => commit(draft)}
           placeholder={value.length === 0 ? 'štítek a Enter (rychlovka, oběd, meal prep…)' : ''}
-          className="min-w-[8rem] flex-1 bg-transparent px-1 py-1 text-sm outline-none placeholder:text-stone-400"
+          className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-base outline-none placeholder:text-stone-500"
         />
       </div>
       {unused.length > 0 ? (
@@ -59,7 +59,7 @@ export default function TagInput({ value, onChange, suggestions = [] }: TagInput
               key={tag}
               type="button"
               onClick={() => commit(tag)}
-              className="rounded-full border border-stone-200 dark:border-stone-700 px-2 py-0.5 text-xs text-stone-500 transition hover:border-stone-300 dark:border-stone-600 hover:text-stone-700 dark:text-stone-200"
+              className="inline-flex h-8 items-center rounded-full bg-stone-900/[0.06] px-3 text-sm text-stone-700 transition hover:bg-stone-900/[0.1] dark:bg-white/10 dark:text-stone-200 dark:hover:bg-white/[0.16]"
             >
               + {tag}
             </button>

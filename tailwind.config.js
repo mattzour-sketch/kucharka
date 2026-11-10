@@ -5,10 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Značková barva aplikace – teplá terakota, ladí s jídlem.
+        // Značková barva aplikace – inkoustová modrá (propiska v sešitu receptů).
+        // Jediná akční barva; jantar (amber) zůstává jen pro oblíbené a varování.
         brand: {
-          DEFAULT: '#b45309',
-          dark: '#92400e',
+          DEFAULT: '#2b41b8',
+          dark: '#22349a', // hover/stisk, text na světlém tónu
+          bright: '#4c62dd', // výplně v tmavém režimu
+          light: '#aab7ff', // text a ikony v tmavém režimu
         },
       },
     },

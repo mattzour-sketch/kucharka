@@ -3,6 +3,7 @@ import type { LinkProps } from 'react-router-dom';
 import { cx } from './cx';
 import { SCREEN_WIDTH, type ScreenWidth } from './layout';
 import IconButton from './IconButton';
+import Icon from './Icon';
 
 /**
  * Jediná horní lišta obrazovky ve dvou variantách. Sdílené pozadí, výška, blur a
@@ -28,7 +29,7 @@ interface ScreenHeaderProps {
 }
 
 const CHROME =
-  'sticky top-0 z-10 border-b border-stone-200 bg-stone-50/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90';
+  'sticky top-0 z-10 border-b border-stone-200/80 bg-white/90 backdrop-blur dark:border-stone-800 dark:bg-stone-950/90';
 
 export default function ScreenHeader({
   variant = 'tab',
@@ -43,17 +44,17 @@ export default function ScreenHeader({
 }: ScreenHeaderProps) {
   const isStack = variant === 'stack';
   const titleClass = isStack
-    ? 'min-w-0 truncate text-sm font-medium text-stone-600 dark:text-stone-400'
-    : 'text-xl font-semibold tracking-tight';
+    ? 'min-w-0 truncate text-base font-semibold'
+    : 'text-xl font-bold tracking-tight';
   const label = backLabel ?? (closeIcon ? 'Zavřít' : 'Zpět');
 
   return (
     <header className={CHROME}>
-      <div className={cx('mx-auto px-4 py-3', SCREEN_WIDTH[width])}>
-        <div className="flex items-center gap-2">
+      <div className={cx('mx-auto px-4 py-2.5', isStack && 'pl-2', SCREEN_WIDTH[width])}>
+        <div className="flex min-h-10 items-center gap-2">
           {isStack && (backTo !== undefined || onBack) ? (
             <IconButton to={backTo} onClick={onBack} aria-label={label}>
-              {closeIcon ? '✕' : '‹'}
+              <Icon name={closeIcon ? 'close' : 'back'} className="h-6 w-6" />
             </IconButton>
           ) : null}
           {title != null ? <h1 className={titleClass}>{title}</h1> : null}

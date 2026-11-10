@@ -23,7 +23,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#ffffff',
-        theme_color: '#b45309',
+        theme_color: '#ffffff',
         // PNG ikony jsou vyrenderované z public/icon.svg (logo hrnce, stejné jako Logo.tsx).
         // Hrnec je uvnitř bezpečné zóny 80 %, takže stejný obrázek slouží i jako maskable.
         icons: [

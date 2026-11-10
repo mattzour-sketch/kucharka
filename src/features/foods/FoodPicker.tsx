@@ -3,6 +3,8 @@ import { extractFoodQuery } from '../../lib/foodMatch';
 import FoodPickList from './FoodPickList';
 import Button from '../../components/ui/Button';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { FIELD } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 /**
  * Vyhledání a výběr potraviny pro napojení suroviny (overlay). Používá režim vaření.
@@ -28,9 +30,9 @@ export default function FoodPicker({
   useEffect(() => inputRef.current?.select(), []);
   useBackToClose(true, onClose);
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-white dark:bg-stone-900">
-      <header className="border-b border-stone-200 dark:border-stone-700 p-3">
-        {context ? <p className="mb-2 truncate text-sm text-stone-500">{context}</p> : null}
+    <div className="fixed inset-0 z-30 flex flex-col bg-white dark:bg-stone-950">
+      <header className="border-b border-stone-200/80 p-3 dark:border-stone-800">
+        {context ? <p className="mb-2 truncate text-sm text-stone-500 dark:text-stone-400">{context}</p> : null}
         <div className="flex items-center gap-2">
           <input
             value={query}
@@ -38,7 +40,7 @@ export default function FoodPicker({
             ref={inputRef}
             autoFocus
             placeholder="hledat potravinu…"
-            className="min-w-0 flex-1 rounded-full border border-stone-200 dark:border-stone-700 px-4 py-2 text-sm outline-none focus:border-brand"
+            className={cx(FIELD, 'h-11 min-w-0 flex-1 px-3 text-base')}
           />
           <Button role="ghost" onClick={onClose}>
             Zavřít

@@ -8,43 +8,15 @@ import { setRecipeFavorite } from './recipesRepo';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { cardClass } from '../../components/ui/cardClass';
 import { cx } from '../../components/ui/cx';
+import Icon from '../../components/ui/Icon';
 import Tag from '../../components/ui/Tag';
 
-// Teplé, „jídelní" gradienty pro recept bez fotky – ať je seznam jednotný.
-const COVER_GRADIENTS: readonly [string, string][] = [
-  ['#f59e0b', '#b45309'], // amber
-  ['#ea9250', '#a3521c'], // terakota
-  ['#8aa87b', '#4f6b47'], // šalvěj
-  ['#b98a5e', '#6f4518'], // hnědá
-  ['#cf7071', '#8c3b41'], // tlumená červená
-  ['#c9a227', '#7c5e12'], // hořčicová
-];
-
-function gradientFor(name: string): [string, string] {
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) % 9973;
-  return COVER_GRADIENTS[hash % COVER_GRADIENTS.length];
-}
-
-/** Malá dlaždice s písmenem pro recept bez fotky – drží barvu receptu, ale nezabírá místo. */
-function LetterTile({ name }: { name: string }) {
-  const [from, to] = gradientFor(name);
-  const letter = (name.trim()[0] ?? '?').toUpperCase();
-  return (
-    <div
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-      style={{ backgroundImage: `linear-gradient(135deg, ${from}, ${to})` }}
-      aria-hidden
-    >
-      <span className="text-xl font-bold text-white/90">{letter}</span>
-    </div>
-  );
-}
-
 /**
- * Karta receptu v seznamu. S fotkou má obálku, bez fotky je kompaktní (dlaždice s písmenem),
- * ať se na mobil vejde víc receptů. `dimmed` = zůstává vidět matně (mis-tap ve filtru Oblíbené).
- * `cookedAt` (jen při řazení Uvařené) nahradí datum zapsání datem posledního vaření.
+ * Karta receptu v seznamu. Jeden tvar pro všechny recepty: text vlevo (název se zarovná
+ * pod sebe), fotka – když je – jako pruh přes celou výšku vpravo. Recept bez fotky nemá
+ * žádnou náhradní dlaždici: většina receptů je diktovaný text a seznam musí držet rytmus.
+ * `dimmed` = zůstává vidět matně (mis-tap ve filtru Oblíbené). `cookedAt` (jen při řazení
+ * Uvařené) nahradí datum zapsání datem posledního vaření.
  */
 export default function RecipeCard({
   recipe,
@@ -69,56 +41,58 @@ export default function RecipeCard({
   const preview = recipeSnippet(recipe.rawCapture, undefined, query);
   const coverUrl = useObjectUrl(cover);
   const prepTime = recipe.prepMinutes ? formatPrepTime(recipe.prepMinutes) : null;
-
-  const body = (
-    <>
-      <h2 className="truncate font-medium">{recipe.name || '(bez názvu)'}</h2>
-      <p className="mt-0.5 text-xs text-stone-400">
-        {cookedAt === undefined
-          ? showUpdated
-            ? updatedLabel(recipe.updatedAt)
-            : formatRecentDate(recipe.capturedOn)
-          : cookedAt
-            ? `uvařeno ${formatRecentDate(toLocalIsoDate(new Date(cookedAt)))}`
-            : 'neuvařeno'}
-        {prepTime && !coverUrl ? ` · ⏱ ${prepTime}` : ''}
-      </p>
-      {recipe.tags.length > 0 ? (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {recipe.tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
-        </div>
-      ) : null}
-      {preview ? <p className="mt-1.5 line-clamp-2 text-sm text-stone-500">{preview}</p> : null}
-    </>
-  );
+  const dateLabel =
+    cookedAt === undefined
+      ? showUpdated
+        ? updatedLabel(recipe.updatedAt)
+        : formatRecentDate(recipe.capturedOn)
+      : cookedAt
+        ? `uvařeno ${formatRecentDate(toLocalIsoDate(new Date(cookedAt)))}`
+        : 'neuvařeno';
 
   return (
-    <div className={cx('relative transition-opacity', dimmed && 'opacity-50')}>
+    <div className={cx('relative h-full transition-opacity', dimmed && 'opacity-50')}>
       <Link
         to={`/recept/${recipe.id}`}
-        className={cardClass({ padding: 'none', interactive: true, className: 'block overflow-hidden' })}
+        className={cardClass({
+          padding: 'none',
+          interactive: true,
+          className: cx('flex h-full overflow-hidden', coverUrl && 'min-h-24'),
+        })}
       >
-        {coverUrl ? (
-          <>
-            <div className="relative">
-              <img src={coverUrl} alt="" className="h-32 w-full object-cover" loading="lazy" />
-              {prepTime ? (
-                <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white backdrop-blur">
-                  ⏱ {prepTime}
-                </span>
-              ) : null}
-            </div>
-            <div className="p-4">{body}</div>
-          </>
-        ) : (
-          // Pravý okraj nechává místo hvězdičce.
-          <div className="flex gap-3 p-3 pr-12">
-            <LetterTile name={recipe.name || '?'} />
-            <div className="min-w-0 flex-1">{body}</div>
+        {/* Bez fotky nechává pravý okraj místo hvězdičce; s fotkou hvězdička leží na ní. */}
+        <div className={cx('min-w-0 flex-1 py-3.5 pl-4', coverUrl ? 'pr-3' : 'pr-12')}>
+          <h2 className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-tight">
+            {recipe.name || '(bez názvu)'}
+          </h2>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+            {prepTime ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-stone-700 dark:text-stone-200">
+                <Icon name="clock" className="h-3.5 w-3.5" />
+                {prepTime}
+              </span>
+            ) : null}
+            {recipe.tags.map((tag) => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+            <span>{dateLabel}</span>
           </div>
-        )}
+          {preview ? (
+            <p
+              className={cx(
+                'mt-1.5 text-sm text-stone-500 dark:text-stone-400',
+                query.trim() ? 'line-clamp-2' : 'line-clamp-1',
+              )}
+            >
+              {preview}
+            </p>
+          ) : null}
+        </div>
+        {coverUrl ? (
+          <div className="relative w-28 shrink-0">
+            <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+          </div>
+        ) : null}
       </Link>
       <button
         type="button"
@@ -129,17 +103,22 @@ export default function RecipeCard({
         }
         aria-label={recipe.isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
         aria-pressed={recipe.isFavorite}
-        className={cx(
-          'absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none transition active:scale-90 motion-reduce:active:scale-100',
-          coverUrl && 'bg-black/45 backdrop-blur',
-        )}
+        className="group absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 focus-visible:outline-none motion-reduce:active:scale-100"
       >
         <span
-          className={
-            recipe.isFavorite ? 'text-amber-400' : coverUrl ? 'text-white/90' : 'text-stone-400 dark:text-stone-500'
-          }
+          className={cx(
+            'flex h-8 w-8 items-center justify-center rounded-full transition group-focus-visible:ring-2 group-focus-visible:ring-brand/50',
+            coverUrl && 'bg-black/40 backdrop-blur-sm',
+            recipe.isFavorite
+              ? coverUrl
+                ? 'text-amber-400'
+                : 'text-amber-500'
+              : coverUrl
+                ? 'text-white'
+                : 'text-stone-400 group-hover:text-stone-600 dark:text-stone-500 dark:group-hover:text-stone-300',
+          )}
         >
-          {recipe.isFavorite ? '★' : '☆'}
+          <Icon name="star" filled={recipe.isFavorite} className="h-5 w-5" />
         </span>
       </button>
     </div>

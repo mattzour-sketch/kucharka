@@ -16,6 +16,9 @@ import Segmented from '../../components/ui/Segmented';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { PortionNameDatalist } from '../../components/ui/AddPortionInline';
 import { ABSURD_GRAMS, PORTION_DATALIST_ID } from '../../components/ui/portionLabels';
+import Icon from '../../components/ui/Icon';
+import { FIELD, FIELD_SM, SECTION_TITLE, LABEL } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
 
 /** Řádek editoru měr – gramáž je zatím string (může být rozepsaná). */
 interface PortionRow {
@@ -156,22 +159,22 @@ export default function FoodEditScreen() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Název (Rýže dlouhozrnná)"
-          className="w-full border-b border-stone-200 dark:border-stone-700 bg-transparent py-2 text-lg font-medium outline-none placeholder:text-stone-400 focus:border-brand"
+          className="w-full border-b border-stone-200 bg-transparent py-2 text-2xl font-bold tracking-tight outline-none placeholder:font-semibold placeholder:text-stone-400 focus:border-brand dark:border-stone-700 dark:placeholder:text-stone-500 dark:focus:border-brand-light"
         />
         <input
           value={brand}
           onChange={(event) => setBrand(event.target.value)}
           placeholder="Značka (nepovinné)"
-          className="mt-2 w-full bg-transparent py-1.5 text-sm outline-none placeholder:text-stone-400"
+          className={cx(FIELD, 'mt-3 h-10 w-full px-3 text-base')}
         />
         {usedIn > 0 ? (
-          <p className="text-xs text-stone-400">
+          <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
             Použito v {usedIn} {czechPlural(usedIn, ['receptu', 'receptech', 'receptech'])}
           </p>
         ) : null}
 
         <div className="mt-4 flex items-center gap-2 text-sm">
-          <span className="text-stone-500">Hodnoty na 100</span>
+          <span className={LABEL}>Hodnoty na 100</span>
           <Segmented
             value={basis}
             onChange={setBasis}
@@ -196,16 +199,14 @@ export default function FoodEditScreen() {
             value={pieceGrams}
             onChange={setPieceGrams}
           />
-          <p className="mt-1 text-xs text-stone-400">
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
             Umožní zadat surovinu v kusech (1 vejce ≈ 60 g).
           </p>
         </div>
 
         <div className="mt-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-              Domácí míry
-            </span>
+            <span className={SECTION_TITLE}>Domácí míry</span>
             <Button
               role="tint"
               onClick={() => setPortions((prev) => [...prev, { label: '', grams: '' }])}
@@ -213,7 +214,7 @@ export default function FoodEditScreen() {
               + míra
             </Button>
           </div>
-          <p className="mt-1 text-xs text-stone-400">
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
             Např. „lžíce" = 15 g. Pak jde surovinu zadat v mírách místo gramů.
           </p>
           {portions.length > 0 ? (
@@ -229,7 +230,7 @@ export default function FoodEditScreen() {
                         onChange={(event) => setPortionRow(index, { label: event.target.value })}
                         list={PORTION_DATALIST_ID}
                         placeholder="míra (lžíce)"
-                        className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1.5 text-sm outline-none focus:border-brand"
+                        className={cx(FIELD_SM, 'h-10 min-w-0 flex-1 px-3 text-base')}
                       />
                       <input
                         value={row.grams}
@@ -237,20 +238,20 @@ export default function FoodEditScreen() {
                         inputMode="decimal"
                         placeholder="g"
                         aria-label="Gramů na 1 míru"
-                        className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1.5 text-right text-sm outline-none focus:border-brand"
+                        className={cx(FIELD_SM, 'h-10 w-16 px-2 text-right text-base font-semibold tabular-nums')}
                       />
-                      <span className="text-xs text-stone-400">g</span>
+                      <span className="text-xs text-stone-500 dark:text-stone-400">g</span>
                       <IconButton
                         size="sm"
                         tone="danger"
                         onClick={() => setPortions((prev) => prev.filter((_, i) => i !== index))}
                         aria-label="Odebrat míru"
                       >
-                        ×
+                        <Icon name="close" className="h-4 w-4" />
                       </IconButton>
                     </div>
                     {absurd ? (
-                      <p className="pl-1 text-xs text-amber-600">{g} g na jednu míru, fakt?</p>
+                      <p className="pl-1 text-xs font-medium text-amber-700 dark:text-amber-300">{g} g na jednu míru, fakt?</p>
                     ) : null}
                   </li>
                 );
@@ -260,7 +261,7 @@ export default function FoodEditScreen() {
           <PortionNameDatalist />
         </div>
 
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="mt-3 text-sm font-medium text-red-600 dark:text-red-400">{error}</p> : null}
 
         {isEdit ? (
           <div className="mt-8">
@@ -296,13 +297,13 @@ function NumberField({
 }) {
   return (
     <label className="block">
-      <span className="text-xs text-stone-500">{label}</span>
+      <span className={LABEL}>{label}</span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         inputMode="decimal"
         placeholder="0"
-        className="mt-1 w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 outline-none focus:border-brand"
+        className={cx(FIELD, 'mt-1 h-11 w-full px-3 text-base font-semibold tabular-nums')}
       />
     </label>
   );

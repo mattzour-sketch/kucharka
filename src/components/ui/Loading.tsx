@@ -5,7 +5,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       className={cx(
-        'animate-pulse rounded-md bg-stone-200/70 dark:bg-stone-800/70 motion-reduce:animate-none',
+        'animate-pulse rounded-md bg-stone-900/[0.08] dark:bg-white/10 motion-reduce:animate-none',
         className,
       )}
       aria-hidden
@@ -16,14 +16,12 @@ export function Skeleton({ className }: { className?: string }) {
 /** Mřížka karet (Recepty, Hledat). */
 export function RecipeGridSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
       {Array.from({ length: count }, (_, index) => (
-        <li key={index} className="overflow-hidden rounded-2xl border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-          <Skeleton className="h-32 w-full rounded-none" />
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-3 w-full" />
-          </div>
+        <li key={index} className="min-h-24 space-y-2.5 rounded-2xl bg-stone-100 px-4 py-3.5 dark:bg-stone-900">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-3 w-1/3" />
+          <Skeleton className="h-3 w-full" />
         </li>
       ))}
     </ul>
@@ -35,7 +33,7 @@ export function RowsSkeleton({ count = 6 }: { count?: number }) {
   return (
     <ul className="flex flex-col gap-2" aria-hidden>
       {Array.from({ length: count }, (_, index) => (
-        <li key={index} className="rounded-2xl border border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 p-3">
+        <li key={index} className="rounded-2xl bg-stone-100 p-3 dark:bg-stone-900">
           <Skeleton className="h-4 w-1/2" />
         </li>
       ))}

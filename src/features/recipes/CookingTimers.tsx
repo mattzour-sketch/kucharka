@@ -23,13 +23,18 @@ import {
   startStepTimer,
 } from './timerRepo';
 import Button from '../../components/ui/Button';
+import IconButton from '../../components/ui/IconButton';
 import { useUndo } from '../../components/undoContext';
 import { TAB_PATHS } from '../../components/TabLayout';
+import { FIELD } from '../../components/ui/styles';
+import { cx } from '../../components/ui/cx';
+import Icon from '../../components/ui/Icon';
 
 const ROW_CLASS: Record<TimerState, string> = {
-  running: 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900',
-  ringing: 'animate-pulse border-brand bg-amber-50 dark:bg-stone-800',
-  silenced: 'border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900',
+  // Lišta plave nad obsahem → bílá plocha se stínem, ne šedá dlaždice. Zvonící = jantar (pozor).
+  running: 'bg-white ring-1 ring-stone-900/10 dark:bg-stone-800 dark:ring-white/10',
+  ringing: 'animate-pulse bg-amber-100 ring-2 ring-amber-500 dark:bg-amber-900 dark:ring-amber-400',
+  silenced: 'bg-white ring-1 ring-stone-900/10 dark:bg-stone-800 dark:ring-white/10',
 };
 
 /**
@@ -115,18 +120,28 @@ export default function TimerDock() {
         return (
           <li
             key={timer.id}
-            className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 shadow-sm ${ROW_CLASS[state]}`}
+            className={`flex items-center justify-between gap-3 rounded-2xl py-2 pl-4 pr-2 shadow-lg shadow-stone-900/10 ${ROW_CLASS[state]}`}
           >
             <div className="min-w-0">
-              <p className={`truncate text-sm ${state === 'silenced' ? 'text-stone-400' : 'text-stone-500'}`}>
+              <p
+                className={`truncate text-sm ${
+                  state === 'ringing'
+                    ? 'font-medium text-amber-900 dark:text-amber-100'
+                    : 'text-stone-600 dark:text-stone-300'
+                }`}
+              >
                 {timer.label}
               </p>
-              {ago ? <p className="text-xs text-stone-400">Doběhl {ago}</p> : null}
+              {ago ? (
+                <p className={`text-xs ${state === 'ringing' ? 'text-amber-800 dark:text-amber-200' : 'text-stone-500 dark:text-stone-400'}`}>
+                  Doběhl {ago}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {state === 'running' ? (
                 <>
-                  <span className="mr-1 text-xl font-semibold tabular-nums">
+                  <span className="mr-1 text-2xl font-bold tabular-nums tracking-tight">
                     {formatCountdown(Date.parse(timer.endsAt) - now)}
                   </span>
                   <Button role="secondary" onClick={() => cancel(timer)}>
@@ -135,7 +150,7 @@ export default function TimerDock() {
                 </>
               ) : state === 'ringing' ? (
                 <>
-                  <span className="mr-1 text-xl font-semibold text-brand-dark dark:text-amber-400">Hotovo!</span>
+                  <span className="mr-1 text-xl font-bold text-amber-900 dark:text-amber-100">Hotovo!</span>
                   <Button role="secondary" onClick={() => snooze(timer)}>
                     +5 min
                   </Button>
@@ -145,12 +160,12 @@ export default function TimerDock() {
                 </>
               ) : (
                 <>
-                  <span className="mr-1 text-xl font-semibold text-stone-400">Hotovo</span>
+                  <span className="mr-1 text-xl font-bold text-stone-400 dark:text-stone-500">Hotovo</span>
                   {/* „×" není tam, kde bylo „Zastavit": dvojí ťuknutí mokrým prstem nesmí
                       časovač ztlumit a hned smazat. Na místě Zastavit je „+5 min". */}
-                  <Button role="ghost" onClick={() => void removeTimer(timer.id)} aria-label="Odebrat časovač">
-                    ×
-                  </Button>
+                  <IconButton onClick={() => void removeTimer(timer.id)} aria-label="Odebrat časovač">
+                    <Icon name="close" />
+                  </IconButton>
                   <Button role="secondary" onClick={() => snooze(timer)}>
                     +5 min
                   </Button>
@@ -162,7 +177,7 @@ export default function TimerDock() {
       })}
       {/* Web nemá notifikace na pozadí: u čerstvého časovače to krátce říct. */}
       {hasNewTimer(timers, now) ? (
-        <li className="px-3 text-center text-xs text-stone-500 dark:text-stone-400">
+        <li className="self-center rounded-full bg-white/90 px-3 py-0.5 text-center text-xs text-stone-600 backdrop-blur dark:bg-stone-900/90 dark:text-stone-300">
           Zvoní, jen když je Kuchařka otevřená
         </li>
       ) : null}
@@ -178,7 +193,7 @@ export default function TimerDock() {
       <section
         ref={sectionRef}
         aria-label="Časovače"
-        className={`fixed inset-x-0 z-30 px-3 pb-3 pt-1 ${aboveTabs ? 'bottom-14' : 'bottom-0'}`}
+        className={`fixed inset-x-0 z-30 px-3 pb-3 pt-1 ${aboveTabs ? 'bottom-16' : 'bottom-0'}`}
       >
         {list}
       </section>
@@ -225,12 +240,13 @@ export function StepTimerButton({
         setNow(Date.now());
         void startStepTimer(source, label, seconds);
       }}
-      className="rounded bg-brand/10 px-1 font-medium text-brand-dark dark:text-amber-400 underline decoration-dotted underline-offset-2"
+      className="rounded-md bg-brand/10 px-1.5 py-0.5 font-semibold text-brand-dark underline decoration-dotted underline-offset-4 dark:bg-brand-bright/25 dark:text-brand-light"
     >
       {text}
       {active ? (
-        <span className="ml-1.5 whitespace-nowrap text-base tabular-nums no-underline">
-          ⏱ {remaining > 0 ? formatCountdown(remaining) : 'zvoní'}
+        <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap align-baseline text-base tabular-nums">
+          <Icon name="clock" className="h-4 w-4" />
+          {remaining > 0 ? formatCountdown(remaining) : 'zvoní'}
         </span>
       ) : null}
     </button>
@@ -250,7 +266,7 @@ export function AdhocTimerForm() {
   }
 
   return (
-    <div className="mt-8 flex items-center gap-2 text-sm text-stone-500">
+    <div className="mt-8 flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
       <span>Vlastní časovač</span>
       <input
         value={minutes}
@@ -261,7 +277,7 @@ export function AdhocTimerForm() {
         inputMode="decimal"
         placeholder="—"
         aria-label="Minuty"
-        className="w-16 rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-1.5 text-sm outline-none focus:border-brand"
+        className={cx(FIELD, 'h-10 w-16 px-2 text-center text-base font-semibold tabular-nums')}
       />
       <span>min</span>
       <Button role="secondary" onClick={addAdhoc}>

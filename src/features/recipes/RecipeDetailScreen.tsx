@@ -12,6 +12,7 @@ import { ingredientHeadingLabel, isIngredientHeading } from '../../lib/ingredien
 import { formatPrepTime } from '../../lib/prepTime';
 import { originalNoteText, partitionNotes } from '../../lib/originalNote';
 import { buildRecipeText } from '../../lib/shareText';
+import { cookingSteps } from '../../lib/recipeText';
 import LinkedText from '../../components/ui/LinkedText';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { nutritionFromData } from '../nutrition/recipeNutrition';
@@ -35,18 +36,23 @@ import {
 } from './recipeNotesRepo';
 import { useUndo } from '../../components/undoContext';
 import ServingsStepper from './ServingsStepper';
+import IngredientLine from './IngredientLine';
+import { hasAmountColumn } from '../../lib/amountSplit';
 import { recipeListHref } from './listReturn';
 import ScreenHeader from '../../components/ui/ScreenHeader';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
+import Icon, { type IconName } from '../../components/ui/Icon';
 import Tag from '../../components/ui/Tag';
 import Segmented from '../../components/ui/Segmented';
 import FilterChip from '../../components/ui/FilterChip';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { cardClass } from '../../components/ui/cardClass';
+import { cx } from '../../components/ui/cx';
 import { ReadingSkeleton } from '../../components/ui/Loading';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { SECTION_TITLE } from '../../components/ui/styles';
 
 /** Nabídka porcí u receptu bez počtu porcí (víc porcí se nastaví v Upravit). */
 const SERVINGS_CHOICES = [1, 2, 3, 4, 5, 6];
@@ -58,12 +64,12 @@ export default function RecipeDetailScreen() {
   const cameraRef = useRef<HTMLInputElement>(null);
   // Na desktopu je foťák k ničemu (`capture` se ignoruje): jen jedno „Přidat fotku".
   const [isTouch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
-  const photoSources = isTouch
+  const photoSources: { key: string; ref: typeof fileRef; icon: IconName; label: string }[] = isTouch
     ? [
-        { key: 'camera', ref: cameraRef, icon: '📷', label: 'Vyfotit', short: 'Vyfotit' },
-        { key: 'gallery', ref: fileRef, icon: '🖼️', label: 'Z galerie', short: 'Galerie' },
+        { key: 'camera', ref: cameraRef, icon: 'camera', label: 'Vyfotit' },
+        { key: 'gallery', ref: fileRef, icon: 'image', label: 'Z galerie' },
       ]
-    : [{ key: 'gallery', ref: fileRef, icon: '📷', label: 'Přidat fotku', short: 'Fotka' }];
+    : [{ key: 'gallery', ref: fileRef, icon: 'camera', label: 'Přidat fotku' }];
   const [viewingPhotoId, setViewingPhotoId] = useState<string | null>(null);
   useBackToClose(viewingPhotoId !== null, () => setViewingPhotoId(null));
   const [targetServings, setTargetServings] = useState<number | null>(null);
@@ -196,10 +202,19 @@ export default function RecipeDetailScreen() {
   const hasSteps = Boolean(recipe.instructions && recipe.instructions.trim());
   const legacyText = !hasIngredients && !hasSteps ? (recipe.rawCapture ?? '').trim() : '';
   const viewingPhoto = photos.find((photo) => photo.id === viewingPhotoId) ?? null;
+  const steps = cookingSteps(recipe.instructions);
 
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
   const targetPortions = targetServings ?? baseServings;
   const scaleFactor = targetPortions / baseServings;
+
+  // Řádky surovin pro zobrazení: nadpis sekce, nebo text přepočtený na zvolené porce.
+  const ingredientRows = items.map((item) =>
+    isIngredientHeading(item.rawText)
+      ? { id: item.id, heading: ingredientHeadingLabel(item.rawText), text: '' }
+      : { id: item.id, heading: null, text: scaleQuantityText(item.rawText, scaleFactor) },
+  );
+  const amountColumn = hasAmountColumn(ingredientRows.filter((row) => row.heading === null).map((row) => row.text));
 
   async function handleShare() {
     if (!recipe) return;
@@ -243,7 +258,7 @@ export default function RecipeDetailScreen() {
               aria-label={recipe.isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
               aria-pressed={recipe.isFavorite}
             >
-              {recipe.isFavorite ? '★' : '☆'}
+              <Icon name="star" filled={recipe.isFavorite} className="h-6 w-6" />
             </IconButton>
             <Button role="secondary" to={`/recept/${recipe.id}/upravit`}>
               Upravit
@@ -263,55 +278,46 @@ export default function RecipeDetailScreen() {
       />
 
       <main className="mx-auto max-w-2xl px-4 py-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{recipe.name || '(bez názvu)'}</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          {recipeDateLine(
-            recipe.capturedOn,
-            cookLogs.map((log) => log.cookedOn),
-          )}
-          {recipe.prepMinutes ? ` · ⏱ ${formatPrepTime(recipe.prepMinutes)}` : ''}
-        </p>
+        <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight">
+          {recipe.name || '(bez názvu)'}
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm text-stone-500 dark:text-stone-400">
+          {recipe.prepMinutes ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-stone-700 dark:text-stone-200">
+              <Icon name="clock" className="h-4 w-4" />
+              {formatPrepTime(recipe.prepMinutes)}
+            </span>
+          ) : null}
+          {recipe.tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+          <span>
+            {recipeDateLine(
+              recipe.capturedOn,
+              cookLogs.map((log) => log.cookedOn),
+            )}
+          </span>
+        </div>
 
-        {recipe.tags.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {recipe.tags.map((tag) => (
-              <Tag key={tag}>{tag}</Tag>
-            ))}
-          </div>
+        {/* První fotka je tvář receptu (stejná jako v seznamu); další jsou malé náhledy.
+            Přidání fotky je vždy jen malé tlačítko, ať neodsouvá suroviny. */}
+        {photos.length > 0 ? (
+          <PhotoThumb blob={photos[0].blob} hero onClick={() => setViewingPhotoId(photos[0].id)} />
         ) : null}
-
-        {/* Bez fotek jen malé tlačítko – velká prázdná dlaždice odsouvala suroviny dolů. */}
-        <div className={photos.length > 0 ? 'mt-4 flex gap-2 overflow-x-auto pb-1' : 'mt-3 flex flex-wrap gap-2'}>
-          {photos.map((photo) => (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {photos.slice(1).map((photo) => (
             <PhotoThumb
               key={photo.id}
               blob={photo.blob}
               onClick={() => setViewingPhotoId(photo.id)}
             />
           ))}
-          {photoSources.map((source) =>
-            photos.length > 0 ? (
-              <button
-                key={source.key}
-                type="button"
-                onClick={() => source.ref.current?.click()}
-                aria-label={source.label}
-                className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 transition hover:border-brand hover:text-brand dark:text-amber-400"
-              >
-                <span className="text-2xl leading-none">{source.icon}</span>
-                <span className="text-xs">{source.short}</span>
-              </button>
-            ) : (
-              <button
-                key={source.key}
-                type="button"
-                onClick={() => source.ref.current?.click()}
-                className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-500 transition hover:border-brand hover:text-brand dark:border-stone-600 dark:text-stone-400 dark:hover:text-amber-400"
-              >
-                {source.icon} {source.label}
-              </button>
-            ),
-          )}
+          {photoSources.map((source) => (
+            <FilterChip key={source.key} active={false} onClick={() => source.ref.current?.click()}>
+              <Icon name={source.icon} className="-ml-0.5 h-4 w-4" />
+              {source.label}
+            </FilterChip>
+          ))}
           {/* Foťák zvlášť: s `capture` mobil otevře rovnou fotoaparát a galerii nenabídne. */}
           <input
             ref={cameraRef}
@@ -334,13 +340,13 @@ export default function RecipeDetailScreen() {
         {hasIngredients ? (
           <section className="mt-5">
             {nutrition.computable || nutrition.hasCycle ? (
-              <div className="mb-2">
-                <NutritionSummary result={nutrition} />
+              <div className="mb-1">
+                <NutritionSummary result={nutrition} compact />
               </div>
             ) : null}
             <Link
               to={`/recept/${recipe.id}/kalorie`}
-              className="inline-block text-sm font-medium text-brand dark:text-amber-400"
+              className="inline-flex min-h-9 items-center text-sm font-semibold text-brand dark:text-brand-light"
             >
               {nutrition.computable ? 'Upravit kalorie' : 'Spočítat kalorie →'}
             </Link>
@@ -348,11 +354,9 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {hasIngredients ? (
-          <section className="mt-5">
+          <section className="mt-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Suroviny
-              </h2>
+              <h2 className={SECTION_TITLE}>Suroviny</h2>
               {/* Bez zadaných porcí by počítadlo násobilo od 1 – nejdřív „Pro kolik porcí?" dole. */}
               {recipe.servings ? (
                 <ServingsStepper
@@ -364,26 +368,30 @@ export default function RecipeDetailScreen() {
                 />
               ) : null}
             </div>
-            <ul className="mt-2 space-y-1">
-              {items.map((item) =>
-                isIngredientHeading(item.rawText) ? (
+            {/* Navažovací seznam: množství tučně ve vlastním sloupci zarovnané pod sebou,
+                název vedle. Jen zobrazení – text suroviny se nemění (pravidlo 2). */}
+            <ul className="mt-2 text-[17px] leading-snug">
+              {ingredientRows.map((row) =>
+                row.heading !== null ? (
                   <li
-                    key={item.id}
-                    className="pt-3 text-xs font-semibold uppercase tracking-wide text-stone-400 first:pt-0"
+                    key={row.id}
+                    className="pb-1.5 pt-5 text-sm font-semibold text-stone-500 first:pt-1 dark:text-stone-400"
                   >
-                    {ingredientHeadingLabel(item.rawText)}
+                    {row.heading}
                   </li>
                 ) : (
-                  <li key={item.id} className="flex gap-2 leading-relaxed">
-                    <span className="mt-0.5 text-brand dark:text-amber-400">•</span>
-                    <span>{scaleQuantityText(item.rawText, scaleFactor)}</span>
+                  <li
+                    key={row.id}
+                    className="border-t border-stone-200/80 py-2.5 first:border-t-0 dark:border-stone-800"
+                  >
+                    <IngredientLine text={row.text} column={amountColumn} />
                   </li>
                 ),
               )}
             </ul>
             {!recipe.servings ? (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-xs text-stone-400">Pro kolik porcí?</span>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-sm text-stone-500 dark:text-stone-400">Pro kolik porcí?</span>
                 {SERVINGS_CHOICES.map((count) => (
                   <FilterChip key={count} active={false} onClick={() => void handleSetServings(count)}>
                     {count}
@@ -395,11 +403,25 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {hasSteps ? (
-          <section className="mt-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Postup</h2>
-            <p className="mt-2 whitespace-pre-wrap leading-relaxed">
-              <LinkedText text={recipe.instructions ?? ''} />
-            </p>
+          <section className="mt-8">
+            <h2 className={SECTION_TITLE}>Postup</h2>
+            {steps.length > 1 ? (
+              // Kroky číslované stejně jako ve vaření (vlastní „1." z textu se neopakuje).
+              <ol className="mt-3 space-y-3.5 text-[17px] leading-relaxed">
+                {steps.map((step, index) => (
+                  <li key={index} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3">
+                    <span className="font-bold tabular-nums text-brand dark:text-brand-light">{index + 1}</span>
+                    <span>
+                      <LinkedText text={step} />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-2 whitespace-pre-wrap text-[17px] leading-relaxed">
+                <LinkedText text={recipe.instructions ?? ''} />
+              </p>
+            )}
           </section>
         ) : null}
 
@@ -412,11 +434,11 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         {!hasIngredients && !hasSteps && !legacyText ? (
-          <p className="mt-5 text-stone-400">Zatím bez obsahu. Klepni na „Upravit" nebo přidej fotku.</p>
+          <p className="mt-5 text-stone-500 dark:text-stone-400">Zatím bez obsahu. Klepni na „Upravit" nebo přidej fotku.</p>
         ) : null}
 
-        <section className="mt-6">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Poznámky</h2>
+        <section className="mt-8">
+          <h2 className={SECTION_TITLE}>Poznámky</h2>
           <div className="mt-2 flex gap-2">
             <input
               value={noteDraft}
@@ -425,9 +447,9 @@ export default function RecipeDetailScreen() {
                 if (event.key === 'Enter') handleAddNote();
               }}
               placeholder={'poznámka k receptu (např. „příště míň soli")'}
-              className="min-w-0 flex-1 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm outline-none focus:border-brand"
+              className="h-10 min-w-0 flex-1 rounded-xl bg-stone-100 px-3 text-base outline-none placeholder:text-stone-500 focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-stone-900 dark:placeholder:text-stone-400 dark:focus-visible:ring-brand-light/60"
             />
-            <Button role="primary" onClick={handleAddNote}>
+            <Button role="secondary" onClick={handleAddNote}>
               Přidat
             </Button>
           </div>
@@ -442,10 +464,10 @@ export default function RecipeDetailScreen() {
                       onClick={() => void handleDeleteNote(note.id)}
                       aria-label="Smazat poznámku"
                     >
-                      ×
+                      <Icon name="close" className="h-4 w-4" />
                     </IconButton>
                   </div>
-                  <p className="mt-1 text-xs text-stone-400">{formatCzechDate(note.notedOn)}</p>
+                  <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{formatCzechDate(note.notedOn)}</p>
                 </li>
               ))}
             </ul>
@@ -453,9 +475,9 @@ export default function RecipeDetailScreen() {
           {originalNotes.map((note) => (
             <details
               key={note.id}
-              className="mt-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-600 px-3 py-2"
+              className="mt-3 rounded-xl border border-dashed border-stone-300 px-3 py-2 dark:border-stone-700"
             >
-              <summary className="cursor-pointer text-sm text-stone-500">
+              <summary className="cursor-pointer py-1 text-sm text-stone-500 dark:text-stone-400">
                 Originál · {formatCzechDate(note.notedOn)}
               </summary>
               <div className="mt-2 flex items-start justify-between gap-3">
@@ -467,7 +489,7 @@ export default function RecipeDetailScreen() {
                   onClick={() => void handleDeleteNote(note.id, 'Originál smazán')}
                   aria-label="Smazat originál"
                 >
-                  ×
+                  <Icon name="close" className="h-4 w-4" />
                 </IconButton>
               </div>
             </details>
@@ -475,11 +497,9 @@ export default function RecipeDetailScreen() {
         </section>
 
         {cookLogs.length > 0 ? (
-          <section className="mt-6">
+          <section className="mt-8">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Historie vaření
-              </h2>
+              <h2 className={SECTION_TITLE}>Historie vaření</h2>
               {cookLogs.some((log) => Boolean(log.perPortion) && log.portions > 1) ? (
                 <Segmented
                   value={histMode}
@@ -498,7 +518,7 @@ export default function RecipeDetailScreen() {
                 return (
                 <li key={log.id} className={cardClass({ padding: 'panel' })}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-semibold">
                       {formatRecentDate(log.cookedOn)} · {log.portions}{' '}
                       {czechPlural(log.portions, ['porce', 'porce', 'porcí'])}
                     </span>
@@ -507,12 +527,12 @@ export default function RecipeDetailScreen() {
                       onClick={() => void handleDeleteLog(log.id)}
                       aria-label="Smazat záznam"
                     >
-                      ×
+                      <Icon name="close" className="h-4 w-4" />
                     </IconButton>
                   </div>
-                  {log.note ? <p className="mt-1 text-sm text-stone-500">{log.note}</p> : null}
+                  {log.note ? <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{log.note}</p> : null}
                   {log.perPortion ? (
-                    <p className="mt-1 text-sm font-medium text-brand-dark dark:text-amber-400">
+                    <p className="mt-1 text-sm font-semibold tabular-nums">
                       ≈{' '}
                       {formatNumber(
                         histMode === 'cely' ? log.perPortion.kcal * log.portions : log.perPortion.kcal,
@@ -530,8 +550,8 @@ export default function RecipeDetailScreen() {
                           key={index}
                           className={
                             ingredient.off
-                              ? 'text-stone-400 line-through'
-                              : 'text-brand-dark dark:text-amber-400'
+                              ? 'text-stone-400 line-through dark:text-stone-500'
+                              : 'text-brand-dark dark:text-brand-light'
                           }
                         >
                           {ingredient.text}
@@ -541,13 +561,13 @@ export default function RecipeDetailScreen() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-1 text-sm text-stone-500">podle receptu</p>
+                    <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">podle receptu</p>
                   )}
                   {view.canReplay ? (
                     <button
                       type="button"
                       onClick={() => void handleReplay(log)}
-                      className="mt-3 text-sm font-medium text-brand dark:text-amber-400"
+                      className="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-brand dark:text-brand-light"
                     >
                       Uvařit znovu takhle →
                     </button>
@@ -572,9 +592,9 @@ export default function RecipeDetailScreen() {
             </Button>
           ) : null}
         </div>
-        {shareMsg ? <p className="mt-2 text-center text-sm text-brand-dark dark:text-amber-400">{shareMsg}</p> : null}
+        {shareMsg ? <p className="mt-2 text-center text-sm text-stone-600 dark:text-stone-300">{shareMsg}</p> : null}
 
-        <div className="mt-6">
+        <div className="mt-4">
           <Button role="destructive" fullWidth onClick={() => void handleDelete()}>
             Smazat recept
           </Button>
@@ -608,13 +628,16 @@ export default function RecipeDetailScreen() {
   );
 }
 
-function PhotoThumb({ blob, onClick }: { blob: Blob; onClick: () => void }) {
+function PhotoThumb({ blob, hero = false, onClick }: { blob: Blob; hero?: boolean; onClick: () => void }) {
   const url = useObjectUrl(blob);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800"
+      className={cx(
+        'shrink-0 overflow-hidden bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-stone-900',
+        hero ? 'mt-4 block aspect-[16/10] w-full rounded-2xl sm:aspect-[21/9]' : 'h-16 w-16 rounded-xl',
+      )}
     >
       {url ? <img src={url} alt="Fotka receptu" className="h-full w-full object-cover" /> : null}
     </button>

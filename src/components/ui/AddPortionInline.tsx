@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Button from './Button';
 import { parseDecimal } from '../../lib/num';
 import { ABSURD_GRAMS, COMMON_PORTION_LABELS, PORTION_DATALIST_ID } from './portionLabels';
+import { FIELD_SM } from './styles';
+import { cx } from './cx';
 
 /** Sdílený `<datalist>` s běžnými názvy měr. `id` používají inputy přes `list=`. */
 export function PortionNameDatalist() {
@@ -47,7 +49,7 @@ export default function AddPortionInline({
           }}
           list={PORTION_DATALIST_ID}
           placeholder="míra (lžíce)"
-          className="min-w-0 flex-1 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-sm outline-none focus:border-brand"
+          className={cx(FIELD_SM, 'h-9 min-w-0 flex-1 px-2 text-sm')}
         />
         <input
           value={grams}
@@ -57,7 +59,7 @@ export default function AddPortionInline({
           }}
           inputMode="decimal"
           placeholder="g"
-          className="w-16 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-1 text-right text-sm outline-none focus:border-brand"
+          className={cx(FIELD_SM, 'h-9 w-16 px-2 text-right text-sm tabular-nums')}
           aria-label="Gramů na 1 míru"
         />
         <Button role="tint" onClick={submit} disabled={!valid}>
@@ -68,7 +70,7 @@ export default function AddPortionInline({
         </Button>
       </div>
       {absurd ? (
-        <p className="text-xs text-amber-600 dark:text-amber-400">{parsedGrams} g na jednu míru, fakt?</p>
+        <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{parsedGrams} g na jednu míru, fakt?</p>
       ) : null}
       <PortionNameDatalist />
     </div>
